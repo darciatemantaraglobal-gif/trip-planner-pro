@@ -290,10 +290,10 @@ export default function Calculator() {
     : "";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="calculator-compact max-w-3xl mx-auto space-y-5">
 
       {/* Page title */}
-      <div>
+      <div className="calculator-page-title">
         <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
           <CalcIcon strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
           Kalkulator Paket Trip
@@ -303,15 +303,15 @@ export default function Calculator() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card">
+      <div className="calculator-card rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card">
         <div
-          className="px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
+          className="calculator-card-header px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
           style={{ background: "linear-gradient(135deg, #7a5a1a, #b5862b)" }}
         >
           GENERATOR PENAWARAN SEPERTI CONTOH PDF
         </div>
 
-        <div className="p-4 md:p-6 space-y-4">
+        <div className="calculator-card-body p-4 md:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="flex items-center gap-2">
               <Label className="shrink-0 w-20 text-[12px] font-semibold">No.</Label>
@@ -368,7 +368,7 @@ export default function Calculator() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
+          <div className="calculator-price-table overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
             <table className="w-full min-w-[620px] text-sm">
               <thead className="bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
                 <tr>
@@ -405,7 +405,7 @@ export default function Calculator() {
               <textarea
                 value={offer.included.join("\n")}
                 onChange={(e) => setOfferList("included", e.target.value)}
-                className="min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+                className="calculator-textarea min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
               />
             </div>
             <div className="space-y-1.5">
@@ -413,7 +413,7 @@ export default function Calculator() {
               <textarea
                 value={offer.excluded.join("\n")}
                 onChange={(e) => setOfferList("excluded", e.target.value)}
-                className="min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+                className="calculator-textarea min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
               />
             </div>
           </div>
@@ -440,17 +440,17 @@ export default function Calculator() {
       </div>
 
       {/* Form card */}
-      <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card">
+      <div className="calculator-card rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card">
 
         {/* Form header */}
         <div
-          className="px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
+          className="calculator-card-header px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
           style={{ background: "linear-gradient(135deg, #7a5a1a, #b5862b)" }}
         >
           FORM PAKET UMRAH MANDIRI IGH
         </div>
 
-        <div className="p-4 md:p-6 space-y-4">
+        <div className="calculator-card-body p-4 md:p-6 space-y-4">
 
           {/* Nama Paket + Pax + Currency */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-[hsl(var(--border))]">
@@ -675,13 +675,13 @@ export default function Calculator() {
       </div>
 
       {/* Summary card */}
-      <div className="rounded-2xl border border-[hsl(var(--border))] bg-white shadow-card overflow-hidden">
-        <div className="px-6 py-3 border-b border-[hsl(var(--border))] flex items-center gap-2">
+      <div className="calculator-card rounded-2xl border border-[hsl(var(--border))] bg-white shadow-card overflow-hidden">
+        <div className="calculator-card-header px-6 py-3 border-b border-[hsl(var(--border))] flex items-center gap-2">
           <Hotel strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))]" />
           <span className="font-semibold text-[14px] text-[hsl(var(--foreground))]">Ringkasan Biaya</span>
         </div>
 
-        <div className="p-4 md:p-6 grid md:grid-cols-2 gap-6">
+        <div className="calculator-card-body p-4 md:p-6 grid md:grid-cols-2 gap-6">
           {/* Breakdown list */}
           <div className="space-y-2">
             {[

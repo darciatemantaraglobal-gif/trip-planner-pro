@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Plane } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +38,9 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>PDF Preview</DialogTitle>
+          <DialogDescription className="sr-only">
+            Pratinjau penawaran sebelum diunduh sebagai PDF.
+          </DialogDescription>
         </DialogHeader>
 
         {offer ? (

@@ -74,7 +74,7 @@ Documents are stored as base64 in localStorage (max ~5 MB per file).
 - **Sidebar**: Custom narrow 72px icon-only dark sidebar
 - **Content card**: White `rounded-3xl` with `content-light` CSS class (resets variables to light mode)
 - **Theme**: Pink/rose accent for active states, buttons, highlights
-- **Mobile layout**: Compact spacing, shorter header/bottom navigation, smaller cards and controls under 640px
+- **Mobile layout**: Compact spacing, shorter header/bottom navigation, smaller cards and controls under 640px; calculator has extra mobile compaction for dense forms and offer tables
 
 ## Key CSS Classes
 
