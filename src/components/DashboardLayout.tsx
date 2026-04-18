@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
-import { Search, SlidersHorizontal, Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings } from "lucide-react";
+import { Search, SlidersHorizontal, Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 const bottomNavItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
   { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
   { title: "Paket", url: "/packages", icon: Package, end: false },
   { title: "Progress", url: "/progress", icon: GitBranch, end: false },
+  { title: "PDF", url: "/pdf-generator", icon: FileText, end: false },
   { title: "Pengaturan", url: "/settings", icon: Settings, end: false },
 ];
 
@@ -30,9 +32,13 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
   };
 
   return (
-    <div
+    <motion.div
       className="mobile-compact min-h-screen md:p-3 lg:p-5"
       style={{ background: "hsl(var(--background))" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
     >
       {/* App card */}
       <div
@@ -44,7 +50,12 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
         {/* Right of sidebar */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Top header */}
-          <header className="flex items-center gap-1.5 md:gap-3 px-2.5 md:px-6 py-2 md:py-4 border-b border-[hsl(var(--border))] shrink-0">
+          <motion.header
+            className="flex items-center gap-1.5 md:gap-3 px-2.5 md:px-6 py-2 md:py-4 border-b border-[hsl(var(--border))] shrink-0"
+            initial={{ y: -16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          >
             {/* Mobile hamburger */}
             <button
               className="md:hidden h-8 w-8 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] shrink-0"
@@ -90,22 +101,27 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                 <div className="text-[11px] text-[hsl(var(--muted-foreground))]">igh@tour.id</div>
               </div>
             </div>
-          </header>
+          </motion.header>
 
           {/* Page content */}
-          <main className={noPadding
-            ? "flex-1 overflow-auto pb-16 md:pb-0"
-            : "flex-1 overflow-auto p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
-          }>
+          <motion.main
+            className={noPadding
+              ? "flex-1 overflow-auto pb-16 md:pb-0"
+              : "flex-1 overflow-auto p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
+            }
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+          >
             {children}
-          </main>
+          </motion.main>
         </div>
       </div>
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[hsl(var(--border))] px-1">
         <div className="flex items-center">
-          {bottomNavItems.map((item) => {
+          {bottomNavItems.map((item, i) => {
             const isActive = activeCheck(item.url, item.end);
             return (
               <NavLink
@@ -117,18 +133,23 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                   isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
                 )}
               >
-                <div className={cn(
-                  "h-7 w-7 flex items-center justify-center rounded-lg transition-smooth",
-                  isActive ? "bg-[hsl(var(--accent))]" : ""
-                )}>
+                <motion.div
+                  className={cn(
+                    "h-7 w-7 flex items-center justify-center rounded-lg transition-smooth",
+                    isActive ? "bg-[hsl(var(--accent))]" : ""
+                  )}
+                  whileTap={{ scale: 0.85 }}
+                  animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                >
                   <item.icon strokeWidth={1.5} className="h-4 w-4" />
-                </div>
+                </motion.div>
                 <span className="text-[9.5px] font-medium leading-none">{item.title}</span>
               </NavLink>
             );
           })}
         </div>
       </nav>
-    </div>
+    </motion.div>
   );
 }

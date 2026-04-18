@@ -7,7 +7,6 @@ import { Slider } from "@/components/ui/slider";
 import { FileText, Calculator as CalcIcon, Hotel, Plane, Bus, Ship, Train, Car } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
-import type { LandArrangementOfferData, OfferPriceRow } from "@/lib/generatePdf";
 
 const TRANSPORT_OPTIONS = [
   { value: "pesawat", label: "Pesawat", icon: Plane },
@@ -77,36 +76,6 @@ const initForm: FormState = {
   margin: 10,
 };
 
-const defaultOfferRows: OfferPriceRow[] = Array.from({ length: 5 }, () => ({
-  paxRange: "",
-  quad: 0,
-  triple: 0,
-  double: 0,
-}));
-
-const defaultOffer: LandArrangementOfferData = {
-  quoteNumber: "",
-  tier: "",
-  title: "",
-  subtitle: "",
-  dateRange: "",
-  customerName: "",
-  hotelMakkah: "",
-  hotelMadinah: "",
-  makkahNights: 0,
-  madinahNights: 0,
-  makkahStars: 5,
-  madinahStars: 5,
-  usdToSar: 3.75,
-  updateDate: "",
-  rows: defaultOfferRows,
-  included: [],
-  excluded: [],
-  website: "",
-  contactPhone: "",
-  contactName: "",
-};
-
 function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">{children}</div>;
 }
@@ -159,9 +128,6 @@ function NumInput({
 export default function Calculator() {
   const rates = useRatesStore((s) => s.rates);
   const [form, setForm] = useState<FormState>(initForm);
-  const [offer, setOffer] = useState<LandArrangementOfferData>(defaultOffer);
-  const [offerCurrency, setOfferCurrency] = useState<"SAR" | "USD" | "IDR">("SAR");
-  const [pdfMode, setPdfMode] = useState<"offer" | "cost">("offer");
   const [pdfOpen, setPdfOpen] = useState(false);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -173,21 +139,6 @@ export default function Calculator() {
       t[i] = { ...t[i], [field]: value };
       return { ...f, transports: t };
     });
-
-  const setOfferField = <K extends keyof LandArrangementOfferData>(key: K, value: LandArrangementOfferData[K]) =>
-    setOffer((current) => ({ ...current, [key]: value }));
-
-  const setOfferRow = (index: number, field: keyof OfferPriceRow, value: string | number) =>
-    setOffer((current) => ({
-      ...current,
-      rows: current.rows.map((row, i) => i === index ? { ...row, [field]: value } : row),
-    }));
-
-  const setOfferList = (key: "included" | "excluded", value: string) =>
-    setOffer((current) => ({
-      ...current,
-      [key]: value.split("\n").map((line) => line.trim()).filter(Boolean),
-    }));
 
   const effectiveRate = form.currency === "IDR"
     ? 1
@@ -265,7 +216,6 @@ export default function Calculator() {
   ];
 
   const autoRate = form.currency !== "IDR" ? (rates[form.currency as "SAR" | "USD"] ?? 0) : 0;
-  const offerAutoRate = offerCurrency !== "IDR" ? (rates[offerCurrency as "SAR" | "USD"] ?? 0) : 0;
 
   return (
     <div className="calculator-compact max-w-3xl mx-auto space-y-5">
@@ -281,173 +231,6 @@ export default function Calculator() {
         </p>
       </div>
 
-      <div className="calculator-card rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card">
-        <div
-          className="calculator-card-header px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
-          style={{ background: "linear-gradient(135deg, #7a5a1a, #b5862b)" }}
-        >
-          Generator PDF
-        </div>
-
-        <div className="calculator-card-body p-4 md:p-6 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">No.</Label>
-              <Input value={offer.quoteNumber} onChange={(e) => setOfferField("quoteNumber", e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Tipe</Label>
-              <Input value={offer.tier} onChange={(e) => setOfferField("tier", e.target.value)} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1 col-span-2 sm:col-span-1">
-              <Label className="text-[12px] font-semibold">Customer</Label>
-              <Input value={offer.customerName} onChange={(e) => setOfferField("customerName", e.target.value)} className="h-9 text-sm" />
-            </div>
-          </div>
-
-          <FormField label="Judul Penawaran">
-            <Input value={offer.title} onChange={(e) => setOfferField("title", e.target.value)} className="h-9 text-sm" />
-          </FormField>
-
-          <FieldRow>
-            <FormField label="Program">
-              <Input value={offer.subtitle} onChange={(e) => setOfferField("subtitle", e.target.value)} className="h-9 text-sm" />
-            </FormField>
-            <FormField label="Periode">
-              <Input value={offer.dateRange} onChange={(e) => setOfferField("dateRange", e.target.value)} className="h-9 text-sm" />
-            </FormField>
-          </FieldRow>
-
-          <FieldRow>
-            <FormField label="Penginapan 1">
-              <Input value={offer.hotelMakkah} onChange={(e) => setOfferField("hotelMakkah", e.target.value)} className="h-9 text-sm" placeholder="Nama hotel / penginapan" />
-            </FormField>
-            <FormField label="Penginapan 2">
-              <Input value={offer.hotelMadinah} onChange={(e) => setOfferField("hotelMadinah", e.target.value)} className="h-9 text-sm" placeholder="Nama hotel / penginapan (opsional)" />
-            </FormField>
-          </FieldRow>
-
-          <div className={`grid gap-3 grid-cols-2 ${offerCurrency !== "IDR" ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Malam Penginapan 1</Label>
-              <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Malam Penginapan 2</Label>
-              <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between gap-1">
-                <Label className="text-[12px] font-semibold">
-                  {offerCurrency !== "IDR" ? `Kurs ${offerCurrency} → IDR` : "Mata Uang"}
-                </Label>
-                <div className="flex gap-1">
-                  {(["SAR", "USD", "IDR"] as const).map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => { setOfferCurrency(c); setOfferField("usdToSar", 0); }}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors ${offerCurrency === c ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]" : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"}`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {offerCurrency !== "IDR" ? (
-                <Input
-                  type="number" min={0}
-                  placeholder={offerAutoRate > 0 ? offerAutoRate.toLocaleString("id-ID") : "cth: 4350"}
-                  value={offer.usdToSar || ""}
-                  onChange={(e) => setOfferField("usdToSar", Number(e.target.value))}
-                  className="h-9 text-sm"
-                />
-              ) : (
-                <div className="h-9 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] flex items-center px-3 text-sm text-[hsl(var(--muted-foreground))]">
-                  Tidak ada konversi
-                </div>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Tgl. Update</Label>
-              <Input value={offer.updateDate} onChange={(e) => setOfferField("updateDate", e.target.value)} className="h-9 text-sm" />
-            </div>
-          </div>
-
-          <div className="calculator-price-table overflow-x-auto rounded-xl border border-[hsl(var(--border))]">
-            <table className="w-full min-w-[620px] text-sm">
-              <thead className="bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
-                <tr>
-                  <th className="px-3 py-2 text-left">Total Pax</th>
-                  <th className="px-3 py-2 text-left">Quad</th>
-                  <th className="px-3 py-2 text-left">Triple</th>
-                  <th className="px-3 py-2 text-left">Double</th>
-                </tr>
-              </thead>
-              <tbody>
-                {offer.rows.map((row, i) => (
-                  <tr key={i} className="border-t border-[hsl(var(--border))]">
-                    <td className="px-2 py-1.5">
-                      <Input value={row.paxRange} onChange={(e) => setOfferRow(i, "paxRange", e.target.value)} className="h-8 text-xs" />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Input type="number" value={row.quad || ""} onChange={(e) => setOfferRow(i, "quad", Number(e.target.value))} className="h-8 text-xs" />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Input type="number" value={row.triple || ""} onChange={(e) => setOfferRow(i, "triple", Number(e.target.value))} className="h-8 text-xs" />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Input type="number" value={row.double || ""} onChange={(e) => setOfferRow(i, "double", Number(e.target.value))} className="h-8 text-xs" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-semibold">Harga Sudah Termasuk</Label>
-              <textarea
-                value={offer.included.join("\n")}
-                onChange={(e) => setOfferList("included", e.target.value)}
-                placeholder={"Tulis satu item per baris\ncth: Akomodasi hotel sesuai program.\ncth: Makan fullboard."}
-                className="calculator-textarea min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-semibold">Harga Tidak Termasuk</Label>
-              <textarea
-                value={offer.excluded.join("\n")}
-                onChange={(e) => setOfferList("excluded", e.target.value)}
-                placeholder={"Tulis satu item per baris\ncth: Tiket pesawat.\ncth: Asuransi perjalanan."}
-                className="calculator-textarea min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input value={offer.website} onChange={(e) => setOfferField("website", e.target.value)} className="h-9 text-sm" placeholder="Website" />
-            <Input value={offer.contactPhone} onChange={(e) => setOfferField("contactPhone", e.target.value)} className="h-9 text-sm" placeholder="Nomor kontak" />
-            <Input value={offer.contactName} onChange={(e) => setOfferField("contactName", e.target.value)} className="h-9 text-sm" placeholder="Nama kontak" />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              className="flex-1 gradient-primary text-white shadow-glow hover:opacity-90 h-11 rounded-xl font-semibold"
-              onClick={() => { setPdfMode("offer"); setPdfOpen(true); }}
-            >
-              <FileText strokeWidth={1.5} className="h-4 w-4 mr-2" />
-              Preview & Export PDF Penawaran
-            </Button>
-            <Button variant="outline" className="sm:w-36 h-11 rounded-xl" onClick={() => setOffer(defaultOffer)}>
-              Reset
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Form card */}
       <div className="calculator-card rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card">
 
         {/* Form header */}
@@ -766,7 +549,7 @@ export default function Calculator() {
 
             <Button
               className="w-full gradient-primary text-white shadow-glow hover:opacity-90 h-11 rounded-xl font-semibold"
-              onClick={() => { setPdfMode("cost"); setPdfOpen(true); }}
+              onClick={() => setPdfOpen(true)}
               disabled={summary.total === 0}
             >
               <FileText strokeWidth={1.5} className="h-4 w-4 mr-2" />
@@ -795,7 +578,6 @@ export default function Calculator() {
           costs: pdfCosts,
           total: summary.total,
           perPerson: summary.perPerson,
-          offer: pdfMode === "offer" ? offer : undefined,
         }}
       />
     </div>

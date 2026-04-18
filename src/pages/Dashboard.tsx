@@ -11,6 +11,21 @@ import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.32, delay: i * 0.06, ease: [0.4, 0, 0.2, 1] },
+  }),
+};
+
+const stagger = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07 } },
+};
 
 function getTotalJamaah(): number {
   try {
@@ -155,9 +170,13 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
   };
 
   return (
-    <div
-      className="group relative rounded-xl md:rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200 border border-[hsl(var(--border))] bg-white"
+    <motion.div
+      className="group relative rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-[hsl(var(--border))] bg-white"
       onClick={() => navigate(`/trips/${trip.id}`)}
+      variants={fadeUp}
+      whileHover={{ y: -4, boxShadow: "0 12px 32px -8px hsl(27 91% 54% / 0.18)" }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
     >
       {/* Cover area */}
       <div
@@ -221,7 +240,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
           <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -461,17 +480,26 @@ export default function Dashboard() {
       <div className="flex-1 overflow-auto min-w-0 p-3 md:p-6 lg:p-8">
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5">
+        <motion.div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
+          variants={stagger}
+          initial="hidden"
+          animate="visible"
+        >
           {[
             { icon: Plane, label: "Total Paket", value: trips.length, color: "text-violet-500", bg: "bg-violet-50", onClick: () => {} },
             { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, color: "text-blue-500", bg: "bg-blue-50", onClick: () => setTab("upcoming") },
             { icon: CheckCircle, label: "Selesai", value: doneTrips, color: "text-emerald-500", bg: "bg-emerald-50", onClick: () => setTab("done") },
             { icon: Users, label: "Total Jamaah", value: totalJamaah, color: "text-amber-500", bg: "bg-amber-50", onClick: () => {} },
           ].map((stat) => (
-            <button
+            <motion.button
               key={stat.label}
               onClick={stat.onClick}
-              className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left"
+              className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-colors text-left"
+              variants={fadeUp}
+              whileHover={{ scale: 1.025, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.18 }}
             >
               <div className={cn("h-7 w-7 md:h-9 md:w-9 rounded-lg md:rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
                 <stat.icon strokeWidth={1.5} className={cn("h-3.5 w-3.5 md:h-4 md:w-4", stat.color)} />
@@ -480,29 +508,38 @@ export default function Dashboard() {
                 <p className="text-[16px] md:text-[20px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
                 <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{stat.label}</p>
               </div>
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
         {/* ── Kalkulator & Laporan shortcut bar ── */}
-        <div className="grid grid-cols-2 gap-2 mb-3.5 md:gap-2.5 md:mb-5">
-          <button
+        <motion.div
+          className="grid grid-cols-2 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.22, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <motion.button
             onClick={() => navigate("/calculator")}
-            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors group"
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.97 }}
           >
             <Calculator strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Buka Kalkulator</span>
             <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors ml-auto shrink-0" />
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             onClick={() => navigate("/progress")}
-            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors group"
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.97 }}
           >
             <FileBarChart strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Laporan Progress</span>
             <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors ml-auto shrink-0" />
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
 
         {/* Section header */}
         <div className="flex items-center justify-between gap-2.5 mb-3 md:gap-3 md:mb-4">
