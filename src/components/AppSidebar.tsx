@@ -15,13 +15,13 @@ const navItems = [
 const sidebarVariants = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
+    transition: { staggerChildren: 0.04, delayChildren: 0.05 },
   },
 };
 
 const navItemVariants = {
-  hidden: { opacity: 0, x: -14 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] } },
+  hidden: { opacity: 0, x: -8 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.25, ease: "easeOut" } },
 };
 
 interface AppSidebarProps {
@@ -46,9 +46,9 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
       {/* Logo */}
       <motion.div
         className="px-6 mb-8 flex items-center justify-between"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
       >
         <div className="flex items-center gap-3">
           <img

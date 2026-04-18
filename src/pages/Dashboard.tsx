@@ -14,17 +14,17 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 8 },
   visible: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.32, delay: i * 0.06, ease: [0.4, 0, 0.2, 1] },
+    transition: { duration: 0.3, delay: i * 0.04, ease: "easeOut" },
   }),
 };
 
 const stagger = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  visible: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
 };
 
 function getTotalJamaah(): number {
@@ -174,9 +174,9 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
       className="group relative rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-[hsl(var(--border))] bg-white"
       onClick={() => navigate(`/trips/${trip.id}`)}
       variants={fadeUp}
-      whileHover={{ y: -4, boxShadow: "0 12px 32px -8px hsl(27 91% 54% / 0.18)" }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+      whileHover={{ y: -3, boxShadow: "0 10px 28px -6px hsl(27 91% 54% / 0.14)" }}
+      whileTap={{ scale: 0.99 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
     >
       {/* Cover area */}
       <div
@@ -497,9 +497,9 @@ export default function Dashboard() {
               onClick={stat.onClick}
               className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-colors text-left"
               variants={fadeUp}
-              whileHover={{ scale: 1.025, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ duration: 0.18 }}
+              whileHover={{ scale: 1.015, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <div className={cn("h-7 w-7 md:h-9 md:w-9 rounded-lg md:rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
                 <stat.icon strokeWidth={1.5} className={cn("h-3.5 w-3.5 md:h-4 md:w-4", stat.color)} />
@@ -515,15 +515,15 @@ export default function Dashboard() {
         {/* ── Kalkulator & Laporan shortcut bar ── */}
         <motion.div
           className="grid grid-cols-2 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          transition={{ duration: 0.3, delay: 0.15, ease: "easeOut" }}
         >
           <motion.button
             onClick={() => navigate("/calculator")}
             className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors group"
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.015, y: -1 }}
+            whileTap={{ scale: 0.98 }}
           >
             <Calculator strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Buka Kalkulator</span>
@@ -532,8 +532,8 @@ export default function Dashboard() {
           <motion.button
             onClick={() => navigate("/progress")}
             className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors group"
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.015, y: -1 }}
+            whileTap={{ scale: 0.98 }}
           >
             <FileBarChart strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Laporan Progress</span>
