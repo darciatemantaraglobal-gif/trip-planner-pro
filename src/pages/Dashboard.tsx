@@ -1,165 +1,293 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Package, DollarSign, Users, TrendingUp, ArrowUpRight, MapPin, Plus } from "lucide-react";
-import { CurrencyExchangeCard } from "@/components/CurrencyExchangeCard";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, MapPin, Calendar, Users, Trash2, Plane } from "lucide-react";
+import { useTripsStore, type Trip } from "@/store/tripsStore";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-const stats = [
-  { label: "Active Packages", value: "24", change: "+12%", icon: Package, gradient: "from-[hsl(344_70%_75%)] to-[hsl(320_70%_72%)]", glow: "shadow-[0_8px_24px_hsl(344_70%_75%/0.35)]" },
-  { label: "Revenue (IDR)", value: "Rp 482M", change: "+18%", icon: DollarSign, gradient: "from-emerald-400 to-teal-500", glow: "shadow-[0_8px_24px_hsl(160_60%_45%/0.35)]" },
-  { label: "Travelers", value: "1,284", change: "+7%", icon: Users, gradient: "from-amber-400 to-orange-500", glow: "shadow-[0_8px_24px_hsl(38_92%_50%/0.35)]" },
-  { label: "Conversion", value: "68%", change: "+4%", icon: TrendingUp, gradient: "from-violet-500 to-fuchsia-400", glow: "shadow-[0_8px_24px_hsl(270_60%_60%/0.35)]" },
+const EMOJIS = ["🕌", "🌴", "🗼", "🏝️", "🏔️", "🌸", "🌍", "✈️", "🛕", "🏖️", "🌺", "🎑"];
+
+const GRADIENTS = [
+  "from-rose-400 to-pink-500",
+  "from-violet-400 to-purple-500",
+  "from-sky-400 to-blue-500",
+  "from-emerald-400 to-teal-500",
+  "from-amber-400 to-orange-500",
+  "from-fuchsia-400 to-pink-500",
+  "from-cyan-400 to-sky-500",
+  "from-lime-400 to-green-500",
 ];
 
-const recentPackages = [
-  { name: "Bali Paradise 5D", destination: "Bali, Indonesia", people: 4, total: "Rp 48,500,000", status: "Confirmed" },
-  { name: "Umrah Premium 12D", destination: "Mecca, Saudi Arabia", people: 2, total: "Rp 92,000,000", status: "Paid" },
-  { name: "Tokyo Discovery 7D", destination: "Tokyo, Japan", people: 3, total: "Rp 64,200,000", status: "Calculated" },
-  { name: "European Tour 10D", destination: "Paris, France", people: 6, total: "Rp 156,000,000", status: "Draft" },
-  { name: "Maldives Honeymoon", destination: "Malé, Maldives", people: 2, total: "Rp 38,750,000", status: "Completed" },
-];
+function cardGradient(id: string) {
+  let hash = 0;
+  for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff;
+  return GRADIENTS[hash % GRADIENTS.length];
+}
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  Draft: { label: "Draft", className: "bg-gray-100 text-gray-600 border-0" },
-  Calculated: { label: "Calculated", className: "bg-[hsl(344_70%_96%)] text-[hsl(344_60%_45%)] border-0" },
-  Confirmed: { label: "Confirmed", className: "bg-amber-50 text-amber-600 border-0" },
-  Paid: { label: "Paid", className: "bg-emerald-50 text-emerald-600 border-0" },
-  Completed: { label: "Completed", className: "bg-teal-50 text-teal-600 border-0" },
-};
+function formatDate(iso: string) {
+  if (!iso) return "—";
+  return new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
 
-export default function Dashboard() {
+function nightCount(start: string, end: string) {
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  const days = Math.round(diff / 86400000);
+  return days > 0 ? `${days} hari` : "—";
+}
+
+// ── ADD TRIP DIALOG ────────────────────────────────────────────────────────────
+function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const addTrip = useTripsStore((s) => s.addTrip);
+  const [form, setForm] = useState({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌" });
+  const [loading, setLoading] = useState(false);
+
+  const reset = () => setForm({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌" });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.destination || !form.startDate || !form.endDate) {
+      toast.error("Harap lengkapi semua field.");
+      return;
+    }
+    setLoading(true);
+    await addTrip(form);
+    toast.success(`Paket "${form.name}" berhasil ditambahkan.`);
+    setLoading(false);
+    reset();
+    onClose();
+  };
+
   return (
-    <div className="space-y-7">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
+      <DialogContent className="content-light max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[hsl(var(--card-foreground))]">Tambah Paket Trip</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {/* Emoji picker */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Ikon</Label>
+            <div className="flex flex-wrap gap-2">
+              {EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, emoji: e }))}
+                  className={cn(
+                    "h-9 w-9 rounded-xl text-xl flex items-center justify-center border-2 transition-all",
+                    form.emoji === e
+                      ? "border-[hsl(var(--primary))] bg-[hsl(var(--accent))]"
+                      : "border-[hsl(var(--border))] hover:border-[hsl(var(--primary))/50]"
+                  )}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="t-name" className="text-xs text-[hsl(var(--muted-foreground))]">Nama Paket</Label>
+            <Input id="t-name" placeholder="cth: Umrah Ramadhan 2025" value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="t-dest" className="text-xs text-[hsl(var(--muted-foreground))]">Destinasi</Label>
+            <Input id="t-dest" placeholder="cth: Mecca, Saudi Arabia" value={form.destination}
+              onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="t-start" className="text-xs text-[hsl(var(--muted-foreground))]">Tanggal Berangkat</Label>
+              <Input id="t-start" type="date" value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-end" className="text-xs text-[hsl(var(--muted-foreground))]">Tanggal Pulang</Label>
+              <Input id="t-end" type="date" value={form.endDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>Batal</Button>
+            <Button type="submit" disabled={loading} className="gradient-primary text-white shadow-glow hover:opacity-90">
+              {loading ? "Menyimpan…" : "Simpan Paket"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── TRIP CARD ──────────────────────────────────────────────────────────────────
+function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void }) {
+  const navigate = useNavigate();
+  const grad = cardGradient(trip.id);
+
+  return (
+    <div
+      className="group relative rounded-2xl overflow-hidden border border-[hsl(var(--border))] bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 cursor-pointer"
+      onClick={() => navigate(`/trips/${trip.id}`)}
+      data-testid={`card-trip-${trip.id}`}
+    >
+      {/* Header gradient */}
+      <div className={`relative h-36 bg-gradient-to-br ${grad} flex items-center justify-center`}>
+        <span className="text-6xl drop-shadow-md select-none">{trip.emoji}</span>
+        {/* Delete button */}
+        <button
+          className="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/20 backdrop-blur hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+          onClick={(e) => { e.stopPropagation(); onDelete(trip); }}
+          data-testid={`btn-delete-trip-${trip.id}`}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-white" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-4 space-y-3">
+        <div>
+          <h3 className="font-semibold text-sm text-[hsl(var(--card-foreground))] line-clamp-1">{trip.name}</h3>
+          <div className="flex items-center gap-1 mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="line-clamp-1">{trip.destination}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+          <Calendar className="h-3 w-3 shrink-0" />
+          <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
+        </div>
+
+        <div className="flex items-center justify-between pt-1 border-t border-[hsl(var(--border))]">
+          <span className="text-xs font-medium text-[hsl(var(--primary))]">
+            {nightCount(trip.startDate, trip.endDate)}
+          </span>
+          <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
+            <Plane className="h-3 w-3" />
+            <span>Lihat Detail →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────────
+export default function Dashboard() {
+  const { trips, loadingTrips, fetchTrips, removeTrip } = useTripsStore();
+  const [addOpen, setAddOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
+
+  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    await removeTrip(deleteTarget.id);
+    toast.success(`Paket "${deleteTarget.name}" dihapus.`);
+    setDeleteTarget(null);
+  };
+
+  return (
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--card-foreground))]">
-            Good morning, Travel Agent 👋
+            Paket Trip
           </h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-            Here's your travel business overview for today.
+          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+            Kelola paket perjalanan dan data jamaah.
           </p>
         </div>
-        <Button className="gradient-primary text-white shadow-glow hover:opacity-90 transition-smooth rounded-xl h-10 px-5 text-sm font-semibold">
+        <Button
+          onClick={() => setAddOpen(true)}
+          className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-10 px-5 text-sm font-semibold"
+          data-testid="btn-add-trip"
+        >
           <Plus className="h-4 w-4 mr-2" />
-          New Package
+          Tambah Paket Trip
         </Button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="relative overflow-hidden rounded-2xl bg-white border border-[hsl(var(--border))] p-5 hover:shadow-md transition-smooth group"
+      {/* Grid */}
+      {loadingTrips ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden animate-pulse">
+              <div className="h-36 bg-[hsl(var(--secondary))]" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-[hsl(var(--secondary))] rounded w-3/4" />
+                <div className="h-3 bg-[hsl(var(--secondary))] rounded w-1/2" />
+                <div className="h-3 bg-[hsl(var(--secondary))] rounded w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : trips.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="h-20 w-20 rounded-3xl gradient-primary shadow-glow flex items-center justify-center mb-5">
+            <Plane className="h-9 w-9 text-white" />
+          </div>
+          <h2 className="text-lg font-semibold text-[hsl(var(--card-foreground))]">Belum ada paket trip</h2>
+          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 max-w-xs">
+            Klik "Tambah Paket Trip" untuk mulai membuat paket perjalanan pertama.
+          </p>
+          <Button
+            onClick={() => setAddOpen(true)}
+            className="mt-6 gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl"
           >
-            {/* Gradient icon */}
-            <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${stat.gradient} ${stat.glow} flex items-center justify-center mb-4`}>
-              <stat.icon className="h-5 w-5 text-white" />
-            </div>
-            <p className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
-              {stat.label}
-            </p>
-            <p className="text-2xl font-bold text-[hsl(var(--card-foreground))] mt-1">
-              {stat.value}
-            </p>
-            <p className="text-xs text-emerald-500 font-medium mt-1.5 flex items-center gap-0.5">
-              <ArrowUpRight className="h-3 w-3" />
-              {stat.change} this month
-            </p>
-            {/* Decorative gradient blob */}
-            <div className={`absolute -right-4 -bottom-4 h-16 w-16 rounded-full bg-gradient-to-br ${stat.gradient} opacity-10 group-hover:opacity-20 transition-smooth`} />
-          </div>
-        ))}
-      </div>
-
-      {/* Main content grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent Packages table */}
-        <div className="lg:col-span-2 rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--border))]">
-            <div>
-              <h2 className="font-semibold text-[hsl(var(--card-foreground))]">Recent Packages</h2>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">Latest trips configured</p>
-            </div>
-            <Button variant="ghost" size="sm" className="text-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] rounded-lg text-xs">
-              View all
-            </Button>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-[hsl(var(--border))]">
-                <TableHead className="text-xs text-[hsl(var(--muted-foreground))] font-medium">Package</TableHead>
-                <TableHead className="hidden md:table-cell text-xs text-[hsl(var(--muted-foreground))] font-medium">People</TableHead>
-                <TableHead className="text-xs text-[hsl(var(--muted-foreground))] font-medium">Total</TableHead>
-                <TableHead className="text-xs text-[hsl(var(--muted-foreground))] font-medium">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentPackages.map((pkg) => (
-                <TableRow key={pkg.name} className="border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]">
-                  <TableCell>
-                    <div className="font-medium text-sm text-[hsl(var(--card-foreground))]">{pkg.name}</div>
-                    <div className="text-xs text-[hsl(var(--muted-foreground))] flex items-center gap-1 mt-0.5">
-                      <MapPin className="h-3 w-3" />
-                      {pkg.destination}
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-sm text-[hsl(var(--card-foreground))]">{pkg.people}</TableCell>
-                  <TableCell className="font-semibold text-sm text-[hsl(var(--card-foreground))]">{pkg.total}</TableCell>
-                  <TableCell>
-                    <Badge className={`${statusConfig[pkg.status].className} text-xs font-medium px-2 py-0.5 rounded-lg`}>
-                      {statusConfig[pkg.status].label}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            <Plus className="h-4 w-4 mr-2" /> Buat Paket Pertama
+          </Button>
         </div>
-
-        {/* Right column */}
-        <div className="space-y-5">
-          <CurrencyExchangeCard />
-
-          {/* Monthly Goal */}
-          <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-5">
-            <div className="mb-4">
-              <h3 className="font-semibold text-sm text-[hsl(var(--card-foreground))]">Monthly Goal</h3>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">Revenue target progress</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {trips.map((trip) => (
+            <TripCard key={trip.id} trip={trip} onDelete={setDeleteTarget} />
+          ))}
+          {/* Add card */}
+          <button
+            onClick={() => setAddOpen(true)}
+            className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-3 py-14 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+            data-testid="btn-add-trip-card"
+          >
+            <div className="h-10 w-10 rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
+              <Plus className="h-5 w-5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
             </div>
-
-            <div className="flex items-baseline justify-between mb-2">
-              <span className="text-2xl font-bold text-[hsl(var(--card-foreground))]">Rp 482M</span>
-              <span className="text-xs text-[hsl(var(--muted-foreground))]">/ Rp 600M</span>
-            </div>
-            <div className="relative h-2 rounded-full bg-[hsl(var(--secondary))] overflow-hidden">
-              <div
-                className="h-full rounded-full gradient-primary transition-all duration-700"
-                style={{ width: "80%" }}
-              />
-            </div>
-            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1.5">80% achieved · 12 days left</p>
-
-            <div className="mt-5 space-y-3 pt-4 border-t border-[hsl(var(--border))]">
-              {[
-                { label: "New bookings", value: "+24" },
-                { label: "Avg. package value", value: "Rp 20.1M" },
-                { label: "Top destination", value: "Bali 🌴" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between text-sm">
-                  <span className="text-[hsl(var(--muted-foreground))]">{item.label}</span>
-                  <span className="font-semibold text-[hsl(var(--card-foreground))]">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+            <span className="text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">
+              Tambah Paket
+            </span>
+          </button>
         </div>
-      </div>
+      )}
+
+      <AddTripDialog open={addOpen} onClose={() => setAddOpen(false)} />
+
+      {/* Confirm delete dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <AlertDialogContent className="content-light">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Paket Trip?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Paket <strong>"{deleteTarget?.name}"</strong> dan seluruh data jamaah di dalamnya akan dihapus permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white">
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -9,20 +9,25 @@ import Index from "./pages/Index.tsx";
 import Calculator from "./pages/Calculator";
 import Packages from "./pages/Packages";
 import ProgressTracker from "./pages/ProgressTracker";
+import TripDetail from "./pages/TripDetail";
+import JamaahProfile from "./pages/JamaahProfile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
+import { useTripsStore } from "@/store/tripsStore";
 
 const queryClient = new QueryClient();
 
 function StoreBootstrap() {
   const refreshRates = useRatesStore((s) => s.refresh);
   const refreshPackages = usePackagesStore((s) => s.refresh);
+  const fetchTrips = useTripsStore((s) => s.fetchTrips);
   useEffect(() => {
     refreshRates();
     refreshPackages();
-  }, [refreshRates, refreshPackages]);
+    fetchTrips();
+  }, [refreshRates, refreshPackages, fetchTrips]);
   return null;
 }
 
@@ -38,6 +43,8 @@ const App = () => (
           <Route path="/calculator" element={<DashboardLayout><Calculator /></DashboardLayout>} />
           <Route path="/packages" element={<DashboardLayout><Packages /></DashboardLayout>} />
           <Route path="/progress" element={<DashboardLayout><ProgressTracker /></DashboardLayout>} />
+          <Route path="/trips/:id" element={<DashboardLayout><TripDetail /></DashboardLayout>} />
+          <Route path="/trips/:id/jamaah/:jamaahId" element={<DashboardLayout><JamaahProfile /></DashboardLayout>} />
           <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
