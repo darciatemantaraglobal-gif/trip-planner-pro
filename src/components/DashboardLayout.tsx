@@ -18,7 +18,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       {/* White app card */}
       <div
         className="min-h-[calc(100vh-24px)] lg:min-h-[calc(100vh-40px)] rounded-3xl flex overflow-hidden"
-        style={{ background: "#ffffff", boxShadow: "0 4px 32px hsl(234 50% 80% / 0.25)" }}
+        style={{ background: "#ffffff", boxShadow: "0 4px 32px hsl(27 91% 54% / 0.15)" }}
       >
         <AppSidebar />
 

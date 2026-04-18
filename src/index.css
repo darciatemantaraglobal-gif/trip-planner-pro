@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-    --background: 234 100% 97%;
-    --foreground: 235 38% 17%;
+    --background: 30 60% 97%;
+    --foreground: 24 38% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 235 38% 17%;
+    --card-foreground: 24 38% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 235 38% 17%;
+    --popover-foreground: 24 38% 15%;
 
-    --primary: 252 86% 62%;
+    --primary: 27 91% 54%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 252 86% 96%;
+    --primary-light: 27 91% 96%;
 
-    --secondary: 234 55% 96%;
-    --secondary-foreground: 235 38% 17%;
+    --secondary: 30 50% 95%;
+    --secondary-foreground: 24 38% 15%;
 
-    --muted: 234 40% 96%;
-    --muted-foreground: 234 18% 58%;
+    --muted: 30 35% 95%;
+    --muted-foreground: 24 18% 52%;
 
-    --accent: 252 86% 95%;
-    --accent-foreground: 252 86% 48%;
+    --accent: 27 91% 94%;
+    --accent-foreground: 27 91% 38%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
@@ -35,20 +35,20 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 234 25% 91%;
-    --input: 234 25% 91%;
-    --ring: 252 86% 62%;
+    --border: 30 25% 88%;
+    --input: 30 25% 88%;
+    --ring: 27 91% 54%;
 
     --radius: 1rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(252 86% 62%), hsl(261 80% 68%));
-    --gradient-hero: linear-gradient(135deg, hsl(252 86% 62%) 0%, hsl(261 80% 68%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(234 55% 98%) 100%);
-    --shadow-card: 0 8px 40px -8px hsl(252 86% 62% / 0.15), 0 2px 8px -2px hsl(234 40% 70% / 0.1);
-    --shadow-sm: 0 1px 3px 0 hsl(234 40% 60% / 0.08);
-    --shadow-md: 0 4px 16px -2px hsl(234 40% 60% / 0.12);
-    --shadow-lg: 0 12px 40px -8px hsl(234 40% 60% / 0.18);
-    --shadow-glow: 0 0 30px hsl(252 86% 62% / 0.30);
+    --gradient-primary: linear-gradient(135deg, hsl(27 91% 54%), hsl(20 90% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(27 91% 54%) 0%, hsl(20 90% 60%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(30 50% 98%) 100%);
+    --shadow-card: 0 8px 40px -8px hsl(27 91% 54% / 0.15), 0 2px 8px -2px hsl(30 40% 70% / 0.1);
+    --shadow-sm: 0 1px 3px 0 hsl(30 40% 60% / 0.08);
+    --shadow-md: 0 4px 16px -2px hsl(30 40% 60% / 0.12);
+    --shadow-lg: 0 12px 40px -8px hsl(30 40% 60% / 0.18);
+    --shadow-glow: 0 0 30px hsl(27 91% 54% / 0.30);
 
     --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 

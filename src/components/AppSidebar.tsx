@@ -27,11 +27,13 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="px-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-2xl gradient-primary shadow-glow flex items-center justify-center shrink-0">
-            <Plane strokeWidth={1.5} className="h-5 w-5 text-white" />
-          </div>
+          <img
+            src="/logo-igh-tour.png"
+            alt="IGH Tour"
+            className="h-12 w-auto object-contain shrink-0"
+          />
           <div>
-            <div className="font-bold text-[15px] text-[hsl(var(--foreground))] leading-tight">TravelHub</div>
+            <div className="font-bold text-[15px] text-[hsl(var(--foreground))] leading-tight">IGH Tour</div>
             <div className="text-[10px] font-medium tracking-widest text-[hsl(var(--muted-foreground))] uppercase">Travel Agency</div>
           </div>
         </div>
