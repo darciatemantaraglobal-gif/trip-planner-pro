@@ -31,7 +31,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
 
   return (
     <div
-      className="min-h-screen md:p-3 lg:p-5"
+      className="mobile-compact min-h-screen md:p-3 lg:p-5"
       style={{ background: "hsl(var(--background))" }}
     >
       {/* App card */}
@@ -44,18 +44,18 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
         {/* Right of sidebar */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Top header */}
-          <header className="flex items-center gap-2 md:gap-3 px-3 md:px-6 py-3 md:py-4 border-b border-[hsl(var(--border))] shrink-0">
+          <header className="flex items-center gap-1.5 md:gap-3 px-2.5 md:px-6 py-2 md:py-4 border-b border-[hsl(var(--border))] shrink-0">
             {/* Mobile hamburger */}
             <button
-              className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] shrink-0"
+              className="md:hidden h-8 w-8 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] shrink-0"
               onClick={() => setSidebarOpen(true)}
             >
-              <Menu strokeWidth={1.5} className="h-5 w-5" />
+              <Menu strokeWidth={1.5} className="h-4.5 w-4.5" />
             </button>
 
             {/* Mobile logo (only shows on mobile) */}
-            <div className="md:hidden flex items-center gap-2 shrink-0">
-              <img src="/logo-igh-tour.png" alt="IGH Tour" className="h-8 w-auto object-contain" />
+            <div className="md:hidden flex items-center gap-1.5 shrink-0">
+              <img src="/logo-igh-tour.png" alt="IGH Tour" className="h-7 w-auto object-contain" />
             </div>
 
             {/* Search */}
@@ -81,9 +81,9 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             <div className="flex-1" />
 
             {/* User info */}
-            <div className="flex items-center gap-2 md:gap-3 shrink-0">
-              <Avatar className="h-9 w-9 md:h-10 md:w-10 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer">
-                <AvatarFallback className="gradient-primary text-white text-sm font-bold">TA</AvatarFallback>
+            <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+              <Avatar className="h-8 w-8 md:h-10 md:w-10 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer">
+                <AvatarFallback className="gradient-primary text-white text-xs md:text-sm font-bold">TA</AvatarFallback>
               </Avatar>
               <div className="hidden lg:block">
                 <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">Travel Agent</div>
@@ -94,8 +94,8 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
 
           {/* Page content */}
           <main className={noPadding
-            ? "flex-1 overflow-auto pb-20 md:pb-0"
-            : "flex-1 overflow-auto p-4 pb-20 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
+            ? "flex-1 overflow-auto pb-16 md:pb-0"
+            : "flex-1 overflow-auto p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
           }>
             {children}
           </main>
@@ -113,17 +113,17 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                 to={item.url}
                 end={item.end}
                 className={cn(
-                  "flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl transition-smooth",
+                  "flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg transition-smooth",
                   isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
                 )}
               >
                 <div className={cn(
-                  "h-8 w-8 flex items-center justify-center rounded-xl transition-smooth",
+                  "h-7 w-7 flex items-center justify-center rounded-lg transition-smooth",
                   isActive ? "bg-[hsl(var(--accent))]" : ""
                 )}>
-                  <item.icon strokeWidth={1.5} className="h-[18px] w-[18px]" />
+                  <item.icon strokeWidth={1.5} className="h-4 w-4" />
                 </div>
-                <span className="text-[10px] font-medium leading-none">{item.title}</span>
+                <span className="text-[9.5px] font-medium leading-none">{item.title}</span>
               </NavLink>
             );
           })}

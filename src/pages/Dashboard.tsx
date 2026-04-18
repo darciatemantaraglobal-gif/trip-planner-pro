@@ -156,12 +156,12 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
 
   return (
     <div
-      className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200 border border-[hsl(var(--border))] bg-white"
+      className="group relative rounded-xl md:rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200 border border-[hsl(var(--border))] bg-white"
       onClick={() => navigate(`/trips/${trip.id}`)}
     >
       {/* Cover area */}
       <div
-        className="relative h-40 flex items-center justify-center overflow-hidden"
+        className="relative h-28 sm:h-36 md:h-40 flex items-center justify-center overflow-hidden"
         style={trip.coverImage ? {} : { background: `linear-gradient(135deg, ${from}, ${to})` }}
       >
         {trip.coverImage ? (
@@ -171,20 +171,20 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <span className="text-7xl drop-shadow-lg select-none">{trip.emoji}</span>
+          <span className="text-5xl md:text-7xl drop-shadow-lg select-none">{trip.emoji}</span>
         )}
 
         {/* Overlay gradient for readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
 
         {/* Duration badge */}
-        <span className="absolute bottom-3 left-3 text-[11px] font-semibold bg-white/20 backdrop-blur-sm text-white px-2.5 py-1 rounded-full z-10">
+        <span className="absolute bottom-2 left-2 md:bottom-3 md:left-3 text-[10px] md:text-[11px] font-semibold bg-white/20 backdrop-blur-sm text-white px-2 md:px-2.5 py-0.5 md:py-1 rounded-full z-10">
           {nightCount(trip.startDate, trip.endDate)}
         </span>
 
         {/* Change photo button */}
         <button
-          className="absolute bottom-3 right-3 h-7 w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+          className="absolute bottom-2 right-2 md:bottom-3 md:right-3 h-6 w-6 md:h-7 md:w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/50 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all z-10"
           onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
           title="Ganti foto"
         >
@@ -193,7 +193,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
 
         {/* Delete */}
         <button
-          className="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+          className="absolute top-2 right-2 md:top-3 md:right-3 h-6 w-6 md:h-7 md:w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-red-500 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all z-10"
           onClick={(e) => { e.stopPropagation(); onDelete(trip); }}
           title="Hapus paket"
         >
@@ -210,13 +210,13 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
       </div>
 
       {/* Info */}
-      <div className="p-3.5">
-        <h3 className="font-semibold text-[13.5px] text-[hsl(var(--foreground))] line-clamp-1">{trip.name}</h3>
-        <div className="flex items-center gap-1 mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+      <div className="p-2.5 md:p-3.5">
+        <h3 className="font-semibold text-[13px] md:text-[13.5px] text-[hsl(var(--foreground))] line-clamp-1">{trip.name}</h3>
+        <div className="flex items-center gap-1 mt-0.5 md:mt-1 text-[11px] md:text-xs text-[hsl(var(--muted-foreground))]">
           <MapPin strokeWidth={1.5} className="h-3 w-3 shrink-0 text-[hsl(var(--primary))]" />
           <span className="line-clamp-1">{trip.destination}</span>
         </div>
-        <div className="flex items-center gap-1 mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
+        <div className="flex items-center gap-1 mt-0.5 text-[11px] md:text-xs text-[hsl(var(--muted-foreground))]">
           <CalendarIcon strokeWidth={1.5} className="h-3 w-3 shrink-0" />
           <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
         </div>
@@ -458,10 +458,10 @@ export default function Dashboard() {
   return (
     <div className="flex h-full min-h-0">
       {/* ── Main content ── */}
-      <div className="flex-1 overflow-auto min-w-0 p-4 md:p-6 lg:p-8">
+      <div className="flex-1 overflow-auto min-w-0 p-3 md:p-6 lg:p-8">
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5">
           {[
             { icon: Plane, label: "Total Paket", value: trips.length, color: "text-violet-500", bg: "bg-violet-50", onClick: () => {} },
             { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, color: "text-blue-500", bg: "bg-blue-50", onClick: () => setTab("upcoming") },
@@ -471,13 +471,13 @@ export default function Dashboard() {
             <button
               key={stat.label}
               onClick={stat.onClick}
-              className="flex items-center gap-2.5 md:gap-3 rounded-2xl border border-[hsl(var(--border))] bg-white p-3 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left"
+              className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left"
             >
-              <div className={cn("h-8 w-8 md:h-9 md:w-9 rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
-                <stat.icon strokeWidth={1.5} className={cn("h-4 w-4", stat.color)} />
+              <div className={cn("h-7 w-7 md:h-9 md:w-9 rounded-lg md:rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
+                <stat.icon strokeWidth={1.5} className={cn("h-3.5 w-3.5 md:h-4 md:w-4", stat.color)} />
               </div>
               <div className="min-w-0">
-                <p className="text-[18px] md:text-[20px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
+                <p className="text-[16px] md:text-[20px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
                 <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{stat.label}</p>
               </div>
             </button>
@@ -485,10 +485,10 @@ export default function Dashboard() {
         </div>
 
         {/* ── Kalkulator & Laporan shortcut bar ── */}
-        <div className="grid grid-cols-2 gap-2.5 mb-5">
+        <div className="grid grid-cols-2 gap-2 mb-3.5 md:gap-2.5 md:mb-5">
           <button
             onClick={() => navigate("/calculator")}
-            className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
           >
             <Calculator strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Buka Kalkulator</span>
@@ -496,7 +496,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/progress")}
-            className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
           >
             <FileBarChart strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Laporan Progress</span>
@@ -505,10 +505,10 @@ export default function Dashboard() {
         </div>
 
         {/* Section header */}
-        <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between gap-2.5 mb-3 md:gap-3 md:mb-4">
           <div>
             <h1 className="text-base md:text-xl font-bold text-[hsl(var(--foreground))]">Paket Trip</h1>
-            <div className="flex gap-3 mt-1.5">
+              <div className="flex gap-2.5 md:gap-3 mt-1">
               {[["all", "Semua"], ["upcoming", "Aktif"], ["done", "Selesai"]].map(([key, label]) => (
                 <button
                   key={key}
@@ -527,7 +527,7 @@ export default function Dashboard() {
           </div>
           <Button
             onClick={() => setAddOpen(true)}
-            className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 md:h-10 px-3 md:px-5 text-xs md:text-sm font-semibold shrink-0"
+            className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-lg md:rounded-xl h-8 md:h-10 px-2.5 md:px-5 text-xs md:text-sm font-semibold shrink-0"
           >
             <Plus strokeWidth={1.5} className="h-4 w-4 mr-1 md:mr-2" />
             <span className="hidden sm:inline">Tambah Paket Trip</span>
@@ -537,7 +537,7 @@ export default function Dashboard() {
 
         {/* Cards grid */}
         {loadingTrips ? (
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2.5 md:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden animate-pulse">
                 <div className="h-36 bg-[hsl(var(--secondary))]" />
@@ -570,11 +570,11 @@ export default function Dashboard() {
             ))}
             {/* Add card */}
             <button onClick={() => setAddOpen(true)}
-              className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-3 min-h-[180px] sm:min-h-[220px] hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
-              <div className="h-11 w-11 rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
+              className="rounded-xl md:rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 md:gap-3 min-h-[120px] sm:min-h-[220px] hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
+              <div className="h-9 w-9 md:h-11 md:w-11 rounded-lg md:rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
                 <Plus strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
               </div>
-              <span className="text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Paket</span>
+              <span className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Paket</span>
             </button>
           </div>
         )}
