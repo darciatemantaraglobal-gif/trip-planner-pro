@@ -3,12 +3,46 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plane, Mail, Lock, User } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plane, Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!email || !password) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (mode === "register" && !name) {
+      setError("Please enter your full name.");
+      return;
+    }
+
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setError("Authentication is not connected yet. Enable Lovable Cloud to sign in.");
+    }, 1200);
+  };
+
+  const switchMode = () => {
+    setMode(mode === "login" ? "register" : "login");
+    setError(null);
+  };
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
@@ -68,47 +102,84 @@ export default function Auth() {
               </p>
             </div>
 
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                toast.info("Connect Lovable Cloud to enable authentication");
-              }}
-            >
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               {mode === "register" && (
                 <div className="space-y-2">
-                  <Label>Full name</Label>
+                  <Label htmlFor="name">Full name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Jane Doe" className="pl-9" />
+                    <Input
+                      id="name"
+                      placeholder="Jane Doe"
+                      className="pl-9"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={loading}
+                    />
                   </div>
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input type="email" placeholder="you@example.com" className="pl-9" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-9"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input type="password" placeholder="••••••••" className="pl-9" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="pl-9"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full gradient-primary text-primary-foreground shadow-md hover:opacity-90 transition-smooth">
-                {mode === "login" ? "Sign in" : "Create account"}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full gradient-primary text-primary-foreground shadow-md hover:opacity-90 transition-smooth"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {mode === "login" ? "Signing in..." : "Creating account..."}
+                  </>
+                ) : (
+                  <>{mode === "login" ? "Sign in" : "Create account"}</>
+                )}
               </Button>
             </form>
 
             <div className="text-center text-sm text-muted-foreground">
               {mode === "login" ? "New here?" : "Already have an account?"}{" "}
               <button
-                onClick={() => setMode(mode === "login" ? "register" : "login")}
-                className="text-primary font-semibold hover:underline"
+                type="button"
+                onClick={switchMode}
+                disabled={loading}
+                className="text-primary font-semibold hover:underline disabled:opacity-50"
               >
                 {mode === "login" ? "Create an account" : "Sign in"}
               </button>
