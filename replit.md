@@ -22,13 +22,13 @@ src/
     DashboardLayout.tsx       # Page shell (sidebar + white floating card)
     CurrencyTicker.tsx        # Exchange rate ticker (header)
     CurrencyExchangeCard.tsx  # Rate card (dashboard)
-    PdfPreviewDialog.tsx      # PDF export dialog
+    PdfPreviewDialog.tsx      # PDF export dialog for cost breakdown and LA-style offer tables
   pages/
     Index.tsx                 # Mounts Dashboard inside DashboardLayout
     Dashboard.tsx             # Trip package cards grid (add/delete trips)
     TripDetail.tsx            # Jamaah list for a trip (add/delete jamaah)
     JamaahProfile.tsx         # Jamaah profile with photo + document uploads
-    Calculator.tsx            # Trip package price builder (with PDF export)
+    Calculator.tsx            # Trip package price builder plus LA-style offer table generator with PDF export
     Packages.tsx              # Package manager (CRUD)
     ProgressTracker.tsx       # Booking status pipeline
     Auth.tsx                  # Login / register
@@ -44,7 +44,7 @@ src/
     tripsStore.ts             # Zustand: trips + jamaah + documents
   lib/
     exchangeRates.ts          # Rate fetch/mock logic
-    generatePdf.ts            # PDF generation
+    generatePdf.ts            # PDF generation for calculator and landscape land-arrangement offers
     utils.ts                  # Tailwind cn helper
 ```
 
