@@ -1,55 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  createPackage,
-  deletePackage,
-  listPackages,
-  updatePackage,
-  type Package,
-  type PackageDraft,
-} from "./packagesRepo";
+import { useEffect } from "react";
+import { usePackagesStore } from "@/store/packagesStore";
 
 /**
- * Thin React hook over the packages repository.
- * Mirrors the shape you'd use with a real backend (TanStack Query etc.).
+ * Thin React hook over the global packages store.
+ * Triggers an initial load on mount (idempotent) and re-exports
+ * the store's CRUD actions so callers don't need to know about Zustand.
  */
 export function usePackages() {
-  const [items, setItems] = useState<Package[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await listPackages();
-      setItems(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load packages");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const items = usePackagesStore((s) => s.items);
+  const loading = usePackagesStore((s) => s.loading);
+  const error = usePackagesStore((s) => s.error);
+  const loaded = usePackagesStore((s) => s.loaded);
+  const refresh = usePackagesStore((s) => s.refresh);
+  const create = usePackagesStore((s) => s.create);
+  const update = usePackagesStore((s) => s.update);
+  const remove = usePackagesStore((s) => s.remove);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const create = useCallback(async (draft: PackageDraft) => {
-    const created = await createPackage(draft);
-    setItems((prev) => [created, ...prev]);
-    return created;
-  }, []);
-
-  const update = useCallback(async (id: string, patch: Partial<PackageDraft>) => {
-    const updated = await updatePackage(id, patch);
-    setItems((prev) => prev.map((p) => (p.id === id ? updated : p)));
-    return updated;
-  }, []);
-
-  const remove = useCallback(async (id: string) => {
-    await deletePackage(id);
-    setItems((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+    if (!loaded && !loading) refresh();
+  }, [loaded, loading, refresh]);
 
   return { items, loading, error, refresh, create, update, remove };
 }
