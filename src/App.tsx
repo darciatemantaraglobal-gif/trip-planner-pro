@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,14 +11,28 @@ import Packages from "./pages/Packages";
 import ProgressTracker from "./pages/ProgressTracker";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
+import { useRatesStore } from "@/store/ratesStore";
+import { usePackagesStore } from "@/store/packagesStore";
 
 const queryClient = new QueryClient();
+
+/** Hydrate global stores once at app startup. */
+function StoreBootstrap() {
+  const refreshRates = useRatesStore((s) => s.refresh);
+  const refreshPackages = usePackagesStore((s) => s.refresh);
+  useEffect(() => {
+    refreshRates();
+    refreshPackages();
+  }, [refreshRates, refreshPackages]);
+  return null;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <StoreBootstrap />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />

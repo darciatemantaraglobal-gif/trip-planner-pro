@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { getExchangeRates, type Currency, type Rates } from "@/lib/exchangeRates";
+import { useEffect, useMemo } from "react";
+import { useCalculatorStore } from "@/store/calculatorStore";
+import { useRatesStore } from "@/store/ratesStore";
 import { computeQuote, type CostInput } from "./pricing";
+import type { Currency } from "@/lib/exchangeRates";
 
 export interface UseTripCalculatorState {
   packageName: string;
@@ -11,33 +13,30 @@ export interface UseTripCalculatorState {
   marginPercent: number;
 }
 
-const defaultState: UseTripCalculatorState = {
-  packageName: "",
-  destination: "",
-  people: 1,
-  currency: "USD",
-  costs: [],
-  marginPercent: 15,
-};
-
 /**
- * Trip calculator hook. Owns state + derives the quote in real time.
- * Today rates come from a mock module; later swap `getExchangeRates`
- * for a real fetch — no changes needed here.
+ * Trip calculator hook — thin adapter over the global Zustand store.
+ * Keeps the previous API (`setField`, `addCost`, etc.) so existing
+ * components continue to work, while state is shared across pages.
  */
 export function useTripCalculator(initial?: Partial<UseTripCalculatorState>) {
-  const [state, setState] = useState<UseTripCalculatorState>({ ...defaultState, ...initial });
-  const [rates, setRates] = useState<Rates>({ USD: 15500, SAR: 4100, IDR: 1 });
+  const state = useCalculatorStore();
+  const rates = useRatesStore((s) => s.rates);
+  const ratesLoaded = useRatesStore((s) => s.lastUpdated !== null);
+  const refreshRates = useRatesStore((s) => s.refresh);
 
+  // One-time hydration of initial values (only if calculator is still empty).
   useEffect(() => {
-    let cancelled = false;
-    getExchangeRates().then((r) => {
-      if (!cancelled) setRates(r);
-    });
-    return () => {
-      cancelled = true;
-    };
+    if (!initial) return;
+    const isEmpty =
+      state.costs.length === 0 && !state.packageName && !state.destination;
+    if (isEmpty) state.reset(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Make sure rates are loaded at least once.
+  useEffect(() => {
+    if (!ratesLoaded) refreshRates();
+  }, [ratesLoaded, refreshRates]);
 
   const quote = useMemo(
     () =>
@@ -48,33 +47,22 @@ export function useTripCalculator(initial?: Partial<UseTripCalculatorState>) {
         marginPercent: state.marginPercent,
         rates,
       }),
-    [state, rates],
+    [state.costs, state.people, state.currency, state.marginPercent, rates],
   );
 
-  const setField = <K extends keyof UseTripCalculatorState>(key: K, value: UseTripCalculatorState[K]) =>
-    setState((prev) => ({ ...prev, [key]: value }));
-
-  const setCosts = (updater: (prev: CostInput[]) => CostInput[]) =>
-    setState((prev) => ({ ...prev, costs: updater(prev.costs) }));
-
-  const updateCostAmount = (id: string, amount: number) =>
-    setCosts((prev) => prev.map((c) => (c.id === id ? { ...c, amount } : c)));
-
-  const updateCostLabel = (id: string, label: string) =>
-    setCosts((prev) => prev.map((c) => (c.id === id ? { ...c, label } : c)));
-
-  const addCost = (cost: CostInput) => setCosts((prev) => [...prev, cost]);
-
-  const removeCost = (id: string) => setCosts((prev) => prev.filter((c) => c.id !== id));
-
   return {
-    ...state,
+    packageName: state.packageName,
+    destination: state.destination,
+    people: state.people,
+    currency: state.currency,
+    costs: state.costs,
+    marginPercent: state.marginPercent,
     rates,
     quote,
-    setField,
-    updateCostAmount,
-    updateCostLabel,
-    addCost,
-    removeCost,
+    setField: state.setField,
+    updateCostAmount: state.updateCostAmount,
+    updateCostLabel: state.updateCostLabel,
+    addCost: state.addCost,
+    removeCost: state.removeCost,
   };
 }

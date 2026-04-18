@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
-import { getExchangeRates, type Rates } from "@/lib/exchangeRates";
+import { useRatesStore } from "@/store/ratesStore";
+import type { Rates } from "@/lib/exchangeRates";
 
 interface DisplayRate {
   from: "USD" | "SAR";
@@ -12,10 +13,6 @@ interface DisplayRate {
   up: boolean;
 }
 
-/**
- * Builds the displayed pairs from a Rates snapshot.
- * Change values are mocked — replace with API-driven deltas later.
- */
 function buildDisplayRates(rates: Rates): DisplayRate[] {
   return [
     { from: "USD", to: "IDR", rate: rates.USD, change: 0.42, up: true },
@@ -24,28 +21,18 @@ function buildDisplayRates(rates: Rates): DisplayRate[] {
 }
 
 export function CurrencyExchangeCard() {
-  const [rates, setRates] = useState<DisplayRate[] | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const rates = useRatesStore((s) => s.rates);
+  const lastUpdated = useRatesStore((s) => s.lastUpdated);
+  const refreshing = useRatesStore((s) => s.loading);
+  const refresh = useRatesStore((s) => s.refresh);
 
-  // Async loader — same pattern works once getExchangeRates hits a real API.
-  const load = async () => {
-    setRefreshing(true);
-    try {
-      const r = await getExchangeRates();
-      setRates(buildDisplayRates(r));
-      setLastUpdated(new Date());
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Initial load + auto-refresh every 30s.
   useEffect(() => {
-    load();
-    const interval = setInterval(load, 30000);
+    if (!lastUpdated) refresh();
+    const interval = setInterval(refresh, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [lastUpdated, refresh]);
+
+  const display = lastUpdated ? buildDisplayRates(rates) : null;
 
   const updatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -64,13 +51,13 @@ export function CurrencyExchangeCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {!rates ? (
+        {!display ? (
           <>
             <RateRowSkeleton />
             <RateRowSkeleton />
           </>
         ) : (
-          rates.map((r) => (
+          display.map((r) => (
             <div
               key={`${r.from}-${r.to}`}
               className="flex items-center justify-between rounded-lg border bg-card p-3 hover:bg-accent/40 transition-smooth"
