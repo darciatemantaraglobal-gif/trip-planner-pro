@@ -22,7 +22,9 @@ interface Props {
 
 export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   const fmt = (n: number) =>
-    `${symbols[data.currency]} ${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+    data.currency === "IDR"
+      ? `Rp ${Math.round(n).toLocaleString("id-ID")}`
+      : `${symbols[data.currency] ?? data.currency} ${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -38,28 +40,28 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
                 <Plane className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-foreground">TravelHub</h2>
-                <p className="text-xs text-muted-foreground">Trip Package Quotation</p>
+                <h2 className="text-xl font-bold text-foreground">IGH Tour</h2>
+                <p className="text-xs text-muted-foreground">Penawaran Paket Umrah</p>
               </div>
             </div>
             <div className="text-right text-xs text-muted-foreground">
-              <div>Date: {new Date().toLocaleDateString()}</div>
-              <div>Quote #: TH-{Date.now().toString().slice(-6)}</div>
+              <div>Tanggal: {new Date().toLocaleDateString("id-ID")}</div>
+              <div>No. Penawaran: IGH-{Date.now().toString().slice(-6)}</div>
             </div>
           </div>
 
           <div className="py-6">
-            <h1 className="text-2xl font-bold text-foreground">{data.packageName || "Untitled Package"}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{data.packageName || "Paket Umrah IGH"}</h1>
             <p className="text-muted-foreground mt-1">📍 {data.destination || "—"}</p>
-            <p className="text-sm text-muted-foreground mt-1">For {data.people} {data.people === 1 ? "person" : "people"}</p>
+            <p className="text-sm text-muted-foreground mt-1">{data.people} jamaah</p>
           </div>
 
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-secondary">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold">Item</th>
-                  <th className="text-right px-4 py-3 font-semibold">Amount</th>
+                  <th className="text-left px-4 py-3 font-semibold">Komponen Biaya</th>
+                  <th className="text-right px-4 py-3 font-semibold">Jumlah</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,7 +78,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
                   <td className="px-4 py-3 text-right font-bold text-lg text-primary">{fmt(data.total)}</td>
                 </tr>
                 <tr className="border-t">
-                  <td className="px-4 py-2 text-muted-foreground">Per person</td>
+                  <td className="px-4 py-2 text-muted-foreground">Per jamaah</td>
                   <td className="px-4 py-2 text-right font-semibold">{fmt(data.perPerson)}</td>
                 </tr>
               </tfoot>
@@ -84,26 +86,26 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
           </div>
 
           <p className="text-xs text-muted-foreground mt-6 pt-6 border-t">
-            This quotation is valid for 14 days. Prices subject to availability and currency fluctuations.
+            Penawaran ini berlaku 14 hari. Harga dapat berubah sesuai ketersediaan dan kurs mata uang.
           </p>
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
           <Button
             className="gradient-primary text-primary-foreground"
             onClick={() => {
               try {
                 generateQuotationPdf(data);
-                toast.success("PDF downloaded");
+                toast.success("PDF berhasil diunduh");
               } catch (err) {
                 console.error(err);
-                toast.error("Failed to generate PDF");
+                toast.error("Gagal membuat PDF");
               }
             }}
           >
             <Download className="h-4 w-4 mr-2" />
-            Download PDF
+            Unduh PDF
           </Button>
         </div>
       </DialogContent>
