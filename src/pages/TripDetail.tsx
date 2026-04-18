@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -6,10 +6,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, User, Phone, CalendarDays, CreditCard, Trash2, Users } from "lucide-react";
-import { useTripsStore, useJamaahStore, type Jamaah } from "@/store/tripsStore";
+import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon } from "lucide-react";
+import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+const DOC_CATEGORIES: { value: DocCategory; label: string }[] = [
+  { value: "passport", label: "Paspor / KTP" },
+  { value: "visa", label: "Visa" },
+  { value: "ticket", label: "Tiket Pesawat" },
+  { value: "medical", label: "Dokumen Kesehatan" },
+  { value: "other", label: "Lainnya" },
+];
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result as string);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+interface UploadedDoc {
+  id: string;
+  category: DocCategory;
+  label: string;
+  fileName: string;
+  fileType: "image" | "pdf";
+  dataUrl: string;
+}
 
 function formatDate(iso: string) {
   if (!iso) return "—";
@@ -19,29 +45,119 @@ function formatDate(iso: string) {
 // ── ADD JAMAAH DIALOG ──────────────────────────────────────────────────────────
 function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: string; onClose: () => void }) {
   const addJamaah = useJamaahStore((s) => s.addJamaah);
-  const [form, setForm] = useState({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" as "L" | "P" | "" });
-  const [loading, setLoading] = useState(false);
+  const addDocument = useDocsStore((s) => s.addDocument);
 
-  const reset = () => setForm({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" });
+  const [form, setForm] = useState({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" as "L" | "P" | "" });
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState<DocCategory>("Paspor");
+
+  const photoRef = useRef<HTMLInputElement>(null);
+  const docRef = useRef<HTMLInputElement>(null);
+
+  const reset = () => {
+    setForm({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" });
+    setPhotoDataUrl(undefined);
+    setUploadedDocs([]);
+    setPendingCategory("Paspor");
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Foto maks. 2 MB."); return; }
+    const dataUrl = await fileToBase64(file);
+    setPhotoDataUrl(dataUrl);
+    e.target.value = "";
+  };
+
+  const handleDocChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) { toast.error(`File "${file.name}" maks. 5 MB.`); continue; }
+      const dataUrl = await fileToBase64(file);
+      const fileType: "image" | "pdf" = file.type === "application/pdf" ? "pdf" : "image";
+      const label = file.name.replace(/\.[^.]+$/, "");
+      setUploadedDocs((prev) => [...prev, {
+        id: crypto.randomUUID(),
+        category: pendingCategory,
+        label,
+        fileName: file.name,
+        fileType,
+        dataUrl,
+      }]);
+    }
+    e.target.value = "";
+  };
+
+  const removeDoc = (id: string) => setUploadedDocs((prev) => prev.filter((d) => d.id !== id));
+  const changeDocCategory = (id: string, cat: DocCategory) =>
+    setUploadedDocs((prev) => prev.map((d) => d.id === id ? { ...d, category: cat } : d));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) { toast.error("Nama jamaah wajib diisi."); return; }
     setLoading(true);
-    await addJamaah({ ...form, tripId, photoDataUrl: undefined });
-    toast.success(`Jamaah "${form.name}" ditambahkan.`);
-    setLoading(false);
-    reset();
-    onClose();
+    try {
+      const j = await addJamaah({ ...form, tripId, photoDataUrl });
+      for (const doc of uploadedDocs) {
+        await addDocument({
+          jamaahId: j.id,
+          category: doc.category,
+          label: doc.label,
+          fileName: doc.fileName,
+          fileType: doc.fileType,
+          dataUrl: doc.dataUrl,
+        });
+      }
+      toast.success(`Jamaah "${form.name}" ditambahkan${uploadedDocs.length ? ` dengan ${uploadedDocs.length} dokumen.` : "."}`);
+      reset();
+      onClose();
+    } catch {
+      toast.error("Gagal menyimpan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-md" style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
         <DialogHeader>
-          <DialogTitle className="text-[hsl(var(--card-foreground))]">Tambah Jamaah</DialogTitle>
+          <DialogTitle>Tambah Jamaah</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+
+        <form onSubmit={handleSubmit} className="space-y-5 pt-1">
+          {/* ── Photo upload ── */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative group cursor-pointer" onClick={() => photoRef.current?.click()}>
+              <div className={cn(
+                "h-20 w-20 rounded-2xl flex items-center justify-center overflow-hidden text-white font-bold text-3xl",
+                form.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500"
+              )}>
+                {photoDataUrl
+                  ? <img src={photoDataUrl} className="h-full w-full object-cover" alt="foto" />
+                  : <span>{form.name ? form.name.charAt(0).toUpperCase() : "?"}</span>
+                }
+              </div>
+              <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera className="h-6 w-6 text-white" />
+              </div>
+              {photoDataUrl && (
+                <button type="button"
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                  onClick={(e) => { e.stopPropagation(); setPhotoDataUrl(undefined); }}>
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Klik untuk upload foto (maks. 2 MB)</p>
+            <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handlePhotoChange} />
+          </div>
+
+          {/* ── Basic info ── */}
           <div className="space-y-1.5">
             <Label className="text-xs text-[hsl(var(--muted-foreground))]">Nama Lengkap *</Label>
             <Input placeholder="Nama sesuai paspor" value={form.name}
@@ -76,7 +192,76 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
                 onChange={(e) => setForm((f) => ({ ...f, passportNumber: e.target.value }))} />
             </div>
           </div>
-          <DialogFooter className="pt-2">
+
+          {/* ── Document upload ── */}
+          <div className="space-y-3">
+            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Upload Dokumen (PNG / JPG)</Label>
+
+            {/* Category picker + upload button */}
+            <div className="flex gap-2">
+              <Select value={pendingCategory} onValueChange={(v) => setPendingCategory(v as DocCategory)}>
+                <SelectTrigger className="flex-1 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
+                  {DOC_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" className="shrink-0 gap-1.5 text-xs"
+                onClick={() => docRef.current?.click()}>
+                <Upload className="h-3.5 w-3.5" /> Pilih File
+              </Button>
+              <input ref={docRef} type="file" accept="image/png,image/jpeg,image/jpg" multiple className="hidden"
+                onChange={handleDocChange} />
+            </div>
+
+            {/* Uploaded docs list */}
+            {uploadedDocs.length > 0 && (
+              <div className="space-y-2">
+                {uploadedDocs.map((doc) => (
+                  <div key={doc.id} className="flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-2">
+                    {/* Thumbnail */}
+                    <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-[hsl(var(--border))] bg-white flex items-center justify-center">
+                      {doc.fileType === "image"
+                        ? <img src={doc.dataUrl} className="h-full w-full object-cover" alt={doc.fileName} />
+                        : <FileText className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+                      }
+                    </div>
+                    {/* Name + category changer */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11.5px] font-medium text-[hsl(var(--foreground))] truncate">{doc.fileName}</p>
+                      <Select value={doc.category} onValueChange={(v) => changeDocCategory(doc.id, v as DocCategory)}>
+                        <SelectTrigger className="h-6 text-[11px] border-0 bg-transparent p-0 shadow-none gap-1 w-auto">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
+                          {DOC_CATEGORIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Remove */}
+                    <button type="button" onClick={() => removeDoc(doc.id)}
+                      className="h-6 w-6 rounded-full hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-[hsl(var(--muted-foreground))] transition-colors shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {uploadedDocs.length === 0 && (
+              <div className="rounded-xl border-2 border-dashed border-[hsl(var(--border))] p-4 text-center text-xs text-[hsl(var(--muted-foreground))]">
+                <ImageIcon className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
+                Belum ada dokumen — pilih kategori lalu klik "Pilih File"
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-1">
             <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>Batal</Button>
             <Button type="submit" disabled={loading} className="gradient-primary text-white shadow-glow hover:opacity-90">
               {loading ? "Menyimpan…" : "Tambah Jamaah"}
