@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  MapPin, Users, Calendar, MoreHorizontal, Plus, Search, Pencil, Trash2,
+  MapPin, Users, Calendar, MoreHorizontal, Plus, Search, Pencil, Trash2, Package as PackageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePackages } from "@/features/packages/usePackages";
@@ -49,105 +48,121 @@ export default function Packages() {
   const handleSubmit = async (draft: Parameters<typeof create>[0]) => {
     if (editing) {
       await update(editing.id, draft);
-      toast.success("Package updated");
+      toast.success("Paket diperbarui");
     } else {
       await create(draft);
-      toast.success("Package created");
+      toast.success("Paket dibuat");
     }
   };
 
   const handleDelete = async () => {
     if (!deletingId) return;
     await remove(deletingId);
-    toast.success("Package deleted");
+    toast.success("Paket dihapus");
     setDeletingId(null);
   };
 
   const deletingPkg = items.find((p) => p.id === deletingId);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Packages</h1>
-          <p className="text-muted-foreground mt-1">Manage and review all your travel packages.</p>
+          <h1 className="text-lg md:text-2xl font-bold text-[hsl(var(--foreground))] leading-tight">Paket Trip</h1>
+          <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">Kelola semua paket perjalanan kamu.</p>
         </div>
-        <Button onClick={openCreate} className="gradient-primary text-primary-foreground shadow-md hover:opacity-90 transition-smooth">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Package
+        <Button
+          onClick={openCreate}
+          className="gradient-primary text-white shadow-glow hover:opacity-90 h-9 px-3 rounded-xl text-sm font-semibold shrink-0"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          Tambah
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search packages..." value={query}
-          onChange={(e) => setQuery(e.target.value)} className="pl-9" />
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+        <Input
+          placeholder="Cari paket..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="pl-8 h-9 text-sm rounded-xl bg-[hsl(var(--secondary))] border-0 focus-visible:ring-1 focus-visible:ring-[hsl(var(--primary))]"
+        />
       </div>
 
+      {/* Content */}
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading packages…</p>
+        <p className="text-sm text-[hsl(var(--muted-foreground))] py-4 text-center">Memuat paket…</p>
       ) : filtered.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="py-12 text-center space-y-3">
-            <p className="text-muted-foreground">No packages found.</p>
-            <Button variant="outline" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-2" /> Create your first package
+        <div className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] py-10 text-center space-y-3">
+          <PackageIcon strokeWidth={1.5} className="h-8 w-8 text-[hsl(var(--muted-foreground))] mx-auto" />
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            {query ? "Paket tidak ditemukan." : "Belum ada paket."}
+          </p>
+          {!query && (
+            <Button variant="outline" onClick={openCreate} className="h-8 text-sm rounded-xl">
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat paket pertama
             </Button>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {filtered.map((pkg) => (
-            <Card key={pkg.id} className="border-0 shadow-md hover:shadow-lg transition-smooth overflow-hidden group">
-              <div className="h-32 gradient-hero relative flex items-center justify-center text-6xl">
+            <div
+              key={pkg.id}
+              className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-sm hover:shadow-md transition-smooth group"
+            >
+              {/* Emoji banner */}
+              <div className="h-16 gradient-hero relative flex items-center justify-center text-3xl">
                 {pkg.emoji}
-                <Badge className={`${statusVariant[pkg.status]} border-0 absolute top-3 right-3 font-medium`}>
+                <Badge className={`${statusVariant[pkg.status]} border-0 absolute top-2 right-2 text-[9px] px-1.5 py-0 h-4 font-medium`}>
                   {pkg.status}
                 </Badge>
               </div>
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-start justify-between gap-2">
+
+              {/* Body */}
+              <div className="p-2.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-1">
                   <div className="min-w-0">
-                    <h3 className="font-bold truncate">{pkg.name}</h3>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 truncate">
-                      <MapPin className="h-3 w-3 shrink-0" />
+                    <h3 className="text-[12px] font-bold leading-tight truncate">{pkg.name}</h3>
+                    <p className="text-[10px] text-[hsl(var(--muted-foreground))] flex items-center gap-0.5 mt-0.5 truncate">
+                      <MapPin className="h-2.5 w-2.5 shrink-0" />
                       {pkg.destination}
                     </p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 -mr-1 -mt-0.5">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="text-sm">
                       <DropdownMenuItem onClick={() => openEdit(pkg)}>
-                        <Pencil className="h-4 w-4 mr-2" /> Edit
+                        <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setDeletingId(pkg.id)}
                         className="text-destructive focus:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                        <Trash2 className="h-3.5 w-3.5 mr-2" /> Hapus
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {pkg.people}</span>
-                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {pkg.days} days</span>
+                <div className="flex items-center gap-2 text-[10px] text-[hsl(var(--muted-foreground))]">
+                  <span className="flex items-center gap-0.5"><Users className="h-2.5 w-2.5" /> {pkg.people} pax</span>
+                  <span className="flex items-center gap-0.5"><Calendar className="h-2.5 w-2.5" /> {pkg.days} hari</span>
                 </div>
 
-                <div className="pt-3 border-t flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Total</div>
-                    <div className="font-bold text-primary">{fmtIDR(pkg.totalIDR)}</div>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => openEdit(pkg)}>Edit</Button>
+                <div className="pt-1.5 border-t border-[hsl(var(--border))]">
+                  <div className="text-[9px] text-[hsl(var(--muted-foreground))]">Total</div>
+                  <div className="text-[11px] font-bold text-[hsl(var(--primary))] leading-tight">{fmtIDR(pkg.totalIDR)}</div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -160,17 +175,20 @@ export default function Packages() {
       />
 
       <AlertDialog open={!!deletingId} onOpenChange={(o) => !o && setDeletingId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-sm w-[calc(100%-2rem)] rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this package?</AlertDialogTitle>
-            <AlertDialogDescription>
-              "{deletingPkg?.name}" will be permanently removed. This action cannot be undone.
+            <AlertDialogTitle className="text-base">Hapus paket ini?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              "{deletingPkg?.name}" akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel className="flex-1 h-9 rounded-xl text-sm">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="flex-1 h-9 rounded-xl text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

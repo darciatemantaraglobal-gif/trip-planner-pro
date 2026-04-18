@@ -34,9 +34,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setDraft(initial ? { ...initial } : empty);
-    }
+    if (open) setDraft(initial ? { ...initial } : empty);
   }, [open, initial]);
 
   const set = <K extends keyof PackageDraft>(key: K, value: PackageDraft[K]) =>
@@ -55,63 +53,97 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{initial ? "Edit Package" : "Create Package"}</DialogTitle>
+      <DialogContent className="max-w-sm sm:max-w-md w-[calc(100%-2rem)] rounded-2xl p-0 gap-0">
+        <DialogHeader className="px-4 pt-4 pb-2 border-b border-[hsl(var(--border))]">
+          <DialogTitle className="text-[15px] font-semibold">
+            {initial ? "Edit Paket" : "Tambah Paket"}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="pkg-name">Package name</Label>
-              <Input id="pkg-name" placeholder="e.g. Bali Paradise 5D"
-                value={draft.name} onChange={(e) => set("name", e.target.value)} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="pkg-dest">Destination</Label>
-              <Input id="pkg-dest" placeholder="e.g. Bali, Indonesia"
-                value={draft.destination} onChange={(e) => set("destination", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pkg-people">People</Label>
-              <Input id="pkg-people" type="number" min={1}
+        <div className="px-4 py-3 space-y-3 max-h-[65vh] overflow-y-auto">
+          <div className="space-y-1">
+            <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Nama Paket</Label>
+            <Input
+              placeholder="cth: Bali Paradise 5D, Umrah Ramadhan"
+              value={draft.name}
+              onChange={(e) => set("name", e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Destinasi</Label>
+            <Input
+              placeholder="cth: Bali, Indonesia"
+              value={draft.destination}
+              onChange={(e) => set("destination", e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Pax</Label>
+              <Input
+                type="number" min={1}
                 value={draft.people}
-                onChange={(e) => set("people", Math.max(1, Number(e.target.value)))} />
+                onChange={(e) => set("people", Math.max(1, Number(e.target.value)))}
+                className="h-9 text-sm"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pkg-days">Days</Label>
-              <Input id="pkg-days" type="number" min={1}
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Hari</Label>
+              <Input
+                type="number" min={1}
                 value={draft.days}
-                onChange={(e) => set("days", Math.max(1, Number(e.target.value)))} />
+                onChange={(e) => set("days", Math.max(1, Number(e.target.value)))}
+                className="h-9 text-sm"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pkg-total">Total (IDR)</Label>
-              <Input id="pkg-total" type="number" min={0}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Total (IDR)</Label>
+              <Input
+                type="number" min={0}
                 value={draft.totalIDR}
-                onChange={(e) => set("totalIDR", Math.max(0, Number(e.target.value)))} />
+                onChange={(e) => set("totalIDR", Math.max(0, Number(e.target.value)))}
+                className="h-9 text-sm"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pkg-status">Status</Label>
+            <div className="space-y-1">
+              <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Status</Label>
               <Select value={draft.status} onValueChange={(v) => set("status", v as PackageStatus)}>
-                <SelectTrigger id="pkg-status"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="pkg-emoji">Emoji</Label>
-              <Input id="pkg-emoji" maxLength={4}
-                value={draft.emoji} onChange={(e) => set("emoji", e.target.value)} />
-            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Emoji</Label>
+            <Input
+              maxLength={4}
+              value={draft.emoji}
+              onChange={(e) => set("emoji", e.target.value)}
+              className="h-9 text-sm w-20"
+            />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !draft.name || !draft.destination}
-            className="gradient-primary text-primary-foreground">
-            {saving ? "Saving..." : initial ? "Save changes" : "Create package"}
+        <DialogFooter className="px-4 py-3 border-t border-[hsl(var(--border))] flex flex-row gap-2">
+          <Button variant="outline" className="flex-1 h-9 rounded-xl text-sm" onClick={() => onOpenChange(false)} disabled={saving}>
+            Batal
+          </Button>
+          <Button
+            className="flex-1 h-9 rounded-xl text-sm gradient-primary text-white"
+            onClick={handleSave}
+            disabled={saving || !draft.name || !draft.destination}
+          >
+            {saving ? "Menyimpan..." : initial ? "Simpan" : "Tambah"}
           </Button>
         </DialogFooter>
       </DialogContent>
