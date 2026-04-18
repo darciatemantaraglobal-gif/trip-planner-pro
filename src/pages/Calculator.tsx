@@ -75,66 +75,34 @@ const initForm: FormState = {
   margin: 10,
 };
 
-const defaultIncluded = [
-  "Akomodasi hotel Madinah & Makkah sesuai program.",
-  "Makan fullboard.",
-  "Mutawwifah raudah atau pembimbing masuk raudah untuk akhwat.",
-  "Snack 4x trip.",
-  "Handling kedatangan dan kepulangan di bandara.",
-  "Meal box kedatangan dan kepulangan di bandara.",
-  "Welcoming drink air zamzam dan kurma saat kedatangan.",
-  "Handling check-in dan check-out hotel.",
-  "Distribusi koper ke kamar jama'ah.",
-  "Tips porter bandara dan bellboy hotel.",
-  "Air mineral di setiap kamar jama'ah.",
-  "Parcel buah atau snack di setiap kamar jama'ah.",
-  "Greeting card di setiap kamar jama'ah.",
-  "Free air zamzam 5lt.",
-  "FOC 1 pax tour leader.",
-];
-
-const defaultExcluded = [
-  "Tiket pesawat.",
-  "Asuransi perjalanan.",
-  "Biaya-biaya yang bersifat pribadi, dan atau yang bukan merupakan fasilitas program.",
-  "Biaya tambahan apabila ada yang dikeluarkan oleh pemerintah Arab Saudi untuk penerbitan visa umrah.",
-  "Visa umrah.",
-  "Transportasi selama di Arab Saudi.",
-];
-
-const defaultOfferRows: OfferPriceRow[] = [
-  { paxRange: "44 - 47 PAX", quad: 815, triple: 943, double: 1197 },
-  { paxRange: "40 - 43 PAX", quad: 823, triple: 950, double: 1205 },
-  { paxRange: "36 - 39 PAX", quad: 832, triple: 960, double: 1216 },
-  { paxRange: "32 - 35 PAX", quad: 843, triple: 972, double: 1228 },
-  { paxRange: "28 - 31 PAX", quad: 858, triple: 987, double: 1245 },
-  { paxRange: "24 - 27 PAX", quad: 878, triple: 1008, double: 1267 },
-  { paxRange: "20 - 23 PAX", quad: 907, triple: 1037, double: 1299 },
-  { paxRange: "16 - 19 PAX", quad: 950, triple: 1082, double: 1346 },
-  { paxRange: "12 - 15 PAX", quad: 1023, triple: 1158, double: 1428 },
-];
+const defaultOfferRows: OfferPriceRow[] = Array.from({ length: 5 }, () => ({
+  paxRange: "",
+  quad: 0,
+  triple: 0,
+  double: 0,
+}));
 
 const defaultOffer: LandArrangementOfferData = {
-  quoteNumber: "3345",
-  tier: "Premium",
-  title: "Penawaran Paket LA Umrah Bintang 5 Awal Musim",
-  subtitle: "Program 7 Malam",
-  dateRange: "01 Jul - 31 Jul 2026",
-  customerName: "IGH Tour",
-  hotelMakkah: "Pullman Zamzam Makkah",
-  hotelMadinah: "Frontel Al Harithia",
-  makkahNights: 4,
-  madinahNights: 3,
+  quoteNumber: "",
+  tier: "",
+  title: "",
+  subtitle: "",
+  dateRange: "",
+  customerName: "",
+  hotelMakkah: "",
+  hotelMadinah: "",
+  makkahNights: 0,
+  madinahNights: 0,
   makkahStars: 5,
   madinahStars: 5,
   usdToSar: 3.75,
-  updateDate: "13 Apr 2026",
+  updateDate: "",
   rows: defaultOfferRows,
-  included: defaultIncluded,
-  excluded: defaultExcluded,
-  website: "www.umrahservice.co",
-  contactPhone: "+62 812-8955-2018",
-  contactName: "M. FARUQ AL ISLAM",
+  included: [],
+  excluded: [],
+  website: "",
+  contactPhone: "",
+  contactName: "",
 };
 
 function FieldRow({ children }: { children: React.ReactNode }) {
@@ -407,6 +375,7 @@ export default function Calculator() {
               <textarea
                 value={offer.included.join("\n")}
                 onChange={(e) => setOfferList("included", e.target.value)}
+                placeholder={"Tulis satu item per baris\ncth: Akomodasi hotel sesuai program.\ncth: Makan fullboard."}
                 className="calculator-textarea min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
               />
             </div>
@@ -415,6 +384,7 @@ export default function Calculator() {
               <textarea
                 value={offer.excluded.join("\n")}
                 onChange={(e) => setOfferList("excluded", e.target.value)}
+                placeholder={"Tulis satu item per baris\ncth: Tiket pesawat.\ncth: Asuransi perjalanan."}
                 className="calculator-textarea min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
               />
             </div>
@@ -435,7 +405,7 @@ export default function Calculator() {
               Preview & Export PDF Penawaran
             </Button>
             <Button variant="outline" className="sm:w-36 h-11 rounded-xl" onClick={() => setOffer(defaultOffer)}>
-              Reset Contoh
+              Reset
             </Button>
           </div>
         </div>

@@ -302,8 +302,8 @@
 
     .calculator-compact .calculator-price-table {
       border-radius: 0.75rem;
-      max-height: 15rem;
-      overflow-x: visible;
+      overflow-x: auto;
+      overflow-y: visible;
     }
 
     .calculator-compact .calculator-price-table table {
@@ -347,6 +347,8 @@
       padding: 0.5rem;
       font-size: 0.6875rem;
       line-height: 1.25;
+      overflow-y: auto;
+      resize: vertical;
     }
 
     .calculator-compact .rounded-2xl {
