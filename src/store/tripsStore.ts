@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import {
-  listTrips, createTrip, deleteTrip,
+  listTrips, createTrip, updateTrip, deleteTrip,
   listJamaah, createJamaah, updateJamaah, deleteJamaah, getJamaah,
   listDocs, addDoc, deleteDoc,
   type Trip, type Jamaah, type JamaahDoc, type DocCategory,
@@ -11,10 +11,11 @@ interface TripsState {
   loadingTrips: boolean;
   fetchTrips: () => Promise<void>;
   addTrip: (draft: Omit<Trip, "id" | "createdAt">) => Promise<Trip>;
+  patchTrip: (id: string, patch: Partial<Trip>) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
 }
 
-export const useTripsStore = create<TripsState>((set, get) => ({
+export const useTripsStore = create<TripsState>((set) => ({
   trips: [],
   loadingTrips: false,
 
@@ -28,6 +29,11 @@ export const useTripsStore = create<TripsState>((set, get) => ({
     const t = await createTrip(draft);
     set((s) => ({ trips: [t, ...s.trips] }));
     return t;
+  },
+
+  patchTrip: async (id, patch) => {
+    const updated = await updateTrip(id, patch);
+    set((s) => ({ trips: s.trips.map((t) => (t.id === id ? updated : t)) }));
   },
 
   removeTrip: async (id) => {

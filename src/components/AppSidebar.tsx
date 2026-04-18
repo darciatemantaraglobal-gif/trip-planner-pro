@@ -30,7 +30,7 @@ export function AppSidebar() {
       <div className="px-6 mb-8">
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-2xl gradient-primary shadow-glow flex items-center justify-center shrink-0">
-            <Plane className="h-5 w-5 text-white" />
+            <Plane strokeWidth={1.5} className="h-5 w-5 text-white" />
           </div>
           <div>
             <div className="font-bold text-[15px] text-[hsl(var(--foreground))] leading-tight">TravelHub</div>
@@ -60,7 +60,10 @@ export function AppSidebar() {
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[hsl(var(--primary))]" />
               )}
-              <item.icon className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-[hsl(var(--primary))]" : "")} />
+              <item.icon
+                strokeWidth={1.5}
+                className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-[hsl(var(--primary))]" : "")}
+              />
               <span className="flex-1">{item.title}</span>
               {item.badge && (
                 <span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] shrink-0" />
@@ -73,14 +76,14 @@ export function AppSidebar() {
       {/* Bottom actions */}
       <div className="px-3 mt-4 space-y-0.5 pt-4 border-t border-[hsl(var(--border))]">
         <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-smooth w-full">
-          <Moon className="h-[18px] w-[18px] shrink-0" />
+          <Moon strokeWidth={1.5} className="h-[18px] w-[18px] shrink-0" />
           <span>Mode Gelap</span>
         </button>
         <NavLink
           to="/auth"
           className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-red-50 hover:text-red-500 transition-smooth"
         >
-          <LogOut className="h-[18px] w-[18px] shrink-0" />
+          <LogOut strokeWidth={1.5} className="h-[18px] w-[18px] shrink-0" />
           <span>Logout</span>
         </NavLink>
       </div>

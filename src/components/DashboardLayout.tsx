@@ -28,7 +28,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           <header className="flex items-center gap-3 px-6 py-4 border-b border-[hsl(var(--border))] shrink-0">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+              <Search strokeWidth={1.5} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               <Input
                 placeholder="Cari destinasi, paket trip…"
                 className="pl-10 h-10 bg-[hsl(var(--secondary))] border-0 rounded-xl text-sm focus-visible:ring-[hsl(var(--primary))] focus-visible:ring-1"
@@ -39,7 +39,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
               size="icon"
               className="h-10 w-10 rounded-xl border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] shrink-0"
             >
-              <SlidersHorizontal className="h-4 w-4" />
+              <SlidersHorizontal strokeWidth={1.5} className="h-4 w-4" />
             </Button>
             <Button className="h-10 px-6 rounded-xl gradient-primary text-white shadow-glow hover:opacity-90 text-sm font-semibold shrink-0">
               Cari

@@ -143,13 +143,13 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
                 }
               </div>
               <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="h-6 w-6 text-white" />
+                <Camera strokeWidth={1.5} className="h-6 w-6 text-white" />
               </div>
               {photoDataUrl && (
                 <button type="button"
                   className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
                   onClick={(e) => { e.stopPropagation(); setPhotoDataUrl(undefined); }}>
-                  <X className="h-3 w-3" />
+                  <X strokeWidth={1.5} className="h-3 w-3" />
                 </button>
               )}
             </div>
@@ -211,7 +211,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
               </Select>
               <Button type="button" variant="outline" className="shrink-0 gap-1.5 text-xs"
                 onClick={() => docRef.current?.click()}>
-                <Upload className="h-3.5 w-3.5" /> Pilih File
+                <Upload strokeWidth={1.5} className="h-3.5 w-3.5" /> Pilih File
               </Button>
               <input ref={docRef} type="file" accept="image/png,image/jpeg,image/jpg" multiple className="hidden"
                 onChange={handleDocChange} />
@@ -226,7 +226,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
                     <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-[hsl(var(--border))] bg-white flex items-center justify-center">
                       {doc.fileType === "image"
                         ? <img src={doc.dataUrl} className="h-full w-full object-cover" alt={doc.fileName} />
-                        : <FileText className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+                        : <FileText strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
                       }
                     </div>
                     {/* Name + category changer */}
@@ -246,7 +246,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
                     {/* Remove */}
                     <button type="button" onClick={() => removeDoc(doc.id)}
                       className="h-6 w-6 rounded-full hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-[hsl(var(--muted-foreground))] transition-colors shrink-0">
-                      <X className="h-3.5 w-3.5" />
+                      <X strokeWidth={1.5} className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
@@ -255,7 +255,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
 
             {uploadedDocs.length === 0 && (
               <div className="rounded-xl border-2 border-dashed border-[hsl(var(--border))] p-4 text-center text-xs text-[hsl(var(--muted-foreground))]">
-                <ImageIcon className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
+                <ImageIcon strokeWidth={1.5} className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
                 Belum ada dokumen — pilih kategori lalu klik "Pilih File"
               </div>
             )}
@@ -300,19 +300,19 @@ function JamaahCard({ jamaah, tripId, onDelete }: { jamaah: Jamaah; tripId: stri
         <h4 className="font-semibold text-sm text-[hsl(var(--card-foreground))] truncate">{jamaah.name}</h4>
         {jamaah.passportNumber && (
           <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-            <CreditCard className="h-3 w-3" />
+            <CreditCard strokeWidth={1.5} className="h-3 w-3" />
             <span>{jamaah.passportNumber}</span>
           </div>
         )}
         {jamaah.phone && (
           <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-            <Phone className="h-3 w-3" />
+            <Phone strokeWidth={1.5} className="h-3 w-3" />
             <span>{jamaah.phone}</span>
           </div>
         )}
         {jamaah.birthDate && (
           <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-            <CalendarDays className="h-3 w-3" />
+            <CalendarDays strokeWidth={1.5} className="h-3 w-3" />
             <span>{formatDate(jamaah.birthDate)}</span>
           </div>
         )}
@@ -334,7 +334,7 @@ function JamaahCard({ jamaah, tripId, onDelete }: { jamaah: Jamaah; tripId: stri
         onClick={(e) => { e.stopPropagation(); onDelete(jamaah); }}
         data-testid={`btn-delete-jamaah-${jamaah.id}`}
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 strokeWidth={1.5} className="h-3.5 w-3.5" />
       </button>
     </div>
   );
@@ -377,7 +377,7 @@ export default function TripDetail() {
       <div className="flex items-start gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/")}
           className="rounded-xl h-9 w-9 shrink-0 hover:bg-[hsl(var(--secondary))]">
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft strokeWidth={1.5} className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -392,7 +392,7 @@ export default function TripDetail() {
         </div>
         <Button onClick={() => setAddOpen(true)}
           className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-4 text-sm shrink-0">
-          <Plus className="h-4 w-4 mr-1.5" /> Tambah Jamaah
+          <Plus strokeWidth={1.5} className="h-4 w-4 mr-1.5" /> Tambah Jamaah
         </Button>
       </div>
 
@@ -413,7 +413,7 @@ export default function TripDetail() {
       ) : jamaah.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="h-16 w-16 rounded-3xl bg-[hsl(var(--secondary))] flex items-center justify-center mb-4">
-            <Users className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
+            <Users strokeWidth={1.5} className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
           </div>
           <h2 className="text-base font-semibold text-[hsl(var(--card-foreground))]">Belum ada jamaah</h2>
           <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
@@ -421,7 +421,7 @@ export default function TripDetail() {
           </p>
           <Button onClick={() => setAddOpen(true)}
             className="mt-5 gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl">
-            <Plus className="h-4 w-4 mr-2" /> Tambah Jamaah Pertama
+            <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> Tambah Jamaah Pertama
           </Button>
         </div>
       ) : (
@@ -432,7 +432,7 @@ export default function TripDetail() {
           <button onClick={() => setAddOpen(true)}
             className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 py-10 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
             <div className="h-9 w-9 rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
-              <Plus className="h-4 w-4 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
+              <Plus strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
             </div>
             <span className="text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Jamaah</span>
           </button>

@@ -5,6 +5,7 @@ export interface Trip {
   startDate: string;
   endDate: string;
   emoji: string;
+  coverImage?: string;
   createdAt: string;
 }
 
@@ -74,6 +75,15 @@ export async function createTrip(draft: Omit<Trip, "id" | "createdAt">): Promise
   const t: Trip = { ...draft, id: `t-${Date.now()}`, createdAt: new Date().toISOString() };
   save(TRIPS_KEY, [t, ...trips]);
   return tick(t);
+}
+
+export async function updateTrip(id: string, patch: Partial<Trip>): Promise<Trip> {
+  const trips = load<Trip>(TRIPS_KEY, seedTrips);
+  const idx = trips.findIndex((t) => t.id === id);
+  if (idx === -1) throw new Error("Trip not found");
+  trips[idx] = { ...trips[idx], ...patch };
+  save(TRIPS_KEY, trips);
+  return tick(trips[idx]);
 }
 
 export async function deleteTrip(id: string): Promise<void> {

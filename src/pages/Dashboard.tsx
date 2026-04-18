@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -128,41 +128,86 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
 // ── TRIP CARD ──────────────────────────────────────────────────────────────────
 function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void }) {
   const navigate = useNavigate();
+  const patchTrip = useTripsStore((s) => s.patchTrip);
   const [from, to] = cardGradient(trip.id);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      await patchTrip(trip.id, { coverImage: reader.result as string });
+      toast.success("Foto cover berhasil diperbarui.");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   return (
     <div
       className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-200 border border-[hsl(var(--border))] bg-white"
       onClick={() => navigate(`/trips/${trip.id}`)}
     >
-      {/* Gradient image area */}
+      {/* Cover area */}
       <div
         className="relative h-40 flex items-center justify-center overflow-hidden"
-        style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+        style={trip.coverImage ? {} : { background: `linear-gradient(135deg, ${from}, ${to})` }}
       >
-        <span className="text-7xl drop-shadow-lg select-none">{trip.emoji}</span>
+        {trip.coverImage ? (
+          <img
+            src={trip.coverImage}
+            alt={trip.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <span className="text-7xl drop-shadow-lg select-none">{trip.emoji}</span>
+        )}
+
+        {/* Overlay gradient for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+
         {/* Duration badge */}
-        <span className="absolute bottom-3 left-3 text-[11px] font-semibold bg-white/20 backdrop-blur-sm text-white px-2.5 py-1 rounded-full">
+        <span className="absolute bottom-3 left-3 text-[11px] font-semibold bg-white/20 backdrop-blur-sm text-white px-2.5 py-1 rounded-full z-10">
           {nightCount(trip.startDate, trip.endDate)}
         </span>
+
+        {/* Change photo button */}
+        <button
+          className="absolute bottom-3 right-3 h-7 w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+          title="Ganti foto"
+        >
+          <Camera strokeWidth={1.5} className="h-3.5 w-3.5 text-white" />
+        </button>
+
         {/* Delete */}
         <button
-          className="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+          className="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/20 backdrop-blur-sm hover:bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
           onClick={(e) => { e.stopPropagation(); onDelete(trip); }}
+          title="Hapus paket"
         >
-          <Trash2 className="h-3.5 w-3.5 text-white" />
+          <Trash2 strokeWidth={1.5} className="h-3.5 w-3.5 text-white" />
         </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
       </div>
 
       {/* Info */}
       <div className="p-3.5">
         <h3 className="font-semibold text-[13.5px] text-[hsl(var(--foreground))] line-clamp-1">{trip.name}</h3>
         <div className="flex items-center gap-1 mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-          <MapPin className="h-3 w-3 shrink-0 text-[hsl(var(--primary))]" />
+          <MapPin strokeWidth={1.5} className="h-3 w-3 shrink-0 text-[hsl(var(--primary))]" />
           <span className="line-clamp-1">{trip.destination}</span>
         </div>
         <div className="flex items-center gap-1 mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
-          <CalendarIcon className="h-3 w-3 shrink-0" />
+          <CalendarIcon strokeWidth={1.5} className="h-3 w-3 shrink-0" />
           <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
         </div>
       </div>
@@ -174,7 +219,6 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
 function RightPanel({ trips }: { trips: Trip[] }) {
   const [date, setDate] = useState<Date | undefined>(new Date());
 
-  // Sort upcoming trips by start date
   const upcoming = [...trips]
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, 4);
@@ -242,15 +286,18 @@ function RightPanel({ trips }: { trips: Trip[] }) {
                 const isPast = countDown === "Selesai";
                 return (
                   <div key={trip.id} className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-2.5">
-                    {/* Color dot */}
                     <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center text-2xl overflow-hidden"
                       style={{ background: `${from}22` }}>
-                      <span className="text-xl">{trip.emoji}</span>
+                      {trip.coverImage ? (
+                        <img src={trip.coverImage} alt={trip.name} className="w-full h-full object-cover rounded-xl" />
+                      ) : (
+                        <span className="text-xl">{trip.emoji}</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[12.5px] font-semibold text-[hsl(var(--foreground))] truncate">{trip.name}</p>
                       <div className="flex items-center gap-1 mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">
-                        <CalendarIcon className="h-3 w-3 shrink-0" />
+                        <CalendarIcon strokeWidth={1.5} className="h-3 w-3 shrink-0" />
                         <span>{formatShortDate(trip.startDate)} – {formatShortDate(trip.endDate)}</span>
                       </div>
                     </div>
@@ -341,7 +388,7 @@ export default function Dashboard() {
             onClick={() => setAddOpen(true)}
             className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-10 px-5 text-sm font-semibold shrink-0"
           >
-            <Plus className="h-4 w-4 mr-2" /> Tambah Paket Trip
+            <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> Tambah Paket Trip
           </Button>
         </div>
 
@@ -362,7 +409,7 @@ export default function Dashboard() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="h-20 w-20 rounded-3xl gradient-primary shadow-glow flex items-center justify-center mb-5">
-              <Plane className="h-9 w-9 text-white" />
+              <Plane strokeWidth={1.5} className="h-9 w-9 text-white" />
             </div>
             <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">Belum ada paket trip</h2>
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 max-w-xs">
@@ -370,7 +417,7 @@ export default function Dashboard() {
             </p>
             <Button onClick={() => setAddOpen(true)}
               className="mt-6 gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl">
-              <Plus className="h-4 w-4 mr-2" /> Buat Paket Pertama
+              <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> Buat Paket Pertama
             </Button>
           </div>
         ) : (
@@ -382,7 +429,7 @@ export default function Dashboard() {
             <button onClick={() => setAddOpen(true)}
               className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-3 min-h-[220px] hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
               <div className="h-11 w-11 rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
-                <Plus className="h-5 w-5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
+                <Plus strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
               </div>
               <span className="text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Paket</span>
             </button>
