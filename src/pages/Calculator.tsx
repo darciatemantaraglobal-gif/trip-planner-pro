@@ -231,22 +231,22 @@ export default function Calculator() {
 
   const pdfCosts = [
     ...(summary.hotelMakkahIDR > 0
-      ? [{ id: "hotel-makkah", label: `Hotel Makkah (${nightsMakkah} malam)`, amount: summary.hotelMakkahIDR }]
+      ? [{ id: "hotel-makkah", label: `Penginapan 1 (${nightsMakkah} malam)`, amount: summary.hotelMakkahIDR }]
       : []),
     ...(summary.hotelMadinahIDR > 0
-      ? [{ id: "hotel-madinah", label: `Hotel Madinah (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
+      ? [{ id: "hotel-madinah", label: `Penginapan 2 (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
       : []),
     ...(toIDR(form.visaUmroh) * form.pax > 0
       ? [{ id: "visa", label: `Visa / Izin Masuk (${form.pax} pax)`, amount: toIDR(form.visaUmroh) * form.pax }]
       : []),
     ...(toIDR(form.muthowif) * form.pax > 0
-      ? [{ id: "muthowif", label: `Pemandu / Muthowif (${form.pax} pax)`, amount: toIDR(form.muthowif) * form.pax }]
+      ? [{ id: "muthowif", label: `Tour Leader (${form.pax} pax)`, amount: toIDR(form.muthowif) * form.pax }]
       : []),
     ...(toIDR(form.siskopatuh) * form.pax > 0
-      ? [{ id: "sisko", label: `Biaya Admin / Siskopatuh (${form.pax} pax)`, amount: toIDR(form.siskopatuh) * form.pax }]
+      ? [{ id: "sisko", label: `Biaya Admin (${form.pax} pax)`, amount: toIDR(form.siskopatuh) * form.pax }]
       : []),
     ...(toIDR(form.zamZam) * form.pax > 0
-      ? [{ id: "zamzam", label: `Oleh-oleh / Zam Zam (${form.pax} pax)`, amount: toIDR(form.zamZam) * form.pax }]
+      ? [{ id: "zamzam", label: `Oleh-oleh (${form.pax} pax)`, amount: toIDR(form.zamZam) * form.pax }]
       : []),
     ...(toIDR(form.handlingBandara) * form.pax > 0
       ? [{ id: "handling", label: `Handling Bandara (${form.pax} pax)`, amount: toIDR(form.handlingBandara) * form.pax }]
@@ -502,23 +502,23 @@ export default function Calculator() {
           {/* Divider */}
           <div className="h-px bg-[hsl(var(--border))] my-1" />
 
-          {/* Hotel Makkah */}
+          {/* Penginapan 1 */}
           <FieldRow>
-            <FormField label="Hotel Makkah">
+            <FormField label="Penginapan 1">
               <Input
-                placeholder="Nama hotel Makkah"
+                placeholder="Nama hotel / penginapan"
                 value={form.hotelMakkah}
                 onChange={(e) => set("hotelMakkah", e.target.value)}
                 className="h-9 text-sm"
               />
             </FormField>
-            <FormField label="Harga Makkah" suffix={`${currencyLabel}/mlm`}>
+            <FormField label="Harga / Malam" suffix={currencyLabel}>
               <NumInput value={form.hargaMakkah} onChange={(v) => set("hargaMakkah", v)} />
             </FormField>
           </FieldRow>
 
           <FieldRow>
-            <FormField label="Start Makkah">
+            <FormField label="Tgl. Masuk">
               <Input
                 type="date"
                 value={form.startMakkah}
@@ -526,7 +526,7 @@ export default function Calculator() {
                 className="h-9 text-sm"
               />
             </FormField>
-            <FormField label="End Makkah">
+            <FormField label="Tgl. Keluar">
               <Input
                 type="date"
                 value={form.endMakkah}
@@ -538,7 +538,7 @@ export default function Calculator() {
 
           {nightsMakkah > 0 && (
             <p className="text-[11px] text-[hsl(var(--primary))] -mt-1 pl-1">
-              → {nightsMakkah} malam di Makkah
+              → {nightsMakkah} malam di Penginapan 1
               {form.hargaMakkah > 0 && ` | ${fmtIDR(summary.hotelMakkahIDR)} total`}
             </p>
           )}
@@ -546,23 +546,23 @@ export default function Calculator() {
           {/* Divider */}
           <div className="h-px bg-[hsl(var(--border))] my-1" />
 
-          {/* Hotel Madinah */}
+          {/* Penginapan 2 */}
           <FieldRow>
-            <FormField label="Hotel Madinah">
+            <FormField label="Penginapan 2">
               <Input
-                placeholder="Nama hotel Madinah"
+                placeholder="Nama hotel / penginapan (opsional)"
                 value={form.hotelMadinah}
                 onChange={(e) => set("hotelMadinah", e.target.value)}
                 className="h-9 text-sm"
               />
             </FormField>
-            <FormField label="Harga Madinah" suffix={`${currencyLabel}/mlm`}>
+            <FormField label="Harga / Malam" suffix={currencyLabel}>
               <NumInput value={form.hargaMadinah} onChange={(v) => set("hargaMadinah", v)} />
             </FormField>
           </FieldRow>
 
           <FieldRow>
-            <FormField label="Start Madinah">
+            <FormField label="Tgl. Masuk">
               <Input
                 type="date"
                 value={form.startMadinah}
@@ -570,7 +570,7 @@ export default function Calculator() {
                 className="h-9 text-sm"
               />
             </FormField>
-            <FormField label="End Madinah">
+            <FormField label="Tgl. Keluar">
               <Input
                 type="date"
                 value={form.endMadinah}
@@ -582,7 +582,7 @@ export default function Calculator() {
 
           {nightsMadinah > 0 && (
             <p className="text-[11px] text-[hsl(var(--primary))] -mt-1 pl-1">
-              → {nightsMadinah} malam di Madinah
+              → {nightsMadinah} malam di Penginapan 2
               {form.hargaMadinah > 0 && ` | ${fmtIDR(summary.hotelMadinahIDR)} total`}
             </p>
           )}
@@ -595,16 +595,16 @@ export default function Calculator() {
             <FormField label="Visa / Izin Masuk" suffix="/ pax">
               <NumInput value={form.visaUmroh} onChange={(v) => set("visaUmroh", v)} placeholder={currencyLabel} />
             </FormField>
-            <FormField label="Pemandu / Muthowif" suffix="/ pax">
+            <FormField label="Tour Leader" suffix="/ pax">
               <NumInput value={form.muthowif} onChange={(v) => set("muthowif", v)} placeholder={currencyLabel} />
             </FormField>
           </FieldRow>
 
           <FieldRow>
-            <FormField label="Biaya Admin / Siskopatuh" suffix="/ pax">
+            <FormField label="Biaya Admin" suffix="/ pax">
               <NumInput value={form.siskopatuh} onChange={(v) => set("siskopatuh", v)} placeholder={currencyLabel} />
             </FormField>
-            <FormField label="Oleh-oleh / Zam Zam" suffix="/ pax">
+            <FormField label="Oleh-oleh" suffix="/ pax">
               <NumInput value={form.zamZam} onChange={(v) => set("zamZam", v)} placeholder={currencyLabel} />
             </FormField>
           </FieldRow>
@@ -690,8 +690,8 @@ export default function Calculator() {
           {/* Breakdown list */}
           <div className="space-y-2">
             {[
-              { label: `Hotel Makkah (${nightsMakkah} mlm)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
-              { label: `Hotel Madinah (${nightsMadinah} mlm)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
+              { label: `Penginapan 1 (${nightsMakkah} mlm)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
+              { label: `Penginapan 2 (${nightsMadinah} mlm)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
               { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxIDR, show: summary.perPaxIDR > 0 },
               { label: "Transportasi", value: summary.transportIDR, show: summary.transportIDR > 0 },
             ]
