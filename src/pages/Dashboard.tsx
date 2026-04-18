@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Package, DollarSign, Users, TrendingUp, ArrowUpRight, MapPin } from "lucide-react";
+import { CurrencyExchangeCard } from "@/components/CurrencyExchangeCard";
 import {
   Table,
   TableBody,
@@ -112,37 +113,41 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-md gradient-card">
-          <CardHeader>
-            <CardTitle>Monthly Goal</CardTitle>
-            <p className="text-sm text-muted-foreground">Revenue target progress</p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-3xl font-bold">Rp 482M</span>
-                <span className="text-sm text-muted-foreground">/ Rp 600M</span>
-              </div>
-              <Progress value={80} className="mt-3 h-2" />
-              <p className="text-xs text-muted-foreground mt-2">80% achieved · 12 days left</p>
-            </div>
+        <div className="space-y-6">
+          <CurrencyExchangeCard />
 
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">New bookings</span>
-                <span className="font-semibold">+24</span>
+          <Card className="border-0 shadow-md gradient-card">
+            <CardHeader>
+              <CardTitle>Monthly Goal</CardTitle>
+              <p className="text-sm text-muted-foreground">Revenue target progress</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-bold">Rp 482M</span>
+                  <span className="text-sm text-muted-foreground">/ Rp 600M</span>
+                </div>
+                <Progress value={80} className="mt-3 h-2" />
+                <p className="text-xs text-muted-foreground mt-2">80% achieved · 12 days left</p>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Avg. package value</span>
-                <span className="font-semibold">Rp 20.1M</span>
+
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">New bookings</span>
+                  <span className="font-semibold">+24</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Avg. package value</span>
+                  <span className="font-semibold">Rp 20.1M</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Top destination</span>
+                  <span className="font-semibold">Bali 🌴</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Top destination</span>
-                <span className="font-semibold">Bali 🌴</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
