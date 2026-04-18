@@ -11,8 +11,6 @@ import Packages from "./pages/Packages";
 import ProgressTracker from "./pages/ProgressTracker";
 import TripDetail from "./pages/TripDetail";
 import JamaahProfile from "./pages/JamaahProfile";
-import Messages from "./pages/Messages";
-import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
@@ -48,8 +46,6 @@ const App = () => (
           <Route path="/progress" element={<DashboardLayout><ProgressTracker /></DashboardLayout>} />
           <Route path="/trips/:id" element={<DashboardLayout><TripDetail /></DashboardLayout>} />
           <Route path="/trips/:id/jamaah/:jamaahId" element={<DashboardLayout><JamaahProfile /></DashboardLayout>} />
-          <Route path="/messages" element={<DashboardLayout noPadding><Messages /></DashboardLayout>} />
-          <Route path="/support" element={<DashboardLayout><Support /></DashboardLayout>} />
           <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
           <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />

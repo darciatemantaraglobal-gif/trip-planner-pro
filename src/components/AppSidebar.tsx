@@ -1,14 +1,12 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Plane, MessageSquare, Settings, Moon, Headphones } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Plane, Settings, Moon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
   { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
-  { title: "Paket", url: "/packages", icon: Package, end: false, badge: false },
+  { title: "Paket", url: "/packages", icon: Package, end: false },
   { title: "Progress", url: "/progress", icon: GitBranch, end: false },
-  { title: "Pesan", url: "/messages", icon: MessageSquare, end: false, badge: true },
-  { title: "Support", url: "/support", icon: Headphones, end: false },
   { title: "Pengaturan", url: "/settings", icon: Settings, end: false },
 ];
 
