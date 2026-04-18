@@ -151,14 +151,16 @@ function FormField({
   suffix?: string;
 }) {
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <Label className="shrink-0 w-36 text-[12px] font-semibold text-[hsl(var(--foreground))] leading-tight">
-        {label}
-      </Label>
-      <div className="flex-1 min-w-0">{children}</div>
-      {suffix && (
-        <span className="shrink-0 text-[11px] text-[hsl(var(--muted-foreground))] font-medium">{suffix}</span>
-      )}
+    <div className="space-y-1 min-w-0">
+      <div className="flex items-center justify-between gap-1">
+        <Label className="text-[12px] font-semibold text-[hsl(var(--foreground))] leading-tight">
+          {label}
+        </Label>
+        {suffix && (
+          <span className="text-[11px] text-[hsl(var(--muted-foreground))] font-medium shrink-0">{suffix}</span>
+        )}
+      </div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
@@ -312,17 +314,17 @@ export default function Calculator() {
         </div>
 
         <div className="calculator-card-body p-4 md:p-6 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 w-20 text-[12px] font-semibold">No.</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">No.</Label>
               <Input value={offer.quoteNumber} onChange={(e) => setOfferField("quoteNumber", e.target.value)} className="h-9 text-sm" />
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 w-20 text-[12px] font-semibold">Tipe</Label>
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Tipe</Label>
               <Input value={offer.tier} onChange={(e) => setOfferField("tier", e.target.value)} className="h-9 text-sm" />
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 w-20 text-[12px] font-semibold">Customer</Label>
+            <div className="space-y-1 col-span-2 sm:col-span-1">
+              <Label className="text-[12px] font-semibold">Customer</Label>
               <Input value={offer.customerName} onChange={(e) => setOfferField("customerName", e.target.value)} className="h-9 text-sm" />
             </div>
           </div>
@@ -350,20 +352,20 @@ export default function Calculator() {
           </FieldRow>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 text-[12px] font-semibold">Makkah</Label>
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Malam Makkah</Label>
               <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-9 text-sm" />
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 text-[12px] font-semibold">Madinah</Label>
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Malam Madinah</Label>
               <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-9 text-sm" />
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 text-[12px] font-semibold">Kurs</Label>
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Kurs USD/SAR</Label>
               <Input type="number" step="0.01" min={0} value={offer.usdToSar} onChange={(e) => setOfferField("usdToSar", Number(e.target.value))} className="h-9 text-sm" />
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 text-[12px] font-semibold">Update</Label>
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Tgl. Update</Label>
               <Input value={offer.updateDate} onChange={(e) => setOfferField("updateDate", e.target.value)} className="h-9 text-sm" />
             </div>
           </div>
@@ -453,9 +455,9 @@ export default function Calculator() {
         <div className="calculator-card-body p-4 md:p-6 space-y-4">
 
           {/* Nama Paket + Pax + Currency */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-[hsl(var(--border))]">
-            <div className="sm:col-span-1 flex items-center gap-2">
-              <Label className="shrink-0 w-28 text-[12px] font-semibold">Mata Uang</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-3 border-b border-[hsl(var(--border))]">
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Mata Uang</Label>
               <Select value={form.currency} onValueChange={(v) => set("currency", v as FormState["currency"])}>
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue />
@@ -467,8 +469,8 @@ export default function Calculator() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <Label className="shrink-0 w-28 text-[12px] font-semibold">Jumlah Pax</Label>
+            <div className="space-y-1">
+              <Label className="text-[12px] font-semibold">Jumlah Pax</Label>
               <Input
                 type="number"
                 min={1}
@@ -478,7 +480,7 @@ export default function Calculator() {
               />
             </div>
             {inputLabel && (
-              <div className="flex items-center justify-end sm:justify-start">
+              <div className="col-span-2 sm:col-span-1 flex items-center">
                 <span className="text-[11px] text-[hsl(var(--muted-foreground))] bg-[hsl(var(--secondary))] px-3 py-1.5 rounded-lg">
                   {inputLabel}
                 </span>
@@ -620,35 +622,37 @@ export default function Calculator() {
             <p className="text-[12px] font-semibold text-[hsl(var(--muted-foreground))] mb-3 uppercase tracking-wide">
               Transportasi
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
               {form.transports.map((t, i) => (
-                <div key={i} className="flex items-center gap-2 min-w-0">
-                  <Label className="shrink-0 w-24 text-[12px] font-semibold">
+                <div key={i} className="space-y-1">
+                  <Label className="text-[12px] font-semibold">
                     Transport {i + 1}
                   </Label>
-                  <Select
-                    value={t.jenis}
-                    onValueChange={(v) => setTransport(i, "jenis", v)}
-                  >
-                    <SelectTrigger className="h-9 text-sm flex-1 min-w-0">
-                      <SelectValue placeholder="Jenis" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TRANSPORT_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Harga"
-                    value={t.harga || ""}
-                    onChange={(e) => setTransport(i, "harga", Number(e.target.value))}
-                    className="h-9 text-sm w-28 shrink-0"
-                  />
+                  <div className="flex gap-2">
+                    <Select
+                      value={t.jenis}
+                      onValueChange={(v) => setTransport(i, "jenis", v)}
+                    >
+                      <SelectTrigger className="h-9 text-sm flex-1 min-w-0">
+                        <SelectValue placeholder="Jenis" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TRANSPORT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Harga"
+                      value={t.harga || ""}
+                      onChange={(e) => setTransport(i, "harga", Number(e.target.value))}
+                      className="h-9 text-sm w-24 shrink-0"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
