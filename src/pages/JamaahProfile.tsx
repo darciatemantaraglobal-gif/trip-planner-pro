@@ -153,7 +153,7 @@ function DocSection({
       </div>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
-        <AlertDialogContent className="content-light">
+        <AlertDialogContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Dokumen?</AlertDialogTitle>
             <AlertDialogDescription>Dokumen ini akan dihapus permanen.</AlertDialogDescription>
@@ -295,7 +295,7 @@ export default function JamaahProfile() {
                 <Label className="text-xs text-[hsl(var(--muted-foreground))]">Jenis Kelamin</Label>
                 <Select value={form.gender ?? ""} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
                   <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-                  <SelectContent className="content-light">
+                  <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
                     <SelectItem value="L">Laki-laki</SelectItem>
                     <SelectItem value="P">Perempuan</SelectItem>
                   </SelectContent>

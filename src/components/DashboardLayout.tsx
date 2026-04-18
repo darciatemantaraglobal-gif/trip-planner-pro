@@ -1,54 +1,66 @@
 import { AppSidebar } from "./AppSidebar";
-import { CurrencyTicker } from "./CurrencyTicker";
-import { Search, Bell } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex w-full" style={{ background: "hsl(var(--background))" }}>
-      <AppSidebar />
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+  noPadding?: boolean;
+}
 
-      {/* Main area — offset for sidebar */}
-      <div className="flex-1 flex flex-col min-w-0 ml-[72px] p-4 md:p-6">
-        {/* White content card */}
-        <div
-          className="content-light flex-1 flex flex-col rounded-3xl overflow-hidden shadow-card min-h-[calc(100vh-48px)]"
-          style={{ background: "#ffffff" }}
-        >
-          {/* Top bar inside white card */}
-          <header className="flex items-center gap-3 px-6 py-4 border-b border-[hsl(var(--border))]">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+export function DashboardLayout({ children, noPadding = false }: DashboardLayoutProps) {
+  return (
+    <div
+      className="min-h-screen p-3 lg:p-5"
+      style={{ background: "hsl(var(--background))" }}
+    >
+      {/* White app card */}
+      <div
+        className="min-h-[calc(100vh-24px)] lg:min-h-[calc(100vh-40px)] rounded-3xl flex overflow-hidden"
+        style={{ background: "#ffffff", boxShadow: "0 4px 32px hsl(234 50% 80% / 0.25)" }}
+      >
+        <AppSidebar />
+
+        {/* Right of sidebar */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Top header bar */}
+          <header className="flex items-center gap-3 px-6 py-4 border-b border-[hsl(var(--border))] shrink-0">
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
               <Input
-                placeholder="Search packages, clients…"
-                className="pl-9 bg-[hsl(var(--secondary))] border-0 rounded-xl text-sm focus-visible:ring-[hsl(var(--primary))]"
+                placeholder="Cari destinasi, paket trip…"
+                className="pl-10 h-10 bg-[hsl(var(--secondary))] border-0 rounded-xl text-sm focus-visible:ring-[hsl(var(--primary))] focus-visible:ring-1"
               />
             </div>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 rounded-xl border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] shrink-0"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+            <Button className="h-10 px-6 rounded-xl gradient-primary text-white shadow-glow hover:opacity-90 text-sm font-semibold shrink-0">
+              Cari
+            </Button>
 
             <div className="flex-1" />
 
-            <CurrencyTicker />
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative rounded-xl hover:bg-[hsl(var(--accent))]"
-            >
-              <Bell className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[hsl(var(--primary))]" />
-            </Button>
-
-            <Avatar className="h-9 w-9 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer">
-              <AvatarFallback className="gradient-primary text-white text-sm font-bold">
-                TA
-              </AvatarFallback>
-            </Avatar>
+            {/* User info */}
+            <div className="flex items-center gap-3 shrink-0">
+              <Avatar className="h-10 w-10 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer">
+                <AvatarFallback className="gradient-primary text-white text-sm font-bold">TA</AvatarFallback>
+              </Avatar>
+              <div className="hidden lg:block">
+                <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">Travel Agent</div>
+                <div className="text-[11px] text-[hsl(var(--muted-foreground))]">agent@travelhub.io</div>
+              </div>
+            </div>
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-auto p-6 md:p-8">
+          <main className={`flex-1 overflow-auto ${noPadding ? "" : "p-6 lg:p-8"}`}>
             {children}
           </main>
         </div>

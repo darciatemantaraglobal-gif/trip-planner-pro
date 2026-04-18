@@ -37,7 +37,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="content-light max-w-md">
+      <DialogContent className="max-w-md" style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
         <DialogHeader>
           <DialogTitle className="text-[hsl(var(--card-foreground))]">Tambah Jamaah</DialogTitle>
         </DialogHeader>
@@ -52,7 +52,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
               <Label className="text-xs text-[hsl(var(--muted-foreground))]">Jenis Kelamin</Label>
               <Select value={form.gender} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
                 <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-                <SelectContent className="content-light">
+                <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
                   <SelectItem value="L">Laki-laki</SelectItem>
                   <SelectItem value="P">Perempuan</SelectItem>
                 </SelectContent>
@@ -257,7 +257,7 @@ export default function TripDetail() {
       {id && <AddJamaahDialog open={addOpen} tripId={id} onClose={() => setAddOpen(false)} />}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
-        <AlertDialogContent className="content-light">
+        <AlertDialogContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Jamaah?</AlertDialogTitle>
             <AlertDialogDescription>

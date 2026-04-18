@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import Dashboard from "./Dashboard";
 
 const Index = () => (
-  <DashboardLayout>
+  <DashboardLayout noPadding>
     <Dashboard />
   </DashboardLayout>
 );

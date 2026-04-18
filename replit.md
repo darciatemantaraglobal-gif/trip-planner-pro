@@ -18,7 +18,7 @@ src/
   App.tsx                     # Root with providers & routes
   index.css                   # Design tokens & global styles
   components/
-    AppSidebar.tsx            # Custom narrow icon-only sidebar (72px)
+    AppSidebar.tsx            # White sidebar 228px with icons + full labels (TripLove style)
     DashboardLayout.tsx       # Page shell (sidebar + white floating card)
     CurrencyTicker.tsx        # Exchange rate ticker (header)
     CurrencyExchangeCard.tsx  # Rate card (dashboard)

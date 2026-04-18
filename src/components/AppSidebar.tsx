@@ -1,123 +1,88 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Plane, Bell } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Plane, MessageSquare, Settings, Moon, Headphones } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
-  { title: "Calculator", url: "/calculator", icon: Calculator, end: false },
-  { title: "Packages", url: "/packages", icon: Package, end: false },
+  { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
+  { title: "Paket", url: "/packages", icon: Package, end: false, badge: false },
   { title: "Progress", url: "/progress", icon: GitBranch, end: false },
-  { title: "Notifications", url: "#", icon: Bell, end: false },
+  { title: "Pesan", url: "#", icon: MessageSquare, end: false, badge: true },
+  { title: "Support", url: "#", icon: Headphones, end: false },
+  { title: "Pengaturan", url: "#", icon: Settings, end: false },
 ];
-
-interface SidebarIconProps {
-  icon: React.ElementType;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-  to?: string;
-  end?: boolean;
-  danger?: boolean;
-}
-
-function SidebarIcon({ icon: Icon, label, active, danger }: SidebarIconProps) {
-  return (
-    <div
-      className={cn(
-        "relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200 cursor-pointer",
-        active
-          ? "bg-[hsl(344_70%_75%)] shadow-glow text-white"
-          : danger
-          ? "text-[hsl(var(--sidebar-icon))] hover:text-red-400 hover:bg-white/5"
-          : "text-[hsl(var(--sidebar-icon))] hover:text-white hover:bg-white/8"
-      )}
-      title={label}
-    >
-      <Icon className="h-5 w-5" />
-      {active && (
-        <span className="absolute -right-[1px] top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-l-full bg-[hsl(344_70%_75%)]" />
-      )}
-    </div>
-  );
-}
 
 export function AppSidebar() {
   const location = useLocation();
 
-  const isActive = (url: string, end: boolean) => {
+  const active = (url: string, end: boolean) => {
     if (url === "#") return false;
+    if (url.startsWith("/trips")) return location.pathname.startsWith("/trips");
     return end ? location.pathname === url : location.pathname.startsWith(url);
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 z-40 flex flex-col items-center py-5 w-[72px] bg-[hsl(var(--sidebar-bg))]">
+    <aside
+      className="shrink-0 flex flex-col py-7 border-r border-[hsl(var(--border))]"
+      style={{ width: "var(--sidebar-width)", background: "hsl(var(--sidebar-bg))" }}
+    >
       {/* Logo */}
-      <div className="mb-8 flex h-11 w-11 items-center justify-center rounded-2xl gradient-primary shadow-glow">
-        <Plane className="h-5 w-5 text-white" />
+      <div className="px-6 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 rounded-2xl gradient-primary shadow-glow flex items-center justify-center shrink-0">
+            <Plane className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <div className="font-bold text-[15px] text-[hsl(var(--foreground))] leading-tight">TravelHub</div>
+            <div className="text-[10px] font-medium tracking-widest text-[hsl(var(--muted-foreground))] uppercase">Travel Agency</div>
+          </div>
+        </div>
       </div>
 
-      {/* Separator */}
-      <div className="mb-5 h-px w-8 bg-white/10" />
-
-      {/* Nav items */}
-      <nav className="flex flex-col items-center gap-2 flex-1">
-        {navItems.map((item) => (
-          <Tooltip key={item.title} delayDuration={0}>
-            <TooltipTrigger asChild>
-              {item.url === "#" ? (
-                <div>
-                  <SidebarIcon
-                    icon={item.icon}
-                    label={item.title}
-                    active={isActive(item.url, item.end)}
-                  />
-                </div>
-              ) : (
-                <NavLink to={item.url} end={item.end}>
-                  <SidebarIcon
-                    icon={item.icon}
-                    label={item.title}
-                    active={isActive(item.url, item.end)}
-                  />
-                </NavLink>
+      {/* Nav */}
+      <nav className="flex-1 px-3 space-y-0.5">
+        {navItems.map((item) => {
+          const isActive = active(item.url, item.end);
+          return (
+            <NavLink
+              key={item.title}
+              to={item.url}
+              end={item.end}
+              onClick={(e) => item.url === "#" && e.preventDefault()}
+              className={cn(
+                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium transition-smooth relative",
+                isActive
+                  ? "text-[hsl(var(--primary))] bg-[hsl(var(--accent))]"
+                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
               )}
-            </TooltipTrigger>
-            <TooltipContent side="right" className="bg-[hsl(231_40%_18%)] text-white border-white/10 text-xs">
-              {item.title}
-            </TooltipContent>
-          </Tooltip>
-        ))}
+            >
+              {/* Active left border */}
+              {isActive && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[hsl(var(--primary))]" />
+              )}
+              <item.icon className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-[hsl(var(--primary))]" : "")} />
+              <span className="flex-1">{item.title}</span>
+              {item.badge && (
+                <span className="h-2 w-2 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
-      {/* Footer */}
-      <div className="flex flex-col items-center gap-3 mt-auto">
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <NavLink to="/auth">
-              <SidebarIcon icon={LogOut} label="Logout" danger />
-            </NavLink>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="bg-[hsl(231_40%_18%)] text-white border-white/10 text-xs">
-            Logout
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <div className="cursor-pointer">
-              <Avatar className="h-9 w-9 ring-2 ring-[hsl(344_70%_75%)]/40 hover:ring-[hsl(344_70%_75%)] transition-all">
-                <AvatarFallback className="gradient-primary text-white text-xs font-bold">
-                  TA
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="bg-[hsl(231_40%_18%)] text-white border-white/10 text-xs">
-            Travel Agent
-          </TooltipContent>
-        </Tooltip>
+      {/* Bottom actions */}
+      <div className="px-3 mt-4 space-y-0.5 pt-4 border-t border-[hsl(var(--border))]">
+        <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-smooth w-full">
+          <Moon className="h-[18px] w-[18px] shrink-0" />
+          <span>Mode Gelap</span>
+        </button>
+        <NavLink
+          to="/auth"
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-red-50 hover:text-red-500 transition-smooth"
+        >
+          <LogOut className="h-[18px] w-[18px] shrink-0" />
+          <span>Logout</span>
+        </NavLink>
       </div>
     </aside>
   );
