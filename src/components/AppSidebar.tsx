@@ -7,9 +7,9 @@ const navItems = [
   { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
   { title: "Paket", url: "/packages", icon: Package, end: false, badge: false },
   { title: "Progress", url: "/progress", icon: GitBranch, end: false },
-  { title: "Pesan", url: "#", icon: MessageSquare, end: false, badge: true },
-  { title: "Support", url: "#", icon: Headphones, end: false },
-  { title: "Pengaturan", url: "#", icon: Settings, end: false },
+  { title: "Pesan", url: "/messages", icon: MessageSquare, end: false, badge: true },
+  { title: "Support", url: "/support", icon: Headphones, end: false },
+  { title: "Pengaturan", url: "/settings", icon: Settings, end: false },
 ];
 
 export function AppSidebar() {
@@ -48,7 +48,7 @@ export function AppSidebar() {
               key={item.title}
               to={item.url}
               end={item.end}
-              onClick={(e) => item.url === "#" && e.preventDefault()}
+              onClick={() => {}}
               className={cn(
                 "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium transition-smooth relative",
                 isActive

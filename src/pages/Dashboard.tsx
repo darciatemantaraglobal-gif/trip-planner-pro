@@ -6,10 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
+import { useRatesStore } from "@/store/ratesStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+function getTotalJamaah(): number {
+  try {
+    const raw = localStorage.getItem("travelhub.jamaah.v1");
+    return raw ? (JSON.parse(raw) as unknown[]).length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 const EMOJIS = ["🕌", "🌴", "🗼", "🏝️", "🏔️", "🌸", "🌍", "✈️", "🛕", "🏖️", "🌺", "🎑"];
 
@@ -217,11 +227,17 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
 
 // ── RIGHT PANEL ────────────────────────────────────────────────────────────────
 function RightPanel({ trips }: { trips: Trip[] }) {
+  const navigate = useNavigate();
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const rates = useRatesStore((s) => s.rates);
 
   const upcoming = [...trips]
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, 4);
+
+  const active = trips.filter((t) => new Date(t.endDate).getTime() >= Date.now()).length;
+  const done = trips.length - active;
+  const totalJamaah = getTotalJamaah();
 
   return (
     <div className="w-72 xl:w-80 shrink-0 border-l border-[hsl(var(--border))] flex flex-col overflow-auto">
@@ -332,6 +348,81 @@ function RightPanel({ trips }: { trips: Trip[] }) {
             ))}
           </div>
         </div>
+
+        {/* Laporan ringkasan */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))]">Laporan</h3>
+            <button
+              onClick={() => navigate("/progress")}
+              className="text-[11px] text-[hsl(var(--primary))] font-medium hover:underline"
+            >
+              Lihat detail
+            </button>
+          </div>
+          <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3.5 space-y-3">
+            {[
+              { icon: Plane, label: "Total Paket Trip", value: trips.length, color: "text-violet-500", bg: "bg-violet-50" },
+              { icon: CheckCircle, label: "Trip Selesai", value: done, color: "text-emerald-500", bg: "bg-emerald-50" },
+              { icon: TrendingUp, label: "Trip Aktif", value: active, color: "text-blue-500", bg: "bg-blue-50" },
+              { icon: Users, label: "Total Jamaah", value: totalJamaah, color: "text-amber-500", bg: "bg-amber-50" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-3">
+                <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", item.bg)}>
+                  <item.icon strokeWidth={1.5} className={cn("h-4 w-4", item.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">{item.label}</p>
+                </div>
+                <span className="text-[14px] font-bold text-[hsl(var(--foreground))]">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Kalkulator cepat */}
+        <div>
+          <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-3">Kalkulator</h3>
+          <div
+            onClick={() => navigate("/calculator")}
+            className="rounded-2xl border border-[hsl(var(--border))] bg-white p-3.5 cursor-pointer hover:border-[hsl(var(--primary))] hover:shadow-sm transition-all group"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-9 w-9 rounded-xl gradient-primary shadow-glow flex items-center justify-center shrink-0">
+                <Calculator strokeWidth={1.5} className="h-4.5 w-4.5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">Kalkulator Paket</p>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Hitung biaya trip + PDF</p>
+              </div>
+              <ArrowRight strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors" />
+            </div>
+            {/* Rate preview */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { currency: "USD", rate: rates.USD },
+                { currency: "SAR", rate: rates.SAR },
+              ].map((r) => (
+                <div key={r.currency} className="rounded-xl bg-[hsl(var(--secondary))] px-2.5 py-2 text-center">
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{r.currency} → IDR</p>
+                  <p className="text-[12px] font-bold text-[hsl(var(--foreground))]">
+                    {r.rate.toLocaleString("id-ID")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Laporan lengkap cta */}
+        <button
+          onClick={() => navigate("/progress")}
+          className="w-full flex items-center gap-2.5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] px-4 py-3 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+        >
+          <FileBarChart strokeWidth={1.5} className="h-4.5 w-4.5 text-[hsl(var(--primary))]" />
+          <span className="text-[13px] font-medium text-[hsl(var(--foreground))] flex-1 text-left">Lihat Laporan Lengkap</span>
+          <ArrowRight strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors" />
+        </button>
       </div>
     </div>
   );
@@ -339,6 +430,7 @@ function RightPanel({ trips }: { trips: Trip[] }) {
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { trips, loadingTrips, fetchTrips, removeTrip } = useTripsStore();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
@@ -352,6 +444,10 @@ export default function Dashboard() {
     return tab === "done" ? past : !past;
   });
 
+  const activeTrips = trips.filter((t) => new Date(t.endDate).getTime() >= Date.now()).length;
+  const doneTrips = trips.length - activeTrips;
+  const totalJamaah = getTotalJamaah();
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     await removeTrip(deleteTarget.id);
@@ -363,6 +459,51 @@ export default function Dashboard() {
     <div className="flex h-full min-h-0">
       {/* ── Main content ── */}
       <div className="flex-1 overflow-auto p-6 lg:p-8 min-w-0">
+
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {[
+            { icon: Plane, label: "Total Paket", value: trips.length, color: "text-violet-500", bg: "bg-violet-50", onClick: () => {} },
+            { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, color: "text-blue-500", bg: "bg-blue-50", onClick: () => setTab("upcoming") },
+            { icon: CheckCircle, label: "Selesai", value: doneTrips, color: "text-emerald-500", bg: "bg-emerald-50", onClick: () => setTab("done") },
+            { icon: Users, label: "Total Jamaah", value: totalJamaah, color: "text-amber-500", bg: "bg-amber-50", onClick: () => {} },
+          ].map((stat) => (
+            <button
+              key={stat.label}
+              onClick={stat.onClick}
+              className="flex items-center gap-3 rounded-2xl border border-[hsl(var(--border))] bg-white p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left"
+            >
+              <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
+                <stat.icon strokeWidth={1.5} className={cn("h-4.5 w-4.5", stat.color)} />
+              </div>
+              <div>
+                <p className="text-[20px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">{stat.label}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Kalkulator & Laporan shortcut bar ── */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => navigate("/calculator")}
+            className="flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-white px-4 py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+          >
+            <Calculator strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Buka Kalkulator</span>
+            <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors" />
+          </button>
+          <button
+            onClick={() => navigate("/progress")}
+            className="flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-white px-4 py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group"
+          >
+            <FileBarChart strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <span className="text-[13px] font-medium text-[hsl(var(--foreground))]">Laporan Progress</span>
+            <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors" />
+          </button>
+        </div>
+
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
