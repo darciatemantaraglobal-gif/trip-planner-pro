@@ -86,8 +86,8 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                 <AvatarFallback className="gradient-primary text-white text-xs md:text-sm font-bold">TA</AvatarFallback>
               </Avatar>
               <div className="hidden lg:block">
-                <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">Travel Agent</div>
-                <div className="text-[11px] text-[hsl(var(--muted-foreground))]">agent@travelhub.io</div>
+                <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">IGH Tour Agent</div>
+                <div className="text-[11px] text-[hsl(var(--muted-foreground))]">igh@tour.id</div>
               </div>
             </div>
           </header>

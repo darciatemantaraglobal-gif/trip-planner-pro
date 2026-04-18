@@ -41,12 +41,12 @@ export default function Settings() {
   const [tab, setTab] = useState("profile");
 
   const [profile, setProfile] = useState({
-    name: "Travel Agent",
-    email: "agent@travelhub.io",
-    phone: "+62 812-3456-7890",
-    agency: "TravelHub Agency",
-    address: "Jl. Sudirman No. 45, Jakarta Pusat",
-    bio: "Agen perjalanan profesional dengan pengalaman 10 tahun.",
+    name: "",
+    email: "",
+    phone: "",
+    agency: "",
+    address: "",
+    bio: "",
   });
 
   const [notif, setNotif] = useState({
@@ -134,15 +134,15 @@ export default function Settings() {
             <div className="flex items-center gap-3">
               <div className="relative group cursor-pointer shrink-0">
                 <div className="h-12 w-12 rounded-xl gradient-primary shadow-glow flex items-center justify-center text-white text-base font-bold">
-                  TA
+                  {profile.name ? profile.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?"}
                 </div>
                 <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <Camera strokeWidth={1.5} className="h-4 w-4 text-white" />
                 </div>
               </div>
               <div>
-                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{profile.name}</p>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{profile.email}</p>
+                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{profile.name || <span className="text-[hsl(var(--muted-foreground))] font-normal italic">Belum diisi</span>}</p>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{profile.email || "—"}</p>
                 <button className="text-[11px] text-[hsl(var(--primary))] font-medium hover:underline mt-0.5">Ubah foto</button>
               </div>
             </div>
@@ -150,29 +150,30 @@ export default function Settings() {
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Nama Lengkap</Label>
-                <Input className="h-9 text-sm" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+                <Input className="h-9 text-sm" placeholder="cth: Ahmad Fauzi" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Email</Label>
-                <Input className="h-9 text-sm" type="email" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
+                <Input className="h-9 text-sm" type="email" placeholder="cth: agen@ightour.id" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">No. Telepon</Label>
-                <Input className="h-9 text-sm" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} />
+                <Input className="h-9 text-sm" placeholder="cth: 0812-3456-7890" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Nama Agen</Label>
-                <Input className="h-9 text-sm" value={profile.agency} onChange={(e) => setProfile((p) => ({ ...p, agency: e.target.value }))} />
+                <Input className="h-9 text-sm" placeholder="cth: IGH Tour & Travel" value={profile.agency} onChange={(e) => setProfile((p) => ({ ...p, agency: e.target.value }))} />
               </div>
               <div className="space-y-1 col-span-2">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Alamat Kantor</Label>
-                <Input className="h-9 text-sm" value={profile.address} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} />
+                <Input className="h-9 text-sm" placeholder="cth: Jl. Sudirman No. 1, Jakarta" value={profile.address} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} />
               </div>
               <div className="space-y-1 col-span-2">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Bio Singkat</Label>
                 <textarea
                   rows={2}
                   value={profile.bio}
+                  placeholder="Ceritakan sedikit tentang agen travel Anda…"
                   onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
                   className="w-full rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
                 />

@@ -24,15 +24,9 @@ export interface Package {
 
 export type PackageDraft = Omit<Package, "id" | "createdAt" | "updatedAt">;
 
-const STORAGE_KEY = "travelhub.packages.v1";
+const STORAGE_KEY = "travelhub.packages.v2";
 
-const seed: Package[] = [
-  { id: "p1", name: "Bali Paradise 5D", destination: "Bali, Indonesia", people: 4, days: 5, totalIDR: 48_500_000, status: "Confirmed", emoji: "🌴", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: "p2", name: "Umrah Premium 12D", destination: "Mecca, Saudi Arabia", people: 2, days: 12, totalIDR: 92_000_000, status: "Paid", emoji: "🕌", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: "p3", name: "Tokyo Discovery 7D", destination: "Tokyo, Japan", people: 3, days: 7, totalIDR: 64_200_000, status: "Calculated", emoji: "🗼", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: "p4", name: "European Tour 10D", destination: "Paris, France", people: 6, days: 10, totalIDR: 156_000_000, status: "Draft", emoji: "🗼", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: "p5", name: "Maldives Honeymoon", destination: "Malé, Maldives", people: 2, days: 6, totalIDR: 38_750_000, status: "Completed", emoji: "🏝️", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
+const seed: Package[] = [];
 
 function loadStore(): Package[] {
   if (typeof window === "undefined") return seed;

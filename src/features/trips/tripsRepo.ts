@@ -34,9 +34,9 @@ export interface JamaahDoc {
   createdAt: string;
 }
 
-const TRIPS_KEY = "travelhub.trips.v1";
-const JAMAAH_KEY = "travelhub.jamaah.v1";
-const DOCS_KEY = "travelhub.docs.v1";
+const TRIPS_KEY = "travelhub.trips.v2";
+const JAMAAH_KEY = "travelhub.jamaah.v2";
+const DOCS_KEY = "travelhub.docs.v2";
 
 const tick = <T,>(v: T, ms = 60): Promise<T> =>
   new Promise((r) => setTimeout(() => r(v), ms));
@@ -54,10 +54,7 @@ function save<T>(key: string, data: T[]) {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
-const seedTrips: Trip[] = [
-  { id: "t1", name: "Umrah Ramadhan 2025", destination: "Mecca, Saudi Arabia", startDate: "2025-03-01", endDate: "2025-03-14", emoji: "🕌", createdAt: new Date().toISOString() },
-  { id: "t2", name: "Bali Family Trip", destination: "Bali, Indonesia", startDate: "2025-06-10", endDate: "2025-06-15", emoji: "🌴", createdAt: new Date().toISOString() },
-];
+const seedTrips: Trip[] = [];
 
 // ── TRIPS ─────────────────────────────────────────────────────────────────────
 
