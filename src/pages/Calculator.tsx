@@ -37,6 +37,7 @@ interface FormState {
   namaPaket: string;
   pax: number;
   currency: "SAR" | "USD" | "IDR";
+  manualRate: number;
   hotelMakkah: string;
   hargaMakkah: number;
   startMakkah: string;
@@ -58,6 +59,7 @@ const initForm: FormState = {
   namaPaket: "",
   pax: 1,
   currency: "SAR",
+  manualRate: 0,
   hotelMakkah: "",
   hargaMakkah: 0,
   startMakkah: "",
@@ -186,9 +188,15 @@ export default function Calculator() {
       [key]: value.split("\n").map((line) => line.trim()).filter(Boolean),
     }));
 
+  const effectiveRate = form.currency === "IDR"
+    ? 1
+    : form.manualRate > 0
+      ? form.manualRate
+      : (rates[form.currency as "SAR" | "USD"] ?? 1);
+
   const toIDR = (amount: number) => {
     if (form.currency === "IDR") return amount;
-    return amount * (rates[form.currency as "SAR" | "USD"] ?? 1);
+    return amount * effectiveRate;
   };
 
   const nightsMakkah = daysBetween(form.startMakkah, form.endMakkah);
@@ -255,9 +263,7 @@ export default function Calculator() {
       })),
   ];
 
-  const inputLabel = form.currency !== "IDR"
-    ? `1 ${form.currency} = Rp ${(rates[form.currency as "SAR" | "USD"] ?? 0).toLocaleString("id-ID")}`
-    : "";
+  const autoRate = form.currency !== "IDR" ? (rates[form.currency as "SAR" | "USD"] ?? 0) : 0;
 
   return (
     <div className="calculator-compact max-w-3xl mx-auto space-y-5">
@@ -424,11 +430,14 @@ export default function Calculator() {
 
         <div className="calculator-card-body p-4 md:p-6 space-y-4">
 
-          {/* Nama Paket + Pax + Currency */}
+          {/* Mata Uang + Pax + Kurs */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-3 border-b border-[hsl(var(--border))]">
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Mata Uang</Label>
-              <Select value={form.currency} onValueChange={(v) => set("currency", v as FormState["currency"])}>
+              <Select
+                value={form.currency}
+                onValueChange={(v) => setForm((f) => ({ ...f, currency: v as FormState["currency"], manualRate: 0 }))}
+              >
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -449,11 +458,33 @@ export default function Calculator() {
                 className="h-9 text-sm"
               />
             </div>
-            {inputLabel && (
-              <div className="col-span-2 sm:col-span-1 flex items-center">
-                <span className="text-[11px] text-[hsl(var(--muted-foreground))] bg-[hsl(var(--secondary))] px-3 py-1.5 rounded-lg">
-                  {inputLabel}
-                </span>
+            {form.currency !== "IDR" && (
+              <div className="col-span-2 sm:col-span-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[12px] font-semibold">1 {form.currency} = Rp</Label>
+                  {form.manualRate > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => set("manualRate", 0)}
+                      className="text-[10px] text-[hsl(var(--primary))] hover:underline"
+                    >
+                      Pakai otomatis
+                    </button>
+                  )}
+                </div>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder={autoRate > 0 ? autoRate.toLocaleString("id-ID") : "cth: 4350"}
+                  value={form.manualRate || ""}
+                  onChange={(e) => set("manualRate", Number(e.target.value))}
+                  className="h-9 text-sm"
+                />
+                <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                  {form.manualRate > 0
+                    ? `Kurs manual: Rp ${form.manualRate.toLocaleString("id-ID")}`
+                    : `Kurs otomatis: Rp ${autoRate.toLocaleString("id-ID")}`}
+                </p>
               </div>
             )}
           </div>
