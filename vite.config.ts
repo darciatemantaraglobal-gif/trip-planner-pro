@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    headers: {
+      "Cache-Control": "no-store",
+    },
   },
   plugins: [react()],
   resolve: {
