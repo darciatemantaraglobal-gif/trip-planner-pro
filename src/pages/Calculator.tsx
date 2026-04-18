@@ -325,7 +325,7 @@ export default function Calculator() {
             </FormField>
           </FieldRow>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className={`grid gap-3 grid-cols-2 ${form.currency !== "IDR" ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Malam Penginapan 1</Label>
               <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-9 text-sm" />
@@ -334,10 +334,14 @@ export default function Calculator() {
               <Label className="text-[12px] font-semibold">Malam Penginapan 2</Label>
               <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-9 text-sm" />
             </div>
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Kurs</Label>
-              <Input type="number" step="0.01" min={0} value={offer.usdToSar} onChange={(e) => setOfferField("usdToSar", Number(e.target.value))} className="h-9 text-sm" />
-            </div>
+            {form.currency !== "IDR" && (
+              <div className="space-y-1">
+                <Label className="text-[12px] font-semibold">
+                  Kurs {form.currency} → IDR
+                </Label>
+                <Input type="number" min={0} placeholder={autoRate > 0 ? autoRate.toLocaleString("id-ID") : "cth: 4350"} value={offer.usdToSar || ""} onChange={(e) => setOfferField("usdToSar", Number(e.target.value))} className="h-9 text-sm" />
+              </div>
+            )}
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Tgl. Update</Label>
               <Input value={offer.updateDate} onChange={(e) => setOfferField("updateDate", e.target.value)} className="h-9 text-sm" />
