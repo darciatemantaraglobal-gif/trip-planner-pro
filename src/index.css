@@ -200,10 +200,6 @@
       max-width: 100%;
     }
 
-    .calculator-compact.calculator-compact {
-      gap: 0;
-    }
-
     .calculator-compact .calculator-page-title {
       margin-bottom: -0.125rem;
     }
@@ -255,8 +251,8 @@
       height: 1.95rem;
       min-height: 1.95rem;
       border-radius: 0.625rem;
-      padding-left: 0.625rem;
-      padding-right: 0.625rem;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
       font-size: 0.75rem;
     }
 
@@ -307,20 +303,42 @@
     .calculator-compact .calculator-price-table {
       border-radius: 0.75rem;
       max-height: 15rem;
+      overflow-x: visible;
     }
 
     .calculator-compact .calculator-price-table table {
-      min-width: 500px;
+      min-width: 0;
+      width: 100%;
+      table-layout: fixed;
       font-size: 0.75rem;
     }
 
+    .calculator-compact .calculator-price-table th:first-child,
+    .calculator-compact .calculator-price-table td:first-child {
+      width: 34%;
+    }
+
+    .calculator-compact .calculator-price-table th:not(:first-child),
+    .calculator-compact .calculator-price-table td:not(:first-child) {
+      width: 22%;
+    }
+
     .calculator-compact .calculator-price-table th {
-      padding: 0.45rem 0.5rem;
-      font-size: 0.6875rem;
+      padding: 0.4rem 0.35rem;
+      font-size: 0.625rem;
     }
 
     .calculator-compact .calculator-price-table td {
-      padding: 0.25rem 0.375rem;
+      padding: 0.2rem 0.25rem;
+    }
+
+    .calculator-compact .calculator-price-table input {
+      height: 1.65rem;
+      min-height: 1.65rem;
+      padding-left: 0.35rem;
+      padding-right: 0.35rem;
+      font-size: 0.6875rem;
+      border-radius: 0.5rem;
     }
 
     .calculator-compact .calculator-textarea {
