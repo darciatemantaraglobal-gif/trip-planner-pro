@@ -317,25 +317,25 @@ export default function Calculator() {
           </FieldRow>
 
           <FieldRow>
-            <FormField label="Hotel Makkah">
-              <Input value={offer.hotelMakkah} onChange={(e) => setOfferField("hotelMakkah", e.target.value)} className="h-9 text-sm" />
+            <FormField label="Penginapan 1">
+              <Input value={offer.hotelMakkah} onChange={(e) => setOfferField("hotelMakkah", e.target.value)} className="h-9 text-sm" placeholder="Nama hotel / penginapan" />
             </FormField>
-            <FormField label="Hotel Madinah">
-              <Input value={offer.hotelMadinah} onChange={(e) => setOfferField("hotelMadinah", e.target.value)} className="h-9 text-sm" />
+            <FormField label="Penginapan 2">
+              <Input value={offer.hotelMadinah} onChange={(e) => setOfferField("hotelMadinah", e.target.value)} className="h-9 text-sm" placeholder="Nama hotel / penginapan (opsional)" />
             </FormField>
           </FieldRow>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Malam Makkah</Label>
+              <Label className="text-[12px] font-semibold">Malam Penginapan 1</Label>
               <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-9 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Malam Madinah</Label>
+              <Label className="text-[12px] font-semibold">Malam Penginapan 2</Label>
               <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-9 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Kurs USD/SAR</Label>
+              <Label className="text-[12px] font-semibold">Kurs</Label>
               <Input type="number" step="0.01" min={0} value={offer.usdToSar} onChange={(e) => setOfferField("usdToSar", Number(e.target.value))} className="h-9 text-sm" />
             </div>
             <div className="space-y-1">
