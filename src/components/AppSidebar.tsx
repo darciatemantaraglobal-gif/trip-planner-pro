@@ -100,15 +100,10 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-                <motion.div
-                  whileHover={{ scale: 1.12 }}
-                  transition={{ duration: 0.18 }}
-                >
                   <item.icon
                     strokeWidth={1.5}
                     className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-[hsl(var(--primary))]" : "")}
                   />
-                </motion.div>
                 <span className="flex-1">{item.title}</span>
               </NavLink>
             </motion.div>

@@ -495,11 +495,8 @@ export default function Dashboard() {
             <motion.button
               key={stat.label}
               onClick={stat.onClick}
-              className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-colors text-left"
+              className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-[border-color,box-shadow] duration-200 text-left active:scale-[0.98]"
               variants={fadeUp}
-              whileHover={{ scale: 1.015, y: -1 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <div className={cn("h-7 w-7 md:h-9 md:w-9 rounded-lg md:rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
                 <stat.icon strokeWidth={1.5} className={cn("h-3.5 w-3.5 md:h-4 md:w-4", stat.color)} />
@@ -519,26 +516,22 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.15, ease: "easeOut" }}
         >
-          <motion.button
+          <button
             onClick={() => navigate("/calculator")}
-            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors group"
-            whileHover={{ scale: 1.015, y: -1 }}
-            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-[border-color,background-color] duration-200 group active:scale-[0.98]"
           >
             <Calculator strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Buka Kalkulator</span>
             <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors ml-auto shrink-0" />
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             onClick={() => navigate("/progress")}
-            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-colors group"
-            whileHover={{ scale: 1.015, y: -1 }}
-            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-[border-color,background-color] duration-200 group active:scale-[0.98]"
           >
             <FileBarChart strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
             <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Laporan Progress</span>
             <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors ml-auto shrink-0" />
-          </motion.button>
+          </button>
         </motion.div>
 
         {/* Section header */}
