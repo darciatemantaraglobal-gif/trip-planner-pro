@@ -160,6 +160,7 @@ export default function Calculator() {
   const rates = useRatesStore((s) => s.rates);
   const [form, setForm] = useState<FormState>(initForm);
   const [offer, setOffer] = useState<LandArrangementOfferData>(defaultOffer);
+  const [offerCurrency, setOfferCurrency] = useState<"SAR" | "USD" | "IDR">("SAR");
   const [pdfMode, setPdfMode] = useState<"offer" | "cost">("offer");
   const [pdfOpen, setPdfOpen] = useState(false);
 
@@ -264,6 +265,7 @@ export default function Calculator() {
   ];
 
   const autoRate = form.currency !== "IDR" ? (rates[form.currency as "SAR" | "USD"] ?? 0) : 0;
+  const offerAutoRate = offerCurrency !== "IDR" ? (rates[offerCurrency as "SAR" | "USD"] ?? 0) : 0;
 
   return (
     <div className="calculator-compact max-w-3xl mx-auto space-y-5">
@@ -325,7 +327,7 @@ export default function Calculator() {
             </FormField>
           </FieldRow>
 
-          <div className={`grid gap-3 grid-cols-2 ${form.currency !== "IDR" ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+          <div className={`grid gap-3 grid-cols-2 ${offerCurrency !== "IDR" ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Malam Penginapan 1</Label>
               <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-9 text-sm" />
@@ -334,14 +336,38 @@ export default function Calculator() {
               <Label className="text-[12px] font-semibold">Malam Penginapan 2</Label>
               <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-9 text-sm" />
             </div>
-            {form.currency !== "IDR" && (
-              <div className="space-y-1">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-1">
                 <Label className="text-[12px] font-semibold">
-                  Kurs {form.currency} → IDR
+                  {offerCurrency !== "IDR" ? `Kurs ${offerCurrency} → IDR` : "Mata Uang"}
                 </Label>
-                <Input type="number" min={0} placeholder={autoRate > 0 ? autoRate.toLocaleString("id-ID") : "cth: 4350"} value={offer.usdToSar || ""} onChange={(e) => setOfferField("usdToSar", Number(e.target.value))} className="h-9 text-sm" />
+                <div className="flex gap-1">
+                  {(["SAR", "USD", "IDR"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => { setOfferCurrency(c); setOfferField("usdToSar", 0); }}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors ${offerCurrency === c ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]" : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
+              {offerCurrency !== "IDR" ? (
+                <Input
+                  type="number" min={0}
+                  placeholder={offerAutoRate > 0 ? offerAutoRate.toLocaleString("id-ID") : "cth: 4350"}
+                  value={offer.usdToSar || ""}
+                  onChange={(e) => setOfferField("usdToSar", Number(e.target.value))}
+                  className="h-9 text-sm"
+                />
+              ) : (
+                <div className="h-9 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] flex items-center px-3 text-sm text-[hsl(var(--muted-foreground))]">
+                  Tidak ada konversi
+                </div>
+              )}
+            </div>
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Tgl. Update</Label>
               <Input value={offer.updateDate} onChange={(e) => setOfferField("updateDate", e.target.value)} className="h-9 text-sm" />
