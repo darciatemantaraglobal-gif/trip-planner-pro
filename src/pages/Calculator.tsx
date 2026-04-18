@@ -237,16 +237,16 @@ export default function Calculator() {
       ? [{ id: "hotel-madinah", label: `Hotel Madinah (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
       : []),
     ...(toIDR(form.visaUmroh) * form.pax > 0
-      ? [{ id: "visa", label: `Visa Umroh (${form.pax} pax)`, amount: toIDR(form.visaUmroh) * form.pax }]
+      ? [{ id: "visa", label: `Visa / Izin Masuk (${form.pax} pax)`, amount: toIDR(form.visaUmroh) * form.pax }]
       : []),
     ...(toIDR(form.muthowif) * form.pax > 0
-      ? [{ id: "muthowif", label: `Muthowif (${form.pax} pax)`, amount: toIDR(form.muthowif) * form.pax }]
+      ? [{ id: "muthowif", label: `Pemandu / Muthowif (${form.pax} pax)`, amount: toIDR(form.muthowif) * form.pax }]
       : []),
     ...(toIDR(form.siskopatuh) * form.pax > 0
-      ? [{ id: "sisko", label: `Siskopatuh (${form.pax} pax)`, amount: toIDR(form.siskopatuh) * form.pax }]
+      ? [{ id: "sisko", label: `Biaya Admin / Siskopatuh (${form.pax} pax)`, amount: toIDR(form.siskopatuh) * form.pax }]
       : []),
     ...(toIDR(form.zamZam) * form.pax > 0
-      ? [{ id: "zamzam", label: `Zam Zam (${form.pax} pax)`, amount: toIDR(form.zamZam) * form.pax }]
+      ? [{ id: "zamzam", label: `Oleh-oleh / Zam Zam (${form.pax} pax)`, amount: toIDR(form.zamZam) * form.pax }]
       : []),
     ...(toIDR(form.handlingBandara) * form.pax > 0
       ? [{ id: "handling", label: `Handling Bandara (${form.pax} pax)`, amount: toIDR(form.handlingBandara) * form.pax }]
@@ -275,7 +275,7 @@ export default function Calculator() {
           Kalkulator Paket Trip
         </h1>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
-          Hitung biaya paket Umrah secara otomatis, lalu ekspor ke PDF.
+          Hitung biaya paket trip secara otomatis, lalu ekspor ke PDF.
         </p>
       </div>
 
@@ -284,7 +284,7 @@ export default function Calculator() {
           className="calculator-card-header px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
           style={{ background: "linear-gradient(135deg, #7a5a1a, #b5862b)" }}
         >
-          GENERATOR PENAWARAN SEPERTI CONTOH PDF
+          Generator PDF
         </div>
 
         <div className="calculator-card-body p-4 md:p-6 space-y-4">
@@ -425,7 +425,7 @@ export default function Calculator() {
           className="calculator-card-header px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
           style={{ background: "linear-gradient(135deg, #7a5a1a, #b5862b)" }}
         >
-          FORM PAKET UMRAH MANDIRI IGH
+          Form Paket Trip IGH Tour
         </div>
 
         <div className="calculator-card-body p-4 md:p-6 space-y-4">
@@ -492,7 +492,7 @@ export default function Calculator() {
           {/* Nama Paket */}
           <FormField label="Nama Paket">
             <Input
-              placeholder="cth: Umrah Ramadhan 2026"
+              placeholder="cth: Umrah Ramadhan 2026, Bali Trip, dll"
               value={form.namaPaket}
               onChange={(e) => set("namaPaket", e.target.value)}
               className="h-9 text-sm"
@@ -592,19 +592,19 @@ export default function Calculator() {
 
           {/* Per-pax costs */}
           <FieldRow>
-            <FormField label="Visa Umroh" suffix="/ pax">
+            <FormField label="Visa / Izin Masuk" suffix="/ pax">
               <NumInput value={form.visaUmroh} onChange={(v) => set("visaUmroh", v)} placeholder={currencyLabel} />
             </FormField>
-            <FormField label="Muthowif" suffix="/ pax">
+            <FormField label="Pemandu / Muthowif" suffix="/ pax">
               <NumInput value={form.muthowif} onChange={(v) => set("muthowif", v)} placeholder={currencyLabel} />
             </FormField>
           </FieldRow>
 
           <FieldRow>
-            <FormField label="Siskopatuh" suffix="/ pax">
+            <FormField label="Biaya Admin / Siskopatuh" suffix="/ pax">
               <NumInput value={form.siskopatuh} onChange={(v) => set("siskopatuh", v)} placeholder={currencyLabel} />
             </FormField>
-            <FormField label="Zam Zam" suffix="/ pax">
+            <FormField label="Oleh-oleh / Zam Zam" suffix="/ pax">
               <NumInput value={form.zamZam} onChange={(v) => set("zamZam", v)} placeholder={currencyLabel} />
             </FormField>
           </FieldRow>
@@ -758,8 +758,8 @@ export default function Calculator() {
         open={pdfOpen}
         onOpenChange={setPdfOpen}
         data={{
-          packageName: form.namaPaket || "Paket Umrah IGH",
-          destination: [form.hotelMakkah, form.hotelMadinah].filter(Boolean).join(" — ") || "Makkah & Madinah",
+          packageName: form.namaPaket || "Paket Trip IGH Tour",
+          destination: [form.hotelMakkah, form.hotelMadinah].filter(Boolean).join(" — ") || "Destinasi Trip",
           people: form.pax,
           currency: "IDR",
           costs: pdfCosts,
