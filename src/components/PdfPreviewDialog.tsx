@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Download, Plane } from "lucide-react";
 import { toast } from "sonner";
+import { generateQuotationPdf } from "@/lib/generatePdf";
 
 const symbols: Record<string, string> = { USD: "$", SAR: "﷼", IDR: "Rp" };
 
@@ -91,7 +92,15 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           <Button
             className="gradient-primary text-primary-foreground"
-            onClick={() => toast.success("PDF download will be available once backend is connected")}
+            onClick={() => {
+              try {
+                generateQuotationPdf(data);
+                toast.success("PDF downloaded");
+              } catch (err) {
+                console.error(err);
+                toast.error("Failed to generate PDF");
+              }
+            }}
           >
             <Download className="h-4 w-4 mr-2" />
             Download PDF
