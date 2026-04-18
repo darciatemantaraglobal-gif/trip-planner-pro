@@ -145,6 +145,16 @@ export default function Calculator() {
               </div>
             </div>
 
+            <div className="rounded-xl border border-primary/20 bg-accent/40 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground">Final Price</div>
+                  <div className="text-[10px] text-muted-foreground/70">incl. 15% margin (mock)</div>
+                </div>
+                <div className="text-xl font-bold text-primary">{fmt(perPerson)}</div>
+              </div>
+            </div>
+
             <div className="space-y-2 text-sm">
               {costs.filter((c) => c.amount > 0).map((c) => (
                 <div key={c.id} className="flex justify-between text-muted-foreground">
