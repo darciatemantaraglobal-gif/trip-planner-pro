@@ -16,7 +16,6 @@ import { usePackagesStore } from "@/store/packagesStore";
 
 const queryClient = new QueryClient();
 
-/** Hydrate global stores once at app startup. */
 function StoreBootstrap() {
   const refreshRates = useRatesStore((s) => s.refresh);
   const refreshPackages = usePackagesStore((s) => s.refresh);
@@ -40,7 +39,6 @@ const App = () => (
           <Route path="/packages" element={<DashboardLayout><Packages /></DashboardLayout>} />
           <Route path="/progress" element={<DashboardLayout><ProgressTracker /></DashboardLayout>} />
           <Route path="/auth" element={<Auth />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
