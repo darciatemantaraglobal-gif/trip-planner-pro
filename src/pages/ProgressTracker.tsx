@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, FileEdit, Calculator, CheckCircle2, CreditCard, Trophy } from "lucide-react";
+import { Check, FileEdit, Calculator, CheckCircle2, CreditCard, Trophy, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const steps = [
@@ -12,11 +12,11 @@ const steps = [
 ];
 
 const trips = [
-  { name: "Bali Paradise 5D", client: "Andi Wijaya", currentStep: 2 },
-  { name: "Umrah Premium 12D", client: "Fatima Al-Rashid", currentStep: 3 },
-  { name: "Tokyo Discovery 7D", client: "Sarah Putri", currentStep: 1 },
-  { name: "European Tour 10D", client: "Budi Santoso", currentStep: 0 },
-  { name: "Maldives Honeymoon", client: "Lisa & Mark", currentStep: 4 },
+  { name: "Bali Paradise 5D", client: "Andi Wijaya", currentStep: 2, updatedAt: "2 hours ago" },
+  { name: "Umrah Premium 12D", client: "Fatima Al-Rashid", currentStep: 3, updatedAt: "Yesterday" },
+  { name: "Tokyo Discovery 7D", client: "Sarah Putri", currentStep: 1, updatedAt: "3 days ago" },
+  { name: "European Tour 10D", client: "Budi Santoso", currentStep: 0, updatedAt: "Just now" },
+  { name: "Maldives Honeymoon", client: "Lisa & Mark", currentStep: 4, updatedAt: "1 week ago" },
 ];
 
 export default function ProgressTracker() {
@@ -34,7 +34,13 @@ export default function ProgressTracker() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg">{trip.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">Client: {trip.client}</p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted-foreground">
+                    <span>Client: {trip.client}</span>
+                    <span className="flex items-center gap-1 text-xs">
+                      <Clock className="h-3 w-3" />
+                      Updated {trip.updatedAt}
+                    </span>
+                  </div>
                 </div>
                 <Badge className="bg-primary/10 text-primary border-0 w-fit">
                   Step {trip.currentStep + 1} / {steps.length} — {steps[trip.currentStep].key}
