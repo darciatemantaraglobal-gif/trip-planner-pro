@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const bottomNavItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
@@ -38,7 +38,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
     >
       {/* App card */}
       <div
@@ -104,17 +104,23 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           </motion.header>
 
           {/* Page content */}
-          <motion.main
-            className={noPadding
-              ? "flex-1 overflow-auto pb-16 md:pb-0"
-              : "flex-1 overflow-auto p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
-            }
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut", delay: 0.06 }}
-          >
-            {children}
-          </motion.main>
+          <div className="flex-1 overflow-hidden relative">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.main
+                key={location.pathname}
+                className={`absolute inset-0 overflow-auto ${noPadding
+                  ? "pb-16 md:pb-0"
+                  : "p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
+                }`}
+                initial={{ x: 32, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -32, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+              >
+                {children}
+              </motion.main>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
