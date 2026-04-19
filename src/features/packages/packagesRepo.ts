@@ -18,6 +18,7 @@ export interface Package {
   totalIDR: number;
   status: PackageStatus;
   emoji: string;
+  coverImage?: string; // base64 data URL
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }

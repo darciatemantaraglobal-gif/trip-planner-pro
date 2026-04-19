@@ -74,7 +74,7 @@ export default function Packages() {
         </div>
         <Button
           onClick={openCreate}
-          className="gradient-primary text-white shadow-glow hover:opacity-90 h-9 px-3 rounded-xl text-sm font-semibold shrink-0"
+          className="btn-glow h-9 px-3 rounded-xl text-sm shrink-0"
         >
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           Tambah
@@ -114,9 +114,19 @@ export default function Packages() {
               key={pkg.id}
               className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-sm hover:shadow-md transition-smooth group"
             >
-              {/* Emoji banner */}
-              <div className="h-16 gradient-hero relative flex items-center justify-center text-3xl">
-                {pkg.emoji}
+              {/* Cover / Emoji banner */}
+              <div className="h-20 relative overflow-hidden">
+                {pkg.coverImage ? (
+                  <img src={pkg.coverImage} alt={pkg.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center text-3xl"
+                    style={{ background: `linear-gradient(135deg,hsl(27 91% 54%),hsl(16 88% 58%))` }}
+                  >
+                    {pkg.emoji}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                 <Badge className={`${statusVariant[pkg.status]} border-0 absolute top-2 right-2 text-[9px] px-1.5 py-0 h-4 font-medium`}>
                   {pkg.status}
                 </Badge>
