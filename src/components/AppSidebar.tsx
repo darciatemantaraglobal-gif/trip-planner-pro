@@ -1,27 +1,44 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, Moon, X, FileText } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
-  { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
-  { title: "Paket", url: "/packages", icon: Package, end: false },
-  { title: "Progress", url: "/progress", icon: GitBranch, end: false },
-  { title: "Generator PDF", url: "/pdf-generator", icon: FileText, end: false },
-  { title: "Pengaturan", url: "/settings", icon: Settings, end: false },
+const navGroups = [
+  {
+    label: null,
+    items: [
+      { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
+    ],
+  },
+  {
+    label: "Operasional",
+    items: [
+      { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
+      { title: "Paket Trip", url: "/packages", icon: Package, end: false },
+      { title: "Progress", url: "/progress", icon: GitBranch, end: false },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "Generator PDF", url: "/pdf-generator", icon: FileText, end: false },
+    ],
+  },
 ];
 
-const sidebarVariants = {
+const bottomItems = [
+  { title: "Pengaturan", url: "/settings", icon: Settings, end: false, danger: false },
+  { title: "Logout", url: "/auth", icon: LogOut, end: false, danger: true },
+];
+
+const stagger = {
   hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.04, delayChildren: 0.05 },
-  },
+  visible: { transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
 };
 
-const navItemVariants = {
+const itemVariant = {
   hidden: { opacity: 0, x: -8 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.25, ease: "easeOut" } },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.22, ease: "easeOut" } },
 };
 
 interface AppSidebarProps {
@@ -32,104 +49,112 @@ interface AppSidebarProps {
 export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
   const location = useLocation();
 
-  const active = (url: string, end: boolean) => {
+  const isActive = (url: string, end: boolean) => {
     if (url === "#") return false;
     if (url.startsWith("/trips")) return location.pathname.startsWith("/trips");
     return end ? location.pathname === url : location.pathname.startsWith(url);
   };
 
+  const NavItem = ({ title, url, icon: Icon, end, danger = false }: {
+    title: string; url: string; icon: typeof LayoutDashboard; end: boolean; danger?: boolean;
+  }) => {
+    const active = isActive(url, end);
+    return (
+      <NavLink
+        to={url}
+        end={end}
+        onClick={onClose}
+        className={cn(
+          "relative flex items-center gap-3 px-4 py-2.5 text-[13.5px] font-medium rounded-xl transition-[background-color,color] duration-150 group",
+          active
+            ? "text-[hsl(var(--primary))] bg-[hsl(var(--accent))]"
+            : danger
+              ? "text-[hsl(var(--muted-foreground))] hover:text-red-500 hover:bg-red-50"
+              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
+        )}
+      >
+        {/* Active left bar */}
+        {active && (
+          <motion.span
+            layoutId="sidebar-pill"
+            className="absolute left-0 top-1/2 -translate-y-1/2 h-[22px] w-[3px] rounded-r-full bg-[hsl(var(--primary))]"
+            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+          />
+        )}
+        <Icon
+          strokeWidth={active ? 2 : 1.5}
+          className={cn(
+            "h-[17px] w-[17px] shrink-0 transition-colors duration-150",
+            active ? "text-[hsl(var(--primary))]" : danger ? "group-hover:text-red-500" : ""
+          )}
+        />
+        <span className="flex-1 leading-none">{title}</span>
+      </NavLink>
+    );
+  };
+
   const sidebarContent = (
     <aside
-      className="flex flex-col py-7 h-full border-r border-[hsl(var(--border))]"
-      style={{ width: "var(--sidebar-width)", background: "hsl(var(--sidebar-bg))" }}
+      className="flex flex-col h-full border-r border-[hsl(var(--border))] bg-white"
+      style={{ width: "var(--sidebar-width)" }}
     >
-      {/* Logo */}
-      <motion.div
-        className="px-6 mb-8 flex items-center justify-between"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-      >
+      {/* ── Logo ── */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-5 shrink-0">
         <div className="flex items-center gap-3">
           <img
             src="/logo-igh-tour.png"
             alt="IGH Tour"
-            className="h-12 w-auto object-contain shrink-0"
+            className="h-10 w-auto object-contain shrink-0"
           />
-          <div>
-            <div className="font-bold text-[15px] text-[hsl(var(--foreground))] leading-tight">IGH Tour</div>
-            <div className="text-[10px] font-medium tracking-widest text-[hsl(var(--muted-foreground))] uppercase">Travel Agency</div>
+          <div className="leading-tight">
+            <div className="font-bold text-[14.5px] text-[hsl(var(--foreground))]">IGH Tour</div>
+            <div className="text-[10px] font-medium tracking-widest text-[hsl(var(--muted-foreground))] uppercase mt-0.5">
+              Travel Agency
+            </div>
           </div>
         </div>
         {onClose && (
           <button
             onClick={onClose}
-            className="md:hidden h-8 w-8 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+            className="md:hidden h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
           >
             <X strokeWidth={1.5} className="h-4 w-4" />
           </button>
         )}
-      </motion.div>
+      </div>
 
-      {/* Nav */}
-      <motion.nav
-        className="flex-1 px-3 space-y-0.5"
-        variants={sidebarVariants}
+      {/* ── Nav groups ── */}
+      <motion.div
+        className="flex-1 overflow-y-auto px-3 space-y-1 pb-2"
+        variants={stagger}
         initial="hidden"
         animate="visible"
       >
-        {navItems.map((item) => {
-          const isActive = active(item.url, item.end);
-          return (
-            <motion.div key={item.title} variants={navItemVariants}>
-              <NavLink
-                to={item.url}
-                end={item.end}
-                onClick={onClose}
-                className={cn(
-                  "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium transition-smooth relative group",
-                  isActive
-                    ? "text-[hsl(var(--primary))] bg-[hsl(var(--accent))]"
-                    : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
-                )}
+        {navGroups.map((group, gi) => (
+          <div key={gi} className={gi > 0 ? "pt-3" : ""}>
+            {group.label && (
+              <motion.p
+                variants={itemVariant}
+                className="px-4 mb-1 text-[10.5px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]"
               >
-                {isActive && (
-                  <motion.span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[hsl(var(--primary))]"
-                    layoutId="sidebar-active-indicator"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                  <item.icon
-                    strokeWidth={1.5}
-                    className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-[hsl(var(--primary))]" : "")}
-                  />
-                <span className="flex-1">{item.title}</span>
-              </NavLink>
-            </motion.div>
-          );
-        })}
-      </motion.nav>
-
-      {/* Bottom actions */}
-      <motion.div
-        className="px-3 mt-4 space-y-0.5 pt-4 border-t border-[hsl(var(--border))]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.3 }}
-      >
-        <button className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))] transition-smooth w-full">
-          <Moon strokeWidth={1.5} className="h-[18px] w-[18px] shrink-0" />
-          <span>Mode Gelap</span>
-        </button>
-        <NavLink
-          to="/auth"
-          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-red-50 hover:text-red-500 transition-smooth"
-        >
-          <LogOut strokeWidth={1.5} className="h-[18px] w-[18px] shrink-0" />
-          <span>Logout</span>
-        </NavLink>
+                {group.label}
+              </motion.p>
+            )}
+            {group.items.map((item) => (
+              <motion.div key={item.url} variants={itemVariant}>
+                <NavItem {...item} />
+              </motion.div>
+            ))}
+          </div>
+        ))}
       </motion.div>
+
+      {/* ── Bottom: Settings + Logout ── */}
+      <div className="shrink-0 px-3 py-4 border-t border-[hsl(var(--border))] space-y-0.5">
+        {bottomItems.map((item) => (
+          <NavItem key={item.url} {...item} />
+        ))}
+      </div>
     </aside>
   );
 
@@ -140,7 +165,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
         {sidebarContent}
       </div>
 
-      {/* Mobile drawer overlay */}
+      {/* Mobile drawer */}
       <AnimatePresence>
         {open && (
           <div className="md:hidden fixed inset-0 z-50 flex">
