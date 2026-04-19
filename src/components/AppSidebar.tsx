@@ -1,7 +1,7 @@
 import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, Moon, X, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
@@ -141,27 +141,29 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
       </div>
 
       {/* Mobile drawer overlay */}
-      {open && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <motion.div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-          />
-          <motion.div
-            className="relative flex-shrink-0"
-            initial={{ x: -260 }}
-            animate={{ x: 0 }}
-            exit={{ x: -260 }}
-            transition={{ type: "spring", stiffness: 320, damping: 32 }}
-          >
-            {sidebarContent}
-          </motion.div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <div className="md:hidden fixed inset-0 z-50 flex">
+            <motion.div
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              onClick={onClose}
+            />
+            <motion.div
+              className="relative flex-shrink-0"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 34, mass: 0.9 }}
+            >
+              {sidebarContent}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
