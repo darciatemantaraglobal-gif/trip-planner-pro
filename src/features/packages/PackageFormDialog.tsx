@@ -194,14 +194,14 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 <button
                   onClick={() => onOpenChange(false)}
                   disabled={saving}
-                  className="flex-1 h-10 rounded-xl border border-[hsl(var(--border))] text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-colors disabled:opacity-50"
+                  className="btn-ghost flex-1 h-10 text-sm disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving || !canSave}
-                  className="flex-1 h-10 rounded-xl text-sm font-semibold text-white gradient-primary flex items-center justify-center gap-1.5 disabled:opacity-50 transition-opacity"
+                  className="btn-primary flex-1 h-10 rounded-xl text-sm flex items-center justify-center gap-1.5 disabled:opacity-40"
                 >
                   {saving ? (
                     <span className="flex items-center gap-1.5">

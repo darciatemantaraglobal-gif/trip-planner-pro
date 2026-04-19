@@ -70,6 +70,17 @@
   }
 }
 
+/* ── Button style keyframes ── */
+@keyframes btn-shimmer {
+  from { left: -80%; }
+  to   { left: 130%; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 10px hsl(27 91% 54% / 0.35), 0 2px 8px hsl(27 91% 54% / 0.25); }
+  50%       { box-shadow: 0 0 22px hsl(27 91% 54% / 0.60), 0 4px 16px hsl(27 91% 54% / 0.40); }
+}
+
 @layer utilities {
   .gradient-primary {
     background: var(--gradient-primary);
@@ -91,6 +102,83 @@
   }
   .transition-smooth {
     transition: var(--transition-smooth);
+  }
+
+  /* ── Gradient Shimmer — primary CTA ── */
+  .btn-primary {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(27 91% 54%), hsl(16 88% 58%));
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 12px hsl(27 91% 54% / 0.30);
+    transition: box-shadow 0.2s ease, opacity 0.15s ease;
+  }
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -80%;
+    width: 45%;
+    height: 200%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+    transform: skewX(-18deg);
+    pointer-events: none;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 4px 18px hsl(27 91% 54% / 0.45);
+  }
+  .btn-primary:hover::after {
+    animation: btn-shimmer 0.55s ease forwards;
+  }
+  .btn-primary:active {
+    opacity: 0.88;
+    box-shadow: 0 1px 6px hsl(27 91% 54% / 0.3);
+  }
+
+  /* ── Glow Pulse — hero/dashboard action ── */
+  .btn-glow {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(27 91% 54%), hsl(16 88% 58%));
+    color: white;
+    font-weight: 600;
+    animation: glow-pulse 2.8s ease-in-out infinite;
+    transition: opacity 0.15s ease;
+  }
+  .btn-glow::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -80%;
+    width: 45%;
+    height: 200%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+    transform: skewX(-18deg);
+    pointer-events: none;
+  }
+  .btn-glow:hover::after {
+    animation: btn-shimmer 0.55s ease forwards;
+  }
+  .btn-glow:active {
+    opacity: 0.88;
+    animation: none;
+  }
+
+  /* ── Pill Flat Minimal — secondary/cancel ── */
+  .btn-ghost {
+    border-radius: 9999px;
+    background: hsl(var(--secondary));
+    color: hsl(var(--foreground));
+    font-weight: 500;
+    border: none;
+    transition: background 0.15s ease;
+  }
+  .btn-ghost:hover {
+    background: hsl(var(--border));
+  }
+  .btn-ghost:active {
+    background: hsl(var(--muted));
   }
 
   @media (max-width: 640px) {

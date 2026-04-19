@@ -85,7 +85,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             >
               <SlidersHorizontal strokeWidth={1.5} className="h-4 w-4" />
             </Button>
-            <Button className="hidden sm:flex h-10 px-6 rounded-xl gradient-primary text-white shadow-glow hover:opacity-90 text-sm font-semibold shrink-0">
+            <Button className="hidden sm:flex h-10 px-6 rounded-xl btn-primary text-sm shrink-0">
               Cari
             </Button>
 

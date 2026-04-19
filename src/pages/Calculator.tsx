@@ -548,7 +548,7 @@ export default function Calculator() {
             </div>
 
             <Button
-              className="w-full gradient-primary text-white shadow-glow hover:opacity-90 h-11 rounded-xl font-semibold"
+              className="btn-primary w-full h-11 rounded-xl"
               onClick={() => setPdfOpen(true)}
               disabled={summary.total === 0}
             >

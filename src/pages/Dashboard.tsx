@@ -557,7 +557,7 @@ export default function Dashboard() {
           </div>
           <Button
             onClick={() => setAddOpen(true)}
-            className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-lg md:rounded-xl h-8 md:h-10 px-2.5 md:px-5 text-xs md:text-sm font-semibold shrink-0"
+            className="btn-glow rounded-lg md:rounded-xl h-8 md:h-10 px-2.5 md:px-5 text-xs md:text-sm shrink-0"
           >
             <Plus strokeWidth={1.5} className="h-4 w-4 mr-1 md:mr-2" />
             <span className="hidden sm:inline">Tambah Paket Trip</span>
@@ -589,7 +589,7 @@ export default function Dashboard() {
               Klik "Tambah Paket Trip" untuk membuat paket perjalanan pertama.
             </p>
             <Button onClick={() => setAddOpen(true)}
-              className="mt-6 gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl">
+              className="btn-glow mt-6 rounded-xl px-6 h-10">
               <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> Buat Paket Pertama
             </Button>
           </div>
