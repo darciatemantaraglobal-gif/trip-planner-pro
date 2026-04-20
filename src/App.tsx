@@ -5,7 +5,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { SplashScreen } from "@/components/SplashScreen";
 import Index from "./pages/Index.tsx";
 import Calculator from "./pages/Calculator";
 import Packages from "./pages/Packages";
@@ -89,7 +88,6 @@ const App = () => (
       <Sonner />
       <AppearanceBootstrap />
       <StoreBootstrap />
-      <SplashScreen />
       <BrowserRouter>
         <AnimatedRoutes />
       </BrowserRouter>

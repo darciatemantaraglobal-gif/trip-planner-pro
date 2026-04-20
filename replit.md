@@ -45,6 +45,7 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
    - localStorage-based auth dengan SHA-256 hash
    - Zustand authStore dengan roles: superadmin/agent
    - RequireAuth guard di App.tsx
+   - Login utama hanya memakai halaman `/login` agar tidak dobel dengan splash overlay
    - Settings tab "Agen" untuk tambah/hapus agen (superadmin only)
 
 7. **Real-time Sync Simulation (T007)** — `src/lib/syncBus.ts`
