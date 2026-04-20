@@ -35,7 +35,7 @@ export default function Auth() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setError("Authentication is not connected yet. Enable Lovable Cloud to sign in.");
+      setError("Authentication is not connected yet. Please sign in from the login page.");
     }, 1200);
   };
 
