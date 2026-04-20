@@ -20,6 +20,7 @@ src/
   components/
     AppSidebar.tsx            # White sidebar 228px with icons + full labels (TripLove style)
     DashboardLayout.tsx       # Page shell (sidebar + white floating card)
+    SplashScreen.tsx          # Branded launch splash with loading state and Login gate
     CurrencyTicker.tsx        # Exchange rate ticker (header)
     CurrencyExchangeCard.tsx  # Rate card (dashboard)
     PdfPreviewDialog.tsx      # PDF export dialog for cost breakdown and LA-style offer tables
@@ -70,15 +71,16 @@ Documents are stored as base64 in localStorage (max ~5 MB per file).
 
 ## Design System
 
-- **Color scheme**: Dark navy outer background, white content card, pink primary (hsl 344 70% 75%)
+- **Color scheme**: Warm orange primary theme with dark outer background and white content cards
 - **Sidebar**: Custom narrow 72px icon-only dark sidebar
 - **Content card**: White `rounded-3xl` with `content-light` CSS class (resets variables to light mode)
-- **Theme**: Pink/rose accent for active states, buttons, highlights
+- **Theme**: Orange accent for active states, buttons, highlights, and outline Lucide icons
+- **Splash**: App opens with branded background splash, shows loading first, then requires pressing `Login` before revealing the dashboard
 - **Mobile layout**: Compact spacing, shorter header/bottom navigation, smaller cards and controls under 640px; calculator has extra mobile compaction for dense forms and offer tables
 
 ## Key CSS Classes
 
-- `.gradient-primary` — pink gradient (brand color)
-- `.shadow-glow` — pink glow shadow
+- `.gradient-primary` — orange gradient (brand color)
+- `.shadow-glow` — orange glow shadow
 - `.content-light` — resets CSS vars to light mode inside white card
 - `.transition-smooth` — smooth cubic-bezier transition
