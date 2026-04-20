@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Ship, Train } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
 import { toast } from "sonner";
@@ -352,11 +352,10 @@ function RightPanel({ trips }: { trips: Trip[] }) {
         {/* Transportation quick access */}
         <div>
           <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-3">Transportasi</h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {[
               { icon: Plane, label: "Pesawat" },
               { icon: Bus, label: "Bus" },
-              { icon: Ship, label: "Kapal" },
               { icon: Train, label: "Kereta" },
             ].map((t) => (
               <button key={t.label}

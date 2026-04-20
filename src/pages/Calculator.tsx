@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
-  FileText, Calculator as CalcIcon, Hotel, Plane, Bus, Ship, Train, Car,
+  FileText, Calculator as CalcIcon, Hotel, Plane, Bus, Train, Car,
   BedDouble, Users, Wallet, TrendingUp,
 } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
@@ -15,7 +15,6 @@ const TRANSPORT_OPTIONS = [
   { value: "pesawat", label: "Pesawat", icon: Plane },
   { value: "bus", label: "Bus", icon: Bus },
   { value: "kereta", label: "Kereta", icon: Train },
-  { value: "kapal", label: "Kapal", icon: Ship },
   { value: "van", label: "Van / Hiace", icon: Car },
   { value: "lainnya", label: "Lainnya", icon: Car },
 ];
