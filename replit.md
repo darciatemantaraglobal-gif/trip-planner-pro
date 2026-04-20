@@ -24,6 +24,7 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
 
 2. **PWA Readiness (T002)** — `vite.config.ts`
    - vite-plugin-pwa: manifest, service worker, offline cache, installable
+   - Mobile/PWA viewport dikunci ke skala 1, memakai `viewport-fit=cover`, touch target minimal 44px, dan input 16px untuk mencegah auto-zoom saat app atau popup/dialog dibuka
 
 3. **Gamified Progress Tracker (T003)** — `src/pages/ProgressTracker.tsx`, `src/pages/JamaahProfile.tsx`
    - Per jamaah: step Terdaftar → Dokumen → Pembayaran → Disetujui → Siap Berangkat
