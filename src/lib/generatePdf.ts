@@ -106,7 +106,12 @@ function getImgFormat(dataUrl: string): string {
 
 function generateTemplateOverlayPdf(data: QuotationData, template: PdfTemplate) {
   const offer = data.offer;
-  if (!offer || !template.backgroundImage) return;
+  if (!offer) return;
+  // If the template has no background image, fall back to the default IGH Tour layout
+  if (!template.backgroundImage) {
+    generateLandArrangementPdf(data);
+    return;
+  }
 
   const doc = new jsPDF({
     unit: "pt",
