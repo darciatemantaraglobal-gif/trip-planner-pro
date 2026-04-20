@@ -594,100 +594,99 @@ export default function PackageDetail() {
   const safePax = Math.max(1, calc.pax);
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto" style={M}>
+    <div className="space-y-3 md:space-y-5 max-w-5xl mx-auto" style={M}>
 
       {/* ── Header ── */}
-      <div className="flex items-start gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/packages")} className="rounded-xl shrink-0">
+      <div className="flex items-start gap-2 md:gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/packages")} className="rounded-xl shrink-0 h-8 w-8 md:h-10 md:w-10">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-3xl">{pkg.emoji}</span>
-            <h1 className="text-2xl font-bold truncate" style={M}>{pkg.name}</h1>
-            <Badge className={`${statusVariant[pkg.status]} border-0`}>{pkg.status}</Badge>
+          <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+            <span className="text-xl md:text-3xl">{pkg.emoji}</span>
+            <h1 className="text-base md:text-2xl font-bold truncate" style={M}>{pkg.name}</h1>
+            <Badge className={`${statusVariant[pkg.status]} border-0 text-[10px] px-1.5 py-0.5`}>{pkg.status}</Badge>
           </div>
-          <div className="mt-1 flex flex-wrap gap-3 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{pkg.destination}</span>
-            <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{jamaah.length} jamaah / {pkg.people} pax</span>
-            <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Update {formatDate(pkg.updatedAt ?? "")}</span>
+          <div className="mt-0.5 flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3 md:h-3.5 md:w-3.5" />{pkg.destination}</span>
+            <span className="inline-flex items-center gap-1"><Users className="h-3 w-3 md:h-3.5 md:w-3.5" />{jamaah.length}/{pkg.people} pax</span>
+            <span className="hidden sm:inline-flex items-center gap-1"><Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />{formatDate(pkg.updatedAt ?? "")}</span>
           </div>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="gradient-primary text-white rounded-xl shrink-0">
-          <Plus className="h-4 w-4 mr-1.5" /> Jamaah
+        <Button onClick={() => setAddOpen(true)} size="sm" className="gradient-primary text-white rounded-xl shrink-0 h-8 px-3 text-xs md:h-10 md:px-4 md:text-sm">
+          <Plus className="h-3.5 w-3.5 mr-1" /> Jamaah
         </Button>
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border bg-white p-4">
-          <p className="text-xs text-muted-foreground" style={M}>Total paket</p>
-          <p className="mt-1 text-xl font-bold text-orange-600" style={M}>{formatCurrency(pkg.totalIDR)}</p>
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        <div className="rounded-xl md:rounded-2xl border bg-white p-2.5 md:p-4">
+          <p className="text-[10px] md:text-xs text-muted-foreground leading-tight" style={M}>Total paket</p>
+          <p className="mt-0.5 text-sm md:text-xl font-bold text-orange-600 leading-tight truncate" style={M}>{formatCurrency(pkg.totalIDR)}</p>
         </div>
-        <div className="rounded-2xl border bg-white p-4">
-          <p className="text-xs text-muted-foreground" style={M}>Harga per jamaah</p>
-          <p className="mt-1 text-xl font-bold" style={M}>{formatCurrency(pkg.people > 0 ? pkg.totalIDR / pkg.people : 0)}</p>
+        <div className="rounded-xl md:rounded-2xl border bg-white p-2.5 md:p-4">
+          <p className="text-[10px] md:text-xs text-muted-foreground leading-tight" style={M}>Per jamaah</p>
+          <p className="mt-0.5 text-sm md:text-xl font-bold leading-tight truncate" style={M}>{formatCurrency(pkg.people > 0 ? pkg.totalIDR / pkg.people : 0)}</p>
         </div>
-        <div className="rounded-2xl border bg-white p-4">
-          <p className="text-xs text-muted-foreground" style={M}>Kelengkapan jamaah</p>
-          <p className="mt-1 text-xl font-bold" style={M}>{jamaah.length} / {pkg.people} pax</p>
+        <div className="rounded-xl md:rounded-2xl border bg-white p-2.5 md:p-4">
+          <p className="text-[10px] md:text-xs text-muted-foreground leading-tight" style={M}>Jamaah</p>
+          <p className="mt-0.5 text-sm md:text-xl font-bold leading-tight" style={M}>{jamaah.length} / {pkg.people}</p>
         </div>
       </div>
 
       {/* ── Tabs ── */}
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSearchParams({ tab: v }, { replace: true }); }} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 rounded-2xl">
-          <TabsTrigger value="calculator" className="rounded-xl" style={M}>
-            <Calculator className="h-4 w-4 mr-1.5" />Kalkulator
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSearchParams({ tab: v }, { replace: true }); }} className="space-y-3 md:space-y-4">
+        <TabsList className="grid w-full grid-cols-2 rounded-xl h-9 md:h-10 md:rounded-2xl">
+          <TabsTrigger value="calculator" className="rounded-lg md:rounded-xl text-xs md:text-sm" style={M}>
+            <Calculator className="h-3.5 w-3.5 mr-1 md:mr-1.5" />Kalkulator
           </TabsTrigger>
-          <TabsTrigger value="jamaah" className="rounded-xl" style={M}>
-            <Users className="h-4 w-4 mr-1.5" />Jamaah
+          <TabsTrigger value="jamaah" className="rounded-lg md:rounded-xl text-xs md:text-sm" style={M}>
+            <Users className="h-3.5 w-3.5 mr-1 md:mr-1.5" />Jamaah
           </TabsTrigger>
         </TabsList>
 
         {/* ══════════════════════════════════════════════════════════════════════
             KALKULATOR TAB
         ══════════════════════════════════════════════════════════════════════ */}
-        <TabsContent value="calculator" className="space-y-4">
+        <TabsContent value="calculator" className="space-y-3 md:space-y-4">
 
-          {/* ── Mode switcher ── */}
-          <div className="flex items-center gap-3 p-1 rounded-xl border border-orange-200 bg-orange-50/50 w-fit">
-            {(["umroh", "umum"] as CalcMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setField("mode", m)}
-                style={M}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-[12px] font-bold transition-all",
-                  calc.mode === m
-                    ? "bg-orange-500 text-white shadow-sm"
-                    : "text-orange-600 hover:bg-orange-100"
-                )}
-              >
-                {m === "umroh" ? "🕌 Umroh / Haji" : "🗺️ Umum"}
-              </button>
-            ))}
-          </div>
-
-          {/* Kurs info strip */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
-              <span className="text-[10px] font-bold text-slate-600 uppercase">SAR</span>
-              <span className="text-[11px] text-muted-foreground">= Rp</span>
-              <span className="text-[11px] font-bold text-slate-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
+          {/* ── Mode switcher + kurs strip (combined row on mobile) ── */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200 bg-orange-50/50">
+              {(["umroh", "umum"] as CalcMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setField("mode", m)}
+                  style={M}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all",
+                    calc.mode === m
+                      ? "bg-orange-500 text-white shadow-sm"
+                      : "text-orange-600 hover:bg-orange-100"
+                  )}
+                >
+                  {m === "umroh" ? "🕌 Umroh" : "🗺️ Umum"}
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
-              <span className="text-[10px] font-bold text-slate-600 uppercase">USD</span>
-              <span className="text-[11px] text-muted-foreground">= Rp</span>
-              <span className="text-[11px] font-bold text-slate-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
+                <span className="text-[10px] font-bold text-slate-600 uppercase">SAR</span>
+                <span className="text-[10px] text-muted-foreground">=</span>
+                <span className="text-[10px] font-bold text-slate-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
+                <span className="text-[10px] font-bold text-slate-600 uppercase">USD</span>
+                <span className="text-[10px] text-muted-foreground">=</span>
+                <span className="text-[10px] font-bold text-slate-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
+              </div>
             </div>
-            <p className="text-[10px] text-muted-foreground">Ubah kurs di <span className="font-semibold">Pengaturan</span></p>
           </div>
 
           {/* ── Package Info ── */}
-          <div className="rounded-xl border border-orange-200 bg-white p-4 space-y-3">
+          <div className="rounded-xl border border-orange-200 bg-white p-3 md:p-4 space-y-2.5 md:space-y-3">
             <p style={M} className="text-[10px] font-extrabold uppercase tracking-widest text-orange-600">Info Paket</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
               <div className="col-span-2 space-y-1">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Nama Paket</label>
                 <input
@@ -1057,12 +1056,12 @@ export default function PackageDetail() {
 
           {/* ── FINANCIAL PARAMETERS ── */}
           <div className="rounded-xl border border-orange-200 bg-white overflow-hidden">
-            <div className="px-4 py-3 border-b border-orange-100 bg-orange-50/60">
+            <div className="px-3 md:px-4 py-2.5 md:py-3 border-b border-orange-100 bg-orange-50/60">
               <p style={M} className="text-[10px] font-extrabold uppercase tracking-widest text-orange-700 flex items-center gap-1.5">
                 <TrendingUp className="h-3.5 w-3.5" /> Parameter Finansial
               </p>
             </div>
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-3 md:p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
               <div className="space-y-2">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
                   Commission Fee Admin (IDR Tetap)
@@ -1097,18 +1096,18 @@ export default function PackageDetail() {
           {quote && (
             <div className="rounded-xl border-2 border-orange-300 bg-white overflow-hidden">
               <button
-                className="w-full flex items-center justify-between px-5 py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white"
+                className="w-full flex items-center justify-between px-3 md:px-5 py-3 md:py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white"
                 onClick={() => setShowSummary((v) => !v)}
               >
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  <span style={M} className="font-extrabold text-[14px] uppercase tracking-wide">Ringkasan Kalkulasi Profesional</span>
+                  <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <span style={M} className="font-extrabold text-[12px] md:text-[14px] uppercase tracking-wide">Ringkasan Kalkulasi</span>
                 </div>
                 {showSummary ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
 
               {showSummary && (
-                <div className="p-4 space-y-4">
+                <div className="p-3 md:p-4 space-y-3 md:space-y-4">
 
                   {/* Main summary table */}
                   <div className="overflow-x-auto rounded-xl border border-orange-200">
@@ -1203,15 +1202,15 @@ export default function PackageDetail() {
                         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 90% 10%,white 0%,transparent 55%)" }} />
                         <div className="relative">
                           <p style={M} className="text-[10px] font-bold uppercase tracking-widest opacity-75">Harga Jual Final</p>
-                          <p style={M} className="text-2xl font-extrabold mt-1 font-mono">{formatCurrency(quote.finalPrice)}</p>
-                          <div className="mt-3 pt-3 border-t border-white/20 grid grid-cols-2 gap-2">
+                          <p style={M} className="text-xl md:text-2xl font-extrabold mt-1 font-mono">{formatCurrency(quote.finalPrice)}</p>
+                          <div className="mt-2.5 pt-2.5 border-t border-white/20 grid grid-cols-2 gap-2">
                             <div>
                               <p style={M} className="text-[10px] opacity-70">Per Pax ({safePax} pax)</p>
-                              <p style={M} className="text-base font-bold font-mono">{formatCurrency(quote.perPaxFinal)}</p>
+                              <p style={M} className="text-sm md:text-base font-bold font-mono">{formatCurrency(quote.perPaxFinal)}</p>
                             </div>
                             <div>
                               <p style={M} className="text-[10px] opacity-70">HPP per Pax</p>
-                              <p style={M} className="text-base font-bold font-mono">{formatCurrency(quote.hpp / safePax)}</p>
+                              <p style={M} className="text-sm md:text-base font-bold font-mono">{formatCurrency(quote.hpp / safePax)}</p>
                             </div>
                           </div>
                         </div>
@@ -1219,25 +1218,25 @@ export default function PackageDetail() {
 
                       {/* Net profit card */}
                       <div className={cn(
-                        "rounded-xl border p-4",
+                        "rounded-xl border p-3 md:p-4",
                         quote.netProfit >= 0
                           ? "bg-emerald-50 border-emerald-200"
                           : "bg-red-50 border-red-200"
                       )}>
                         <p style={M} className={`text-[10px] font-extrabold uppercase tracking-wider ${quote.netProfit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                          Net Profit (Setelah HPP & Commission)
+                          Net Profit
                         </p>
-                        <p style={M} className={`text-xl font-extrabold font-mono mt-1 ${quote.netProfit >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                        <p style={M} className={`text-lg md:text-xl font-extrabold font-mono mt-0.5 ${quote.netProfit >= 0 ? "text-emerald-700" : "text-red-600"}`}>
                           {quote.netProfit >= 0 ? "+" : ""}{formatCurrency(quote.netProfit)}
                         </p>
                         <p style={M} className="text-[10px] text-muted-foreground mt-0.5">
                           {formatCurrency(quote.netProfit / safePax)}/pax
-                          {quote.netProfit < 0 && " ⚠️ Harga jual di bawah modal!"}
+                          {quote.netProfit < 0 && " ⚠️ di bawah modal!"}
                         </p>
                       </div>
 
-                      <Button onClick={syncToPackage} className="w-full h-11 rounded-xl gradient-primary text-white" style={M}>
-                        <Save className="h-4 w-4 mr-1.5" /> Simpan ke Paket
+                      <Button onClick={syncToPackage} className="w-full h-9 md:h-11 rounded-xl gradient-primary text-white text-sm" style={M}>
+                        <Save className="h-3.5 w-3.5 mr-1.5" /> Simpan ke Paket
                       </Button>
                     </div>
                   </div>
