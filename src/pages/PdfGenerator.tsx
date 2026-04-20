@@ -2,11 +2,15 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FileText, LayoutTemplate, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
 import type { LandArrangementOfferData, OfferPriceRow } from "@/lib/generatePdf";
-import { motion, type Variants } from "framer-motion";
+import { motion, type Variants, AnimatePresence } from "framer-motion";
+import { TemplateEditorDialog } from "@/features/pdfTemplate/TemplateEditorDialog";
+import { useTemplateStore } from "@/features/pdfTemplate/templateStore";
+import type { PdfTemplate } from "@/features/pdfTemplate/types";
+import { toast } from "sonner";
 
 function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">{children}</div>;
@@ -66,8 +70,18 @@ export default function PdfGenerator() {
   const [offerCurrency, setOfferCurrency] = useState<"SAR" | "USD" | "IDR">("SAR");
   const [pdfOpen, setPdfOpen] = useState(false);
 
-  const setOfferField = <K extends keyof LandArrangementOfferData>(key: K, value: LandArrangementOfferData[K]) =>
-    setOffer((cur) => ({ ...cur, [key]: value }));
+  const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplateStore();
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<PdfTemplate | null>(null);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
+
+  const setOfferField = <K extends keyof LandArrangementOfferData>(
+    key: K,
+    value: LandArrangementOfferData[K]
+  ) => setOffer((cur) => ({ ...cur, [key]: value }));
 
   const setOfferRow = (index: number, field: keyof OfferPriceRow, value: string | number) =>
     setOffer((cur) => ({
@@ -84,7 +98,26 @@ export default function PdfGenerator() {
         .filter(Boolean),
     }));
 
-  const offerAutoRate = offerCurrency !== "IDR" ? (rates[offerCurrency as "SAR" | "USD"] ?? 0) : 0;
+  const offerAutoRate =
+    offerCurrency !== "IDR" ? (rates[offerCurrency as "SAR" | "USD"] ?? 0) : 0;
+
+  const handleSaveTemplate = (draft: Omit<PdfTemplate, "id" | "createdAt">) => {
+    if (editingTemplate) {
+      updateTemplate(editingTemplate.id, draft);
+      toast.success("Template berhasil diperbarui");
+    } else {
+      const id = addTemplate(draft);
+      setSelectedTemplateId(id);
+      toast.success("Template berhasil disimpan & dipilih");
+    }
+    setEditingTemplate(null);
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    deleteTemplate(id);
+    if (selectedTemplateId === id) setSelectedTemplateId(null);
+    toast.success("Template dihapus");
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -103,7 +136,193 @@ export default function PdfGenerator() {
         </p>
       </motion.div>
 
-      {/* Main form card */}
+      {/* ─── Template Section ─── */}
+      <motion.div
+        className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      >
+        <div className="px-5 py-3.5 flex items-center justify-between border-b border-[hsl(var(--border))]">
+          <div className="flex items-center gap-2">
+            <LayoutTemplate strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <span className="font-semibold text-sm text-[hsl(var(--foreground))]">
+              Template PDF
+            </span>
+            {selectedTemplate && (
+              <span className="flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 font-semibold px-1.5 py-0.5 rounded-full">
+                <Check className="h-2.5 w-2.5" />
+                Aktif
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {templates.length > 0 && (
+              <button
+                onClick={() => setTemplatePickerOpen((v) => !v)}
+                className="h-7 px-3 rounded-lg text-xs font-medium border border-[hsl(var(--border))] bg-white hover:bg-[hsl(var(--secondary))] transition-colors"
+              >
+                Pilih
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setEditingTemplate(null);
+                setEditorOpen(true);
+              }}
+              className="h-7 px-3 rounded-lg text-xs font-medium flex items-center gap-1 btn-primary"
+            >
+              <Plus className="h-3 w-3" />
+              Buat Template
+            </button>
+          </div>
+        </div>
+
+        {/* Active template preview */}
+        <AnimatePresence mode="wait">
+          {selectedTemplate ? (
+            <motion.div
+              key="selected"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="px-5 py-3 flex items-center gap-3"
+            >
+              <div className="h-14 w-20 rounded-lg overflow-hidden border border-[hsl(var(--border))] shrink-0 bg-gray-50">
+                {selectedTemplate.backgroundImage ? (
+                  <img
+                    src={selectedTemplate.backgroundImage}
+                    alt={selectedTemplate.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <LayoutTemplate className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-[hsl(var(--foreground))] truncate">
+                  {selectedTemplate.name}
+                </p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                  {selectedTemplate.orientation} · {selectedTemplate.fields.length} field terpasang
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => {
+                    setEditingTemplate(selectedTemplate);
+                    setEditorOpen(true);
+                  }}
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setSelectedTemplateId(null)}
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:bg-red-50 hover:text-red-500 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="px-5 py-3"
+            >
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Tanpa template — PDF akan digenerate dengan layout default IGH Tour.
+                {templates.length > 0 && (
+                  <button
+                    onClick={() => setTemplatePickerOpen(true)}
+                    className="ml-1.5 text-[hsl(var(--primary))] font-medium hover:underline"
+                  >
+                    Pilih dari {templates.length} template tersimpan →
+                  </button>
+                )}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Template picker */}
+        <AnimatePresence>
+          {templatePickerOpen && templates.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-t border-[hsl(var(--border))] overflow-hidden"
+            >
+              <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {templates.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className={`relative rounded-xl border overflow-hidden cursor-pointer transition-all hover:shadow-md group ${
+                      selectedTemplateId === tmpl.id
+                        ? "border-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/30"
+                        : "border-[hsl(var(--border))]"
+                    }`}
+                    onClick={() => {
+                      setSelectedTemplateId(tmpl.id);
+                      setTemplatePickerOpen(false);
+                    }}
+                  >
+                    <div className="aspect-video bg-gray-50 overflow-hidden">
+                      {tmpl.backgroundImage ? (
+                        <img
+                          src={tmpl.backgroundImage}
+                          alt={tmpl.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <LayoutTemplate className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-2 py-1.5">
+                      <p className="text-[11px] font-semibold truncate">{tmpl.name}</p>
+                      <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                        {tmpl.fields.length} field
+                      </p>
+                    </div>
+                    {selectedTemplateId === tmpl.id && (
+                      <div className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center">
+                        <Check className="h-2.5 w-2.5 text-white" />
+                      </div>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTemplate(tmpl.id);
+                      }}
+                      className="absolute top-1.5 left-1.5 h-5 w-5 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="px-3 pb-3 flex justify-end">
+                <button
+                  onClick={() => setTemplatePickerOpen(false)}
+                  className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* ─── Main form card ─── */}
       <motion.div
         className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-card"
         initial={{ opacity: 0, y: 20 }}
@@ -334,14 +553,23 @@ export default function PdfGenerator() {
         onOpenChange={setPdfOpen}
         data={{
           packageName: offer.title || "Penawaran IGH Tour",
-          destination: [offer.hotelMakkah, offer.hotelMadinah].filter(Boolean).join(" — ") || "Destinasi",
+          destination:
+            [offer.hotelMakkah, offer.hotelMadinah].filter(Boolean).join(" — ") || "Destinasi",
           people: 1,
           currency: "IDR",
           costs: [],
           total: 0,
           perPerson: 0,
           offer,
+          template: selectedTemplate ?? undefined,
         }}
+      />
+
+      <TemplateEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        initial={editingTemplate}
+        onSave={handleSaveTemplate}
       />
     </div>
   );

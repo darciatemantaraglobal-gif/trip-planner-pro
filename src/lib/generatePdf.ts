@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { PdfTemplate } from "@/features/pdfTemplate/types";
 
 export interface OfferPriceRow {
   paxRange: string;
@@ -40,6 +41,7 @@ export interface QuotationData {
   total: number;
   perPerson: number;
   offer?: LandArrangementOfferData;
+  template?: PdfTemplate;
 }
 
 const symbols: Record<string, string> = { USD: "$", SAR: "SAR", IDR: "Rp" };
@@ -58,7 +60,14 @@ function stars(count: number) {
   return "★".repeat(Math.max(1, Math.min(5, count || 5)));
 }
 
-function bulletLines(doc: jsPDF, items: string[], x: number, y: number, width: number, lineHeight: number) {
+function bulletLines(
+  doc: jsPDF,
+  items: string[],
+  x: number,
+  y: number,
+  width: number,
+  lineHeight: number
+) {
   let cursor = y;
   items.forEach((item) => {
     const lines = doc.splitTextToSize(item, width - 10);
@@ -67,6 +76,108 @@ function bulletLines(doc: jsPDF, items: string[], x: number, y: number, width: n
     cursor += Math.max(lines.length, 1) * lineHeight + 2;
   });
   return cursor;
+}
+
+function getOfferFieldValue(offer: LandArrangementOfferData, key: string): string {
+  switch (key) {
+    case "quoteNumber": return offer.quoteNumber;
+    case "tier": return offer.tier;
+    case "title": return offer.title;
+    case "subtitle": return offer.subtitle;
+    case "dateRange": return offer.dateRange;
+    case "customerName": return offer.customerName;
+    case "hotelMakkah": return offer.hotelMakkah;
+    case "hotelMadinah": return offer.hotelMadinah;
+    case "makkahNights": return offer.makkahNights ? `${offer.makkahNights} Malam` : "";
+    case "madinahNights": return offer.madinahNights ? `${offer.madinahNights} Malam` : "";
+    case "updateDate": return offer.updateDate;
+    case "website": return offer.website;
+    case "contactPhone": return offer.contactPhone;
+    case "contactName": return offer.contactName;
+    default: return "";
+  }
+}
+
+function getImgFormat(dataUrl: string): string {
+  if (dataUrl.startsWith("data:image/png")) return "PNG";
+  if (dataUrl.startsWith("data:image/webp")) return "WEBP";
+  return "JPEG";
+}
+
+function generateTemplateOverlayPdf(data: QuotationData, template: PdfTemplate) {
+  const offer = data.offer;
+  if (!offer || !template.backgroundImage) return;
+
+  const doc = new jsPDF({
+    unit: "pt",
+    format: "a4",
+    orientation: template.orientation,
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  doc.addImage(
+    template.backgroundImage,
+    getImgFormat(template.backgroundImage),
+    0,
+    0,
+    pageWidth,
+    pageHeight
+  );
+
+  for (const field of template.fields) {
+    const x = (field.x / 100) * pageWidth;
+    const y = (field.y / 100) * pageHeight;
+
+    if (field.key === "priceTable") {
+      autoTable(doc, {
+        startY: y,
+        head: [["TOTAL PAX", "QUAD", "TRIPLE", "DOUBLE"]],
+        body: offer.rows
+          .filter((r) => r.paxRange)
+          .map((row) => [
+            row.paxRange,
+            formatUsd(row.quad),
+            formatUsd(row.triple),
+            formatUsd(row.double),
+          ]),
+        margin: { left: x, right: 40 },
+        theme: "plain",
+        styles: {
+          font: "helvetica",
+          fontSize: field.fontSize,
+          cellPadding: { top: 6, right: 10, bottom: 6, left: 10 },
+          textColor: field.color as unknown as [number, number, number],
+          lineColor: [220, 215, 210],
+          lineWidth: 0.4,
+        },
+        headStyles: {
+          fontStyle: "bold",
+          fillColor: [250, 247, 244],
+        },
+        columnStyles: {
+          0: { fontStyle: "bold", halign: "left" },
+          1: { halign: "center", fontStyle: "bold" },
+          2: { halign: "center", fontStyle: "bold" },
+          3: { halign: "center", fontStyle: "bold" },
+        },
+      });
+      continue;
+    }
+
+    const value = getOfferFieldValue(offer, field.key);
+    if (!value) continue;
+
+    doc.setFontSize(field.fontSize);
+    doc.setFont("helvetica", field.bold ? "bold" : "normal");
+    doc.setTextColor(field.color);
+    doc.text(value, x, y);
+  }
+
+  const safeName = (offer.title || data.packageName || "penawaran_template")
+    .replace(/[^a-z0-9-_]+/gi, "_");
+  doc.save(`${safeName}_${offer.quoteNumber || Date.now().toString().slice(-6)}.pdf`);
 }
 
 function generateLandArrangementPdf(data: QuotationData) {
@@ -91,7 +202,9 @@ function generateLandArrangementPdf(data: QuotationData) {
 
   doc.setTextColor(...dark);
   doc.setFontSize(20);
-  doc.text(offer.title || data.packageName || "Penawaran Paket Umrah", margin, 72, { maxWidth: 265 });
+  doc.text(offer.title || data.packageName || "Penawaran Paket Umrah", margin, 72, {
+    maxWidth: 265,
+  });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.text(offer.subtitle || "Program Umrah", margin, 107);
@@ -128,7 +241,12 @@ function generateLandArrangementPdf(data: QuotationData) {
   autoTable(doc, {
     startY: 245,
     head: [["TOTAL PAX", "QUAD", "TRIPLE", "DOUBLE"]],
-    body: offer.rows.map((row) => [row.paxRange, formatUsd(row.quad), formatUsd(row.triple), formatUsd(row.double)]),
+    body: offer.rows.map((row) => [
+      row.paxRange,
+      formatUsd(row.quad),
+      formatUsd(row.triple),
+      formatUsd(row.double),
+    ]),
     margin: { left: margin, right: margin },
     theme: "plain",
     styles: {
@@ -168,7 +286,7 @@ function generateLandArrangementPdf(data: QuotationData) {
   doc.text(
     `* Harga sewaktu-waktu dapat berubah tanpa pemberitahuan sebelumnya, harap konfirmasi kembali. Update: ${offer.updateDate || new Date().toLocaleDateString("id-ID")}`,
     margin + 175,
-    tableEndY + 22,
+    tableEndY + 22
   );
 
   const sectionY = tableEndY + 58;
@@ -182,7 +300,9 @@ function generateLandArrangementPdf(data: QuotationData) {
   doc.setTextColor(...dark);
   doc.setFontSize(10);
   doc.text("Harga Sudah Termasuk", margin + halfW / 2, sectionY - 5, { align: "center" });
-  doc.text("Harga Tidak Termasuk", margin + halfW + 24 + halfW / 2, sectionY - 5, { align: "center" });
+  doc.text("Harga Tidak Termasuk", margin + halfW + 24 + halfW / 2, sectionY - 5, {
+    align: "center",
+  });
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...dark);
@@ -203,15 +323,33 @@ function generateLandArrangementPdf(data: QuotationData) {
   doc.setFont("helvetica", "bold");
   doc.text("Informasi & Pemesanan", pageWidth - margin, pageHeight - 46, { align: "right" });
   doc.setTextColor(...gold);
-  doc.text(offer.contactPhone || "+62 812-8955-2018", pageWidth - margin, pageHeight - 31, { align: "right" });
+  doc.text(
+    offer.contactPhone || "+62 812-8955-2018",
+    pageWidth - margin,
+    pageHeight - 31,
+    { align: "right" }
+  );
   doc.setTextColor(...dark);
-  doc.text(offer.contactName || "M. FARUQ AL ISLAM", pageWidth - margin, pageHeight - 17, { align: "right" });
+  doc.text(
+    offer.contactName || "M. FARUQ AL ISLAM",
+    pageWidth - margin,
+    pageHeight - 17,
+    { align: "right" }
+  );
 
-  const safeName = (offer.title || data.packageName || "penawaran_igh").replace(/[^a-z0-9-_]+/gi, "_");
+  const safeName = (offer.title || data.packageName || "penawaran_igh").replace(
+    /[^a-z0-9-_]+/gi,
+    "_"
+  );
   doc.save(`${safeName}_${offer.quoteNumber || Date.now().toString().slice(-6)}.pdf`);
 }
 
 export function generateQuotationPdf(data: QuotationData) {
+  if (data.template && data.offer) {
+    generateTemplateOverlayPdf(data, data.template);
+    return;
+  }
+
   if (data.offer) {
     generateLandArrangementPdf(data);
     return;
@@ -254,7 +392,9 @@ export function generateQuotationPdf(data: QuotationData) {
   doc.text(`For ${data.people} ${data.people === 1 ? "person" : "people"}`, margin, y);
 
   y += 24;
-  const rows = data.costs.filter((c) => c.amount > 0).map((c) => [c.label, formatAmount(c.amount, data.currency)]);
+  const rows = data.costs
+    .filter((c) => c.amount > 0)
+    .map((c) => [c.label, formatAmount(c.amount, data.currency)]);
 
   autoTable(doc, {
     startY: y,
@@ -290,11 +430,15 @@ export function generateQuotationPdf(data: QuotationData) {
     "This quotation is valid for 14 days. Prices subject to availability and currency fluctuations.",
     margin,
     finalY + 32,
-    { maxWidth: pageWidth - margin * 2 },
+    { maxWidth: pageWidth - margin * 2 }
   );
 
   doc.setFont("helvetica", "normal");
-  doc.text(`© ${today.getFullYear()} TravelHub · Generated ${today.toLocaleString()}`, margin, doc.internal.pageSize.getHeight() - 24);
+  doc.text(
+    `© ${today.getFullYear()} TravelHub · Generated ${today.toLocaleString()}`,
+    margin,
+    doc.internal.pageSize.getHeight() - 24
+  );
 
   const safeName = (data.packageName || "quotation").replace(/[^a-z0-9-_]+/gi, "_");
   doc.save(`${safeName}_${quoteId}.pdf`);

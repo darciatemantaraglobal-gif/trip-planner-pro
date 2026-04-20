@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Plane } from "lucide-react";
+import { Download, Plane, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import { generateQuotationPdf, type LandArrangementOfferData } from "@/lib/generatePdf";
+import type { PdfTemplate } from "@/features/pdfTemplate/types";
 
 const symbols: Record<string, string> = { USD: "$", SAR: "﷼", IDR: "Rp" };
 
@@ -18,6 +19,7 @@ interface Props {
     total: number;
     perPerson: number;
     offer?: LandArrangementOfferData;
+    template?: PdfTemplate;
   };
 }
 
@@ -175,23 +177,31 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
           </div>
         )}
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
-          <Button
-            className="gradient-primary text-primary-foreground"
-            onClick={() => {
-              try {
-                generateQuotationPdf(data);
-                toast.success("PDF berhasil diunduh");
-              } catch (err) {
-                console.error(err);
-                toast.error("Gagal membuat PDF");
-              }
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Unduh PDF
-          </Button>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {data.template && (
+            <div className="flex items-center gap-1.5 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5">
+              <LayoutTemplate className="h-3.5 w-3.5" />
+              <span className="font-medium">Template: {data.template.name}</span>
+            </div>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
+            <Button
+              className="gradient-primary text-primary-foreground"
+              onClick={() => {
+                try {
+                  generateQuotationPdf(data);
+                  toast.success("PDF berhasil diunduh");
+                } catch (err) {
+                  console.error(err);
+                  toast.error("Gagal membuat PDF");
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Unduh PDF
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
