@@ -14,6 +14,13 @@ import { useRegional } from "@/lib/regional";
 import type { Currency } from "@/lib/exchangeRates";
 
 type TripMode = "umroh" | "umum";
+type RoomType = "double" | "triple" | "quad";
+
+const ROOM_TYPES: { value: RoomType; label: string; pax: number }[] = [
+  { value: "double", label: "Double", pax: 2 },
+  { value: "triple", label: "Triple", pax: 3 },
+  { value: "quad", label: "Quad", pax: 4 },
+];
 
 const CURRENCIES: Currency[] = ["IDR", "SAR", "USD"];
 
@@ -72,11 +79,13 @@ interface FormState {
   hotelMakkah: string;
   hargaMakkah: number;
   hargaMakkahCurrency: Currency;
+  tipeKamarMakkah: RoomType;
   startMakkah: string;
   endMakkah: string;
   hotelMadinah: string;
   hargaMadinah: number;
   hargaMadinahCurrency: Currency;
+  tipeKamarMadinah: RoomType;
   startMadinah: string;
   endMadinah: string;
   visaUmroh: number;
@@ -99,11 +108,13 @@ const initForm: FormState = {
   hotelMakkah: "",
   hargaMakkah: 0,
   hargaMakkahCurrency: "SAR",
+  tipeKamarMakkah: "double",
   startMakkah: "",
   endMakkah: "",
   hotelMadinah: "",
   hargaMadinah: 0,
   hargaMadinahCurrency: "SAR",
+  tipeKamarMadinah: "double",
   startMadinah: "",
   endMadinah: "",
   visaUmroh: 0,
@@ -122,6 +133,27 @@ const initForm: FormState = {
 
 function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">{children}</div>;
+}
+
+function RoomTypeSelector({ value, onChange }: { value: RoomType; onChange: (v: RoomType) => void }) {
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50/60 p-0.5 self-start">
+      {ROOM_TYPES.map((rt) => (
+        <button
+          key={rt.value}
+          type="button"
+          onClick={() => onChange(rt.value)}
+          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+            value === rt.value
+              ? "bg-orange-500 text-white shadow-sm"
+              : "text-orange-600 hover:bg-orange-100"
+          }`}
+        >
+          {rt.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function FormField({
@@ -237,23 +269,37 @@ export default function Calculator() {
   const nightsMakkah = daysBetween(form.startMakkah, form.endMakkah);
   const nightsMadinah = daysBetween(form.startMadinah, form.endMadinah);
 
-  const summary = useMemo(() => {
-    const hotelMakkahIDR = toIDR(form.hargaMakkah, form.hargaMakkahCurrency) * nightsMakkah;
-    const hotelMadinahIDR = toIDR(form.hargaMadinah, form.hargaMadinahCurrency) * nightsMadinah;
+  const roomPaxMakkah = ROOM_TYPES.find((r) => r.value === form.tipeKamarMakkah)?.pax ?? 2;
+  const roomPaxMadinah = ROOM_TYPES.find((r) => r.value === form.tipeKamarMadinah)?.pax ?? 2;
 
-    const perPaxIDR =
+  const summary = useMemo(() => {
+    // Hotel: harga/kamar ÷ occupancy × total pax × malam
+    const hotelMakkahIDR =
+      (toIDR(form.hargaMakkah, form.hargaMakkahCurrency) / roomPaxMakkah) *
+      form.pax *
+      nightsMakkah;
+    const hotelMadinahIDR =
+      (toIDR(form.hargaMadinah, form.hargaMadinahCurrency) / roomPaxMadinah) *
+      form.pax *
+      nightsMadinah;
+
+    // Per-pax costs (visa, siskopatuh, zamzam) → dikali jumlah pax
+    const perPaxItemsIDR =
       (toIDR(form.visaUmroh, form.visaUmrohCurrency) +
-        toIDR(form.muthowif, form.muthowifCurrency) +
         toIDR(form.siskopatuh, form.siskopatuhCurrency) +
-        toIDR(form.zamZam, form.zamZamCurrency) +
-        toIDR(form.handlingBandara, form.handlingBandaraCurrency)) *
+        toIDR(form.zamZam, form.zamZamCurrency)) *
       form.pax;
+
+    // Group costs (muthowif, handling bandara) → biaya total grup, TIDAK dikali pax
+    const grupCostIDR =
+      toIDR(form.muthowif, form.muthowifCurrency) +
+      toIDR(form.handlingBandara, form.handlingBandaraCurrency);
 
     const transportIDR = form.transports.reduce(
       (s, t) => s + toIDR(t.harga, t.currency),
       0
     );
-    const subtotal = hotelMakkahIDR + hotelMadinahIDR + perPaxIDR + transportIDR;
+    const subtotal = hotelMakkahIDR + hotelMadinahIDR + perPaxItemsIDR + grupCostIDR + transportIDR;
     const marginAmt = (subtotal * form.margin) / 100;
     const total = subtotal + marginAmt;
     const perPerson = form.pax > 0 ? total / form.pax : 0;
@@ -261,7 +307,8 @@ export default function Calculator() {
     return {
       hotelMakkahIDR,
       hotelMadinahIDR,
-      perPaxIDR,
+      perPaxItemsIDR,
+      grupCostIDR,
       transportIDR,
       subtotal,
       marginAmt,
@@ -269,20 +316,20 @@ export default function Calculator() {
       perPerson,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, rates, nightsMakkah, nightsMadinah]);
+  }, [form, rates, nightsMakkah, nightsMadinah, roomPaxMakkah, roomPaxMadinah]);
+
+  const makkahRoomLabel = ROOM_TYPES.find((r) => r.value === form.tipeKamarMakkah)?.label ?? "";
+  const madinahRoomLabel = ROOM_TYPES.find((r) => r.value === form.tipeKamarMadinah)?.label ?? "";
 
   const pdfCosts = [
     ...(summary.hotelMakkahIDR > 0
-      ? [{ id: "hotel-makkah", label: `${labels.hotel1} (${nightsMakkah} malam)`, amount: summary.hotelMakkahIDR }]
+      ? [{ id: "hotel-makkah", label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} malam × ${form.pax} pax)`, amount: summary.hotelMakkahIDR }]
       : []),
     ...(summary.hotelMadinahIDR > 0
-      ? [{ id: "hotel-madinah", label: `${labels.hotel2} (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
+      ? [{ id: "hotel-madinah", label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} malam × ${form.pax} pax)`, amount: summary.hotelMadinahIDR }]
       : []),
     ...(toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax > 0
       ? [{ id: "visa", label: `${labels.visa} (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
-      : []),
-    ...(toIDR(form.muthowif, form.muthowifCurrency) * form.pax > 0
-      ? [{ id: "muthowif", label: `${labels.muthowif} (${form.pax} pax)`, amount: toIDR(form.muthowif, form.muthowifCurrency) * form.pax }]
       : []),
     ...(isUmroh && toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax > 0
       ? [{ id: "sisko", label: `${labels.siskopatuh} (${form.pax} pax)`, amount: toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax }]
@@ -290,8 +337,11 @@ export default function Calculator() {
     ...(toIDR(form.zamZam, form.zamZamCurrency) * form.pax > 0
       ? [{ id: "zamzam", label: `${labels.zamzam} (${form.pax} pax)`, amount: toIDR(form.zamZam, form.zamZamCurrency) * form.pax }]
       : []),
-    ...(toIDR(form.handlingBandara, form.handlingBandaraCurrency) * form.pax > 0
-      ? [{ id: "handling", label: `Handling Bandara (${form.pax} pax)`, amount: toIDR(form.handlingBandara, form.handlingBandaraCurrency) * form.pax }]
+    ...(toIDR(form.muthowif, form.muthowifCurrency) > 0
+      ? [{ id: "muthowif", label: `${labels.muthowif} (biaya grup)`, amount: toIDR(form.muthowif, form.muthowifCurrency) }]
+      : []),
+    ...(toIDR(form.handlingBandara, form.handlingBandaraCurrency) > 0
+      ? [{ id: "handling", label: `Handling Bandara (biaya grup)`, amount: toIDR(form.handlingBandara, form.handlingBandaraCurrency) }]
       : []),
     ...form.transports
       .map((t, i) => ({ ...t, i }))
@@ -455,7 +505,7 @@ export default function Calculator() {
                   className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
-              <FormField label="Harga / Malam" suffix="/ malam">
+              <FormField label="Harga / Kamar / Malam" suffix="/ kamar / mlm">
                 <NumInputWithCurrency
                   value={form.hargaMakkah}
                   onChange={(v) => set("hargaMakkah", v)}
@@ -464,6 +514,14 @@ export default function Calculator() {
                 />
               </FormField>
             </FieldRow>
+
+            <div className="flex items-center gap-3">
+              <Label className="text-[11px] md:text-[12px] font-semibold shrink-0">Tipe Kamar</Label>
+              <RoomTypeSelector value={form.tipeKamarMakkah} onChange={(v) => set("tipeKamarMakkah", v)} />
+              <span className="text-[10px] text-orange-500 font-medium">
+                {roomPaxMakkah} orang/kamar
+              </span>
+            </div>
 
             <FieldRow>
               <FormField label="Tgl. Masuk">
@@ -491,7 +549,7 @@ export default function Calculator() {
                   {nightsMakkah} malam
                   {form.hargaMakkah > 0 && (
                     <span className="ml-1.5 text-orange-500 font-normal">
-                      · {form.hargaMakkah.toLocaleString("id-ID")} {form.hargaMakkahCurrency} × {nightsMakkah} = {formatCurrency(summary.hotelMakkahIDR)}
+                      · {form.hargaMakkah.toLocaleString("id-ID")} {form.hargaMakkahCurrency} ÷ {roomPaxMakkah} × {form.pax} pax × {nightsMakkah} mlm = {formatCurrency(summary.hotelMakkahIDR)}
                     </span>
                   )}
                 </p>
@@ -512,7 +570,7 @@ export default function Calculator() {
                   className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
-              <FormField label="Harga / Malam" suffix="/ malam">
+              <FormField label="Harga / Kamar / Malam" suffix="/ kamar / mlm">
                 <NumInputWithCurrency
                   value={form.hargaMadinah}
                   onChange={(v) => set("hargaMadinah", v)}
@@ -521,6 +579,14 @@ export default function Calculator() {
                 />
               </FormField>
             </FieldRow>
+
+            <div className="flex items-center gap-3">
+              <Label className="text-[11px] md:text-[12px] font-semibold shrink-0">Tipe Kamar</Label>
+              <RoomTypeSelector value={form.tipeKamarMadinah} onChange={(v) => set("tipeKamarMadinah", v)} />
+              <span className="text-[10px] text-orange-500 font-medium">
+                {roomPaxMadinah} orang/kamar
+              </span>
+            </div>
 
             <FieldRow>
               <FormField label="Tgl. Masuk">
@@ -548,7 +614,7 @@ export default function Calculator() {
                   {nightsMadinah} malam
                   {form.hargaMadinah > 0 && (
                     <span className="ml-1.5 text-orange-500 font-normal">
-                      · {form.hargaMadinah.toLocaleString("id-ID")} {form.hargaMadinahCurrency} × {nightsMadinah} = {formatCurrency(summary.hotelMadinahIDR)}
+                      · {form.hargaMadinah.toLocaleString("id-ID")} {form.hargaMadinahCurrency} ÷ {roomPaxMadinah} × {form.pax} pax × {nightsMadinah} mlm = {formatCurrency(summary.hotelMadinahIDR)}
                     </span>
                   )}
                 </p>
@@ -560,6 +626,9 @@ export default function Calculator() {
           <SectionLabel icon={Wallet} label="Biaya Per Pax" />
 
           <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
+            <p className="text-[10px] text-orange-500 font-medium -mt-1">
+              Harga di bawah ini adalah biaya per orang — akan dikali jumlah pax secara otomatis.
+            </p>
             <FieldRow>
               <FormField label={labels.visa} suffix="/ pax">
                 <NumInputWithCurrency
@@ -569,17 +638,6 @@ export default function Calculator() {
                   onCurrencyChange={(c) => set("visaUmrohCurrency", c)}
                 />
               </FormField>
-              <FormField label={labels.muthowif} suffix="/ pax">
-                <NumInputWithCurrency
-                  value={form.muthowif}
-                  onChange={(v) => set("muthowif", v)}
-                  currency={form.muthowifCurrency}
-                  onCurrencyChange={(c) => set("muthowifCurrency", c)}
-                />
-              </FormField>
-            </FieldRow>
-
-            <FieldRow>
               {isUmroh && (
                 <FormField label={labels.siskopatuh} suffix="/ pax">
                   <NumInputWithCurrency
@@ -590,6 +648,8 @@ export default function Calculator() {
                   />
                 </FormField>
               )}
+            </FieldRow>
+            <FieldRow>
               <FormField label={labels.zamzam} suffix="/ pax">
                 <NumInputWithCurrency
                   value={form.zamZam}
@@ -599,9 +659,25 @@ export default function Calculator() {
                 />
               </FormField>
             </FieldRow>
+          </div>
 
+          {/* ── Biaya Grup ── */}
+          <SectionLabel icon={Users} label="Biaya Grup" />
+
+          <div className="rounded-xl bg-blue-50/50 border border-blue-100 p-3.5 space-y-3">
+            <p className="text-[10px] text-blue-500 font-medium -mt-1">
+              Biaya di bawah ini ditanggung bersama seluruh grup — dibagi rata ke semua pax, bukan dikali pax.
+            </p>
             <FieldRow>
-              <FormField label="Handling Bandara" suffix="/ pax">
+              <FormField label={labels.muthowif} suffix="total grup">
+                <NumInputWithCurrency
+                  value={form.muthowif}
+                  onChange={(v) => set("muthowif", v)}
+                  currency={form.muthowifCurrency}
+                  onCurrencyChange={(c) => set("muthowifCurrency", c)}
+                />
+              </FormField>
+              <FormField label="Handling Bandara" suffix="total grup">
                 <NumInputWithCurrency
                   value={form.handlingBandara}
                   onChange={(v) => set("handlingBandara", v)}
@@ -610,6 +686,17 @@ export default function Calculator() {
                 />
               </FormField>
             </FieldRow>
+            {summary.grupCostIDR > 0 && form.pax > 0 && (
+              <div className="flex items-center gap-2 pt-0.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                <p className="text-[11px] text-blue-700 font-semibold">
+                  Total biaya grup: {formatCurrency(summary.grupCostIDR)}
+                  <span className="ml-1.5 text-blue-500 font-normal">
+                    · per pax = {formatCurrency(summary.grupCostIDR / form.pax)}
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ── Transportasi ── */}
@@ -698,9 +785,10 @@ export default function Calculator() {
           {/* Breakdown list */}
           <div className="space-y-1.5">
             {[
-              { label: `${labels.hotel1} (${nightsMakkah} mlm)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
-              { label: `${labels.hotel2} (${nightsMadinah} mlm)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
-              { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxIDR, show: summary.perPaxIDR > 0 },
+              { label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} mlm × ${form.pax} pax)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
+              { label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} mlm × ${form.pax} pax)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
+              { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxItemsIDR, show: summary.perPaxItemsIDR > 0 },
+              { label: `Biaya Grup (${labels.muthowif} + Handling)`, value: summary.grupCostIDR, show: summary.grupCostIDR > 0 },
               { label: "Transportasi", value: summary.transportIDR, show: summary.transportIDR > 0 },
             ]
               .filter((r) => r.show)
@@ -752,17 +840,24 @@ export default function Calculator() {
                   backgroundImage: "radial-gradient(circle at 90% 10%, white 0%, transparent 55%)",
                 }}
               />
-              <div className="relative">
-                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">
-                  Total Paket
-                </p>
-                <p className="text-2xl font-extrabold mt-1 tracking-tight">
-                  {formatCurrency(summary.total)}
-                </p>
-                <div className="mt-3 pt-3 border-t border-white/20">
-                  <p className="text-[11px] opacity-75">Per orang ({form.pax} pax)</p>
-                  <p className="text-lg font-bold mt-0.5">{formatCurrency(summary.perPerson)}</p>
+              <div className="relative space-y-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-75">
+                    Harga Grup ({form.pax} pax)
+                  </p>
+                  <p className="text-2xl font-extrabold mt-0.5 tracking-tight">
+                    {formatCurrency(summary.total)}
+                  </p>
                 </div>
+                <div className="pt-3 border-t border-white/20">
+                  <p className="text-[10px] opacity-75 uppercase tracking-wide font-semibold">Harga per Pax</p>
+                  <p className="text-xl font-bold mt-0.5">{formatCurrency(summary.perPerson)}</p>
+                </div>
+                {summary.marginAmt > 0 && (
+                  <div className="pt-2 border-t border-white/10">
+                    <p className="text-[10px] opacity-60">Sudah termasuk margin {form.margin}% ({formatCurrency(summary.marginAmt)})</p>
+                  </div>
+                )}
               </div>
             </div>
 
