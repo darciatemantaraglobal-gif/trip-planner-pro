@@ -57,6 +57,7 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
    - Setiap card paket di `/packages` membuka detail sendiri di `/packages/:id`
    - Detail paket punya kalkulator biaya per paket yang tersimpan di localStorage dan bisa menyimpan total ke paket
    - Detail paket punya daftar jamaah terpisah per paket dengan tambah jamaah via OCR paspor
+   - Package card di `/packages` memakai gaya Executive Summary: status/countdown, okupansi dari `travelhub.jamaah.v2`, financial snapshot dari `travelhub.package.calculations.v1`, info logistik, dan shortcut Kalkulasi/Jemaah/OCR tanpa memicu klik card utama
 
 ## Project Structure
 
@@ -76,7 +77,8 @@ src/
     TripDetail.tsx            # List jamaah per trip
     JamaahProfile.tsx         # Profil jamaah: photo, OCR scan, gamified progress, dokumen
     Calculator.tsx            # Kalkulator harga paket + offer table
-    Packages.tsx              # CRUD paket
+    Packages.tsx              # CRUD paket + Executive Summary package cards
+    PackageDetail.tsx         # Detail paket + tab calculator/jamaah + OCR shortcut
     ProgressTracker.tsx       # Progress per jamaah per trip + status paket
     PdfGenerator.tsx          # PDF generator dengan live preview Montserrat
     Settings.tsx              # Settings: Kurs, Agen, Tampilan, Regional, dll
@@ -112,6 +114,9 @@ src/
 | `/calculator` | Kalkulator harga |
 | `/packages` | Package manager |
 | `/packages/:id` | Detail paket — kalkulator paket + jamaah OCR |
+| `/packages/:id?tab=calculator` | Detail paket langsung tab kalkulator |
+| `/packages/:id?tab=jamaah` | Detail paket langsung tab jamaah |
+| `/packages/:id?tab=jamaah&ocr=1` | Detail paket langsung buka dialog tambah jamaah OCR |
 | `/progress` | Progress tracker per jamaah & paket |
 | `/pdf-generator` | PDF generator + live preview |
 | `/settings` | Pengaturan app (kurs, agen, tampilan) |
@@ -122,6 +127,7 @@ src/
 - **Jamaah**: id, tripId, name, phone, birthDate, passportNumber, gender, photoDataUrl, createdAt
 - **JamaahDoc**: id, jamaahId, category (passport|visa|ticket|medical|other), label, fileName, fileType, dataUrl (base64), createdAt
 - **AuthUser**: username, displayName, role (superadmin|agent), agentId
+- **PackageCalculation**: tersimpan di `travelhub.package.calculations.v1` per packageId untuk HPP, margin, dan final price paket
 
 ## Design System
 
@@ -129,7 +135,7 @@ src/
 - **Cards**: rounded-2xl/3xl white cards dengan border subtle
 - **Sidebar**: Dark narrow sidebar + white content area
 - **Mobile**: Bottom nav 6 items, compact layout
-- **Font PDF**: Montserrat via Google Fonts (live preview iframe + jsPDF helvetica fallback)
+- **Font PDF & Package Summary**: Montserrat via Google Fonts (global import + live preview iframe) dengan jsPDF helvetica fallback
 
 ## Default Credentials
 

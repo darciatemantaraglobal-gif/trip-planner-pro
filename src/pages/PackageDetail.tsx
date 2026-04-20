@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Calculator, Calendar, CreditCard, FileKey, MapPin, Plus, Save, ScanLine, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -252,10 +252,12 @@ function JamaahMiniCard({ jamaah, onDelete }: { jamaah: Jamaah; onDelete: (jamaa
 export default function PackageDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { items, loading, update } = usePackages();
   const rates = useRatesStore((s) => s.rates);
   const { jamaah, loadingJamaah, fetchJamaah, removeJamaah } = useJamaahStore();
   const [addOpen, setAddOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "jamaah" ? "jamaah" : "calculator");
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
   const pkg = items.find((item) => item.id === id);
   const [calc, setCalc] = useState<PackageCalculatorState | null>(null);
@@ -263,6 +265,17 @@ export default function PackageDetail() {
   useEffect(() => {
     if (id) fetchJamaah(id);
   }, [id, fetchJamaah]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    setActiveTab(tab === "jamaah" ? "jamaah" : "calculator");
+    if (searchParams.get("ocr") === "1") {
+      setAddOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("ocr");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!id || !pkg) return;
@@ -378,7 +391,14 @@ export default function PackageDetail() {
         </div>
       </div>
 
-      <Tabs defaultValue="calculator" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          setSearchParams({ tab: value }, { replace: true });
+        }}
+        className="space-y-4"
+      >
         <TabsList className="grid w-full grid-cols-2 rounded-2xl">
           <TabsTrigger value="calculator" className="rounded-xl"><Calculator className="h-4 w-4 mr-1.5" />Kalkulator</TabsTrigger>
           <TabsTrigger value="jamaah" className="rounded-xl"><Users className="h-4 w-4 mr-1.5" />Jamaah</TabsTrigger>
