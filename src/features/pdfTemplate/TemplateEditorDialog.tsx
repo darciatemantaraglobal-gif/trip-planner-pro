@@ -2,12 +2,13 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Upload, Plus, Trash2, GripVertical, Check,
-  ImageIcon, AlertCircle, Sparkles,
+  ImageIcon, AlertCircle, Sparkles, FileText, Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PdfTemplate, TemplateFieldConfig } from "./types";
 import { TEMPLATE_FIELD_DEFS, FIELD_COLORS } from "./types";
+import { pdfFirstPageToImage } from "@/lib/pdfToImage";
 
 interface Props {
   open: boolean;
@@ -177,6 +178,8 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuccess, setAiSuccess] = useState(false);
   const [imageNaturalSize, setImageNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfInfo, setPdfInfo] = useState<{ pages: number; widthPt: number; heightPt: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -210,25 +213,60 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
       setSelected(null);
       setSizeWarning(false);
       setAiSuccess(false);
+      setPdfLoading(false);
+      setPdfInfo(null);
     }
   }, [open, initial]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      setSizeWarning(true);
-    } else {
-      setSizeWarning(false);
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setBackgroundImage(dataUrl);
-      measureImage(dataUrl, true);
-    };
-    reader.readAsDataURL(file);
     e.target.value = "";
+
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+    if (isPdf) {
+      // ── PDF path ────────────────────────────────────────────────
+      setPdfLoading(true);
+      setSizeWarning(false);
+      setPdfInfo(null);
+      try {
+        const buffer = await file.arrayBuffer();
+        const info = await pdfFirstPageToImage(buffer, 2);
+
+        setBackgroundImage(info.dataUrl);
+        setOrientation(info.orientation);
+        setImageNaturalSize({ w: Math.round(info.widthPt), h: Math.round(info.heightPt) });
+        setPdfInfo({ pages: info.pageCount, widthPt: Math.round(info.widthPt), heightPt: Math.round(info.heightPt) });
+
+        // Auto-name template from filename if name is still empty
+        if (!name.trim()) {
+          setName(file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ").trim());
+        }
+
+        // Auto-run AI arrange directly with the fresh data (bypasses stale closure)
+        await runAiAnalysis(info.dataUrl, info.orientation);
+      } catch (err) {
+        console.error("PDF render error:", err);
+      } finally {
+        setPdfLoading(false);
+      }
+    } else {
+      // ── Image path ───────────────────────────────────────────────
+      if (file.size > 3 * 1024 * 1024) {
+        setSizeWarning(true);
+      } else {
+        setSizeWarning(false);
+      }
+      setPdfInfo(null);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setBackgroundImage(dataUrl);
+        measureImage(dataUrl, true);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const addField = (key: string) => {
@@ -282,23 +320,21 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
     onOpenChange(false);
   };
 
-  /* ── AI auto-arrange ── */
-  const handleAiAnalyze = async () => {
-    if (!backgroundImage || aiLoading) return;
+  /* ── AI auto-arrange core (accepts explicit args so PDF path can use it) ── */
+  const runAiAnalysis = async (imgDataUrl: string, orient: "portrait" | "landscape") => {
+    if (!imgDataUrl || aiLoading) return;
     setAiLoading(true);
     setAiSuccess(false);
     setSelected(null);
 
     try {
-      // Minimum display time so the animation is visible
       const [zones] = await Promise.all([
-        analyzeImage(backgroundImage),
+        analyzeImage(imgDataUrl),
         new Promise<void>((r) => setTimeout(r, 1800)),
       ]);
 
-      const suggested = buildPositions(zones, orientation);
+      const suggested = buildPositions(zones, orient);
 
-      // Stagger-animate the fields appearing one by one
       setFields([]);
       suggested.forEach((f, i) => {
         setTimeout(() => {
@@ -315,6 +351,8 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
       setAiLoading(false);
     }
   };
+
+  const handleAiAnalyze = () => runAiAnalysis(backgroundImage, orientation);
 
   const usedKeys = new Set(fields.map((f) => f.key));
   const selectedField = fields.find((f) => f.key === selected);
@@ -400,22 +438,43 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                   {/* Upload */}
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                      Gambar Template
+                      Template (PDF / Gambar)
                     </Label>
                     <button
                       onClick={() => fileRef.current?.click()}
-                      className="w-full h-9 rounded-lg border-2 border-dashed border-[hsl(var(--border))] flex items-center justify-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors bg-white"
+                      disabled={pdfLoading}
+                      className="w-full h-9 rounded-lg border-2 border-dashed border-[hsl(var(--border))] flex items-center justify-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors bg-white disabled:opacity-60 disabled:cursor-wait"
                     >
-                      <Upload className="h-3.5 w-3.5" />
-                      {backgroundImage ? "Ganti Gambar" : "Upload JPG/PNG"}
+                      {pdfLoading ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Memproses PDF…
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5" />
+                          {backgroundImage ? "Ganti File" : "Upload PDF / JPG / PNG"}
+                        </>
+                      )}
                     </button>
                     <input
                       ref={fileRef}
                       type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      accept="application/pdf,image/jpeg,image/jpg,image/png,image/webp"
                       className="hidden"
                       onChange={handleImageUpload}
                     />
+
+                    {/* PDF info badge */}
+                    {pdfInfo && (
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+                        <FileText className="h-3 w-3 text-blue-500 shrink-0" />
+                        <p className="text-[10px] text-blue-700 leading-tight">
+                          PDF halaman 1 dari {pdfInfo.pages} — {pdfInfo.widthPt}×{pdfInfo.heightPt} pt ({orientation})
+                        </p>
+                      </div>
+                    )}
+
                     {sizeWarning && (
                       <div className="flex items-start gap-1.5 p-2 rounded-lg bg-amber-50 border border-amber-200">
                         <AlertCircle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
@@ -717,7 +776,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                           Upload template terlebih dahulu
                         </p>
                         <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 leading-relaxed">
-                          Upload gambar (JPG/PNG) kop surat atau desain penawaran kamu, lalu gunakan AI untuk menyusun field secara otomatis.
+                          Upload <strong>PDF</strong> atau gambar (JPG/PNG) kop surat / desain penawaran — orientasi dan field langsung diatur otomatis oleh AI.
                         </p>
                       </div>
                       <button
@@ -725,7 +784,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                         className="btn-primary h-9 px-5 rounded-xl text-sm flex items-center gap-1.5"
                       >
                         <Upload className="h-3.5 w-3.5" />
-                        Upload Gambar
+                        Upload PDF / Gambar
                       </button>
                     </div>
                   )}
