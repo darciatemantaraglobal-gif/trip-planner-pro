@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Camera, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,10 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
   const [errors, setErrors] = useState<Partial<Record<keyof PackageDraft, string>>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const gradientIndex = draft.name.length % COVER_GRADIENTS.length;
+  const gradientIndex = useMemo(
+    () => (initial?.name ?? "").length % COVER_GRADIENTS.length,
+    [initial]
+  );
   const profit = (draft.totalIDR || 0) - (draft.hpp || 0);
 
   useEffect(() => {

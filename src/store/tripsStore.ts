@@ -29,17 +29,20 @@ export const useTripsStore = create<TripsState>((set) => ({
   addTrip: async (draft) => {
     const t = await createTrip(draft);
     set((s) => ({ trips: [t, ...s.trips] }));
+    syncBus.emit({ type: "trips", action: "create", id: t.id });
     return t;
   },
 
   patchTrip: async (id, patch) => {
     const updated = await updateTrip(id, patch);
     set((s) => ({ trips: s.trips.map((t) => (t.id === id ? updated : t)) }));
+    syncBus.emit({ type: "trips", action: "update", id });
   },
 
   removeTrip: async (id) => {
     await deleteTrip(id);
     set((s) => ({ trips: s.trips.filter((t) => t.id !== id) }));
+    syncBus.emit({ type: "trips", action: "delete", id });
   },
 }));
 
@@ -66,17 +69,20 @@ export const useJamaahStore = create<JamaahState>((set) => ({
   addJamaah: async (draft) => {
     const j = await createJamaah(draft);
     set((s) => ({ jamaah: [...s.jamaah, j] }));
+    syncBus.emit({ type: "jamaah", action: "create", id: j.id });
     return j;
   },
 
   patchJamaah: async (id, patch) => {
     const updated = await updateJamaah(id, patch);
     set((s) => ({ jamaah: s.jamaah.map((j) => (j.id === id ? updated : j)) }));
+    syncBus.emit({ type: "jamaah", action: "update", id });
   },
 
   removeJamaah: async (id) => {
     await deleteJamaah(id);
     set((s) => ({ jamaah: s.jamaah.filter((j) => j.id !== id) }));
+    syncBus.emit({ type: "jamaah", action: "delete", id });
   },
 
   getOne: getJamaah,
@@ -103,12 +109,14 @@ export const useDocsStore = create<DocsState>((set) => ({
   addDocument: async (draft) => {
     const d = await addDoc(draft);
     set((s) => ({ docs: [...s.docs, d] }));
+    syncBus.emit({ type: "docs", action: "create", id: d.id });
     return d;
   },
 
   removeDoc: async (id) => {
     await deleteDoc(id);
     set((s) => ({ docs: s.docs.filter((d) => d.id !== id) }));
+    syncBus.emit({ type: "docs", action: "delete", id });
   },
 }));
 

@@ -26,12 +26,20 @@ function saveCache(rates: Rates) {
 }
 
 async function fetchFromFrankfurter(): Promise<Rates> {
-  const url = typeof window !== "undefined" && window.location.hostname === "localhost"
+  const isDev = typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.port !== "");
+  const url = isDev
     ? "/api/frankfurter/latest?from=IDR&to=USD,SAR"
     : "https://api.frankfurter.app/latest?from=IDR&to=USD,SAR";
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(6000),
-  });
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) throw new Error("Frankfurter API error");
   const data = await res.json();
   const usdPerIdr = data.rates?.USD ?? 0;

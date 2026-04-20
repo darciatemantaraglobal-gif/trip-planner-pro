@@ -42,7 +42,8 @@ export async function pdfFirstPageToImage(
   canvas.width = Math.round(viewport.width);
   canvas.height = Math.round(viewport.height);
 
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Gagal membuat canvas 2D context. Coba tutup tab lain untuk membebaskan memori.");
 
   await page.render({ canvasContext: ctx, viewport }).promise;
 
