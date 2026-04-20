@@ -176,8 +176,20 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
   const [sizeWarning, setSizeWarning] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuccess, setAiSuccess] = useState(false);
+  const [imageNaturalSize, setImageNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const measureImage = (dataUrl: string, autoOrientation = false) => {
+    const img = new Image();
+    img.onload = () => {
+      setImageNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+      if (autoOrientation) {
+        setOrientation(img.naturalWidth >= img.naturalHeight ? "landscape" : "portrait");
+      }
+    };
+    img.src = dataUrl;
+  };
 
   useEffect(() => {
     if (open) {
@@ -186,11 +198,14 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
         setOrientation(initial.orientation);
         setBackgroundImage(initial.backgroundImage);
         setFields(initial.fields);
+        if (initial.backgroundImage) measureImage(initial.backgroundImage);
+        else setImageNaturalSize(null);
       } else {
         setName("");
         setOrientation("landscape");
         setBackgroundImage("");
         setFields([]);
+        setImageNaturalSize(null);
       }
       setSelected(null);
       setSizeWarning(false);
@@ -207,7 +222,11 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
       setSizeWarning(false);
     }
     const reader = new FileReader();
-    reader.onload = (ev) => setBackgroundImage(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setBackgroundImage(dataUrl);
+      measureImage(dataUrl, true);
+    };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
@@ -567,12 +586,12 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                       ref={containerRef}
                       className="relative shadow-2xl select-none rounded-sm overflow-hidden"
                       style={{
-                        aspectRatio:
-                          orientation === "landscape" ? "841 / 595" : "595 / 841",
-                        height:
-                          orientation === "landscape"
-                            ? "min(62vh, 480px)"
-                            : "min(70vh, 560px)",
+                        aspectRatio: imageNaturalSize
+                          ? `${imageNaturalSize.w} / ${imageNaturalSize.h}`
+                          : orientation === "landscape" ? "841 / 595" : "595 / 841",
+                        height: imageNaturalSize
+                          ? (imageNaturalSize.w >= imageNaturalSize.h ? "min(62vh, 480px)" : "min(70vh, 560px)")
+                          : orientation === "landscape" ? "min(62vh, 480px)" : "min(70vh, 560px)",
                         maxWidth: "100%",
                       }}
                       onClick={(e) => {
