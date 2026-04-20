@@ -36,14 +36,14 @@ export function SplashScreen() {
             <img
               src="/logo-igh-tour.png"
               alt="IGH Tour"
-              className="h-24 w-auto object-contain brightness-0 invert drop-shadow-[0_10px_32px_rgba(0,0,0,0.35)]"
+              className="h-28 w-auto object-contain brightness-0 invert drop-shadow-[0_10px_32px_rgba(0,0,0,0.35)]"
               onError={(e) => {
                 const img = e.target as HTMLImageElement;
                 img.style.display = "none";
                 const parent = img.parentElement!;
                 const fallback = document.createElement("span");
                 fallback.textContent = "IGH";
-                fallback.className = "text-5xl font-black tracking-[-0.06em] text-white drop-shadow-[0_10px_32px_rgba(0,0,0,0.35)]";
+                fallback.className = "text-6xl font-black tracking-[-0.06em] text-white drop-shadow-[0_10px_32px_rgba(0,0,0,0.35)]";
                 parent.appendChild(fallback);
               }}
             />
