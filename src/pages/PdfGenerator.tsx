@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { FileText, LayoutTemplate, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { FileText, LayoutTemplate, Plus, Pencil, Trash2, Check, X, Eye, EyeOff } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
 import type { LandArrangementOfferData, OfferPriceRow } from "@/lib/generatePdf";
@@ -69,6 +69,7 @@ export default function PdfGenerator() {
   const [offer, setOffer] = useState<LandArrangementOfferData>(defaultOffer);
   const [offerCurrency, setOfferCurrency] = useState<"SAR" | "USD" | "IDR">("SAR");
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplateStore();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -100,6 +101,77 @@ export default function PdfGenerator() {
 
   const offerAutoRate =
     offerCurrency !== "IDR" ? (rates[offerCurrency as "SAR" | "USD"] ?? 0) : 0;
+
+  // Live preview HTML
+  const livePreviewHtml = useMemo(() => {
+    const rows = offer.rows.filter((r) => r.paxRange);
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Montserrat', sans-serif; background: #fafaf9; color: #1a1412; padding: 28px 32px; font-size: 11px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; border-bottom: 2px solid #f97316; padding-bottom: 12px; }
+    .quote-num { font-size: 13px; font-weight: 800; color: #f97316; }
+    .tier { display: inline-block; background: #f97316; color: #fff; border-radius: 4px; padding: 1px 7px; font-size: 9px; font-weight: 700; margin-left: 8px; }
+    .title { font-size: 18px; font-weight: 800; margin: 4px 0 2px; line-height: 1.2; }
+    .subtitle { font-size: 10px; color: #78716c; }
+    .section { margin-top: 14px; }
+    .label { font-size: 8.5px; font-weight: 700; color: #a8a29e; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }
+    .val { font-size: 12px; font-weight: 700; }
+    .hotels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 10px; }
+    th { background: #f97316; color: #fff; font-weight: 700; padding: 5px 8px; text-align: left; }
+    td { padding: 5px 8px; border-bottom: 1px solid #e7e5e4; }
+    tr:last-child td { border-bottom: none; }
+    .footer { margin-top: 16px; display: flex; justify-content: space-between; font-size: 9px; color: #78716c; }
+    .stars { color: #f97316; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="quote-num">#${offer.quoteNumber || "—"}<span class="tier">${offer.tier || "Premium"}</span></div>
+      <div class="title">${offer.title || "Penawaran Umrah / Haji"}</div>
+      <div class="subtitle">${offer.subtitle || "Program Umrah"} &nbsp;·&nbsp; ${offer.dateRange || "—"}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="label">Customer</div>
+      <div class="val">${offer.customerName || "IGH Tour"}</div>
+    </div>
+  </div>
+
+  <div class="hotels">
+    <div>
+      <div class="label">Hotel Makkah</div>
+      <div class="val">${offer.hotelMakkah || "—"}</div>
+      <div style="margin-top:3px"><span class="stars">${"★".repeat(offer.makkahStars || 5)}</span> &nbsp; ${offer.makkahNights || 0} malam</div>
+    </div>
+    <div>
+      <div class="label">Hotel Madinah</div>
+      <div class="val">${offer.hotelMadinah || "—"}</div>
+      <div style="margin-top:3px"><span class="stars">${"★".repeat(offer.madinahStars || 5)}</span> &nbsp; ${offer.madinahNights || 0} malam</div>
+    </div>
+  </div>
+
+  ${rows.length > 0 ? `
+  <table>
+    <thead><tr><th>Total PAX</th><th>Quad</th><th>Triple</th><th>Double</th></tr></thead>
+    <tbody>
+      ${rows.map((r) => `<tr><td>${r.paxRange}</td><td>${r.quad.toLocaleString()}</td><td>${r.triple.toLocaleString()}</td><td>${r.double.toLocaleString()}</td></tr>`).join("")}
+    </tbody>
+  </table>` : ""}
+
+  <div class="footer">
+    <div>${offer.website || "www.igh-tour.id"}</div>
+    <div>${offer.contactName ? `${offer.contactName} · ` : ""}${offer.contactPhone || ""}</div>
+  </div>
+</body>
+</html>`;
+  }, [offer]);
 
   const handleSaveTemplate = (draft: Omit<PdfTemplate, "id" | "createdAt">) => {
     if (editingTemplate) {
@@ -518,6 +590,36 @@ export default function PdfGenerator() {
             <Input value={offer.website} onChange={(e) => setOfferField("website", e.target.value)} className="h-9 text-sm" placeholder="Website (cth: www.ightour.id)" />
             <Input value={offer.contactPhone} onChange={(e) => setOfferField("contactPhone", e.target.value)} className="h-9 text-sm" placeholder="Nomor kontak" />
             <Input value={offer.contactName} onChange={(e) => setOfferField("contactName", e.target.value)} className="h-9 text-sm" placeholder="Nama kontak" />
+          </motion.div>
+
+          {/* Live preview toggle */}
+          <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={7.5} className="pt-1">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen((v) => !v)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--primary))] hover:opacity-75 transition-opacity"
+            >
+              {previewOpen ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {previewOpen ? "Tutup Live Preview" : "Tampilkan Live Preview Dokumen"}
+            </button>
+            <AnimatePresence>
+              {previewOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 rounded-xl overflow-hidden border border-[hsl(var(--border))]"
+                >
+                  <iframe
+                    srcDoc={livePreviewHtml}
+                    className="w-full"
+                    style={{ height: "420px", border: "none" }}
+                    title="Live Preview PDF"
+                    sandbox="allow-same-origin"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
 
           {/* Action buttons */}

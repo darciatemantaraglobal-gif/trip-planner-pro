@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Camera } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ import {
   type AppearanceSettings,
   type AppearanceTheme,
 } from "@/lib/appearance";
+import { useRatesStore } from "@/store/ratesStore";
+import { useAuthStore, type Credential } from "@/store/authStore";
 
 const TABS = [
   { key: "profile",       label: "Profil",     icon: User },
@@ -22,6 +25,8 @@ const TABS = [
   { key: "security",      label: "Keamanan",   icon: Shield },
   { key: "appearance",    label: "Tampilan",   icon: Palette },
   { key: "regional",      label: "Regional",   icon: Globe },
+  { key: "rates",         label: "Kurs",       icon: TrendingUp },
+  { key: "agents",        label: "Agen",       icon: Users },
 ];
 
 function SectionHeader({ title, desc }: { title: string; desc: string }) {
@@ -74,6 +79,41 @@ export default function Settings() {
   });
 
   const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearanceSettings());
+
+  const { rates, rawRates, lastUpdated, loading: ratesLoading, markupPct, setMarkup, refresh: refreshRates } = useRatesStore();
+
+  const { user, addAgent, removeAgent, allCredentials } = useAuthStore();
+  const [agents, setAgents] = useState<Credential[]>([]);
+  const [newAgentUsername, setNewAgentUsername] = useState("");
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentPass, setNewAgentPass] = useState("");
+  const [addingAgent, setAddingAgent] = useState(false);
+
+  useEffect(() => {
+    if (tab === "agents") setAgents(allCredentials());
+  }, [tab]);
+
+  const handleAddAgent = async () => {
+    if (!newAgentUsername || !newAgentName || !newAgentPass) {
+      toast.error("Lengkapi semua field agen."); return;
+    }
+    setAddingAgent(true);
+    try {
+      await addAgent(newAgentUsername, newAgentName, newAgentPass);
+      setAgents(allCredentials());
+      setNewAgentUsername(""); setNewAgentName(""); setNewAgentPass("");
+      toast.success("Agen berhasil ditambahkan.");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+    setAddingAgent(false);
+  };
+
+  const handleRemoveAgent = (username: string) => {
+    removeAgent(username);
+    setAgents(allCredentials());
+    toast.success("Agen dihapus.");
+  };
 
   const [regional, setRegional] = useState({
     language: "id",
@@ -322,6 +362,132 @@ export default function Settings() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {tab === "rates" && (
+          <div className="space-y-5 max-w-xl">
+            <SectionHeader title="Kurs & Buffer Harga" desc="Kurs real-time otomatis dengan markup pelindung fluktuasi" />
+
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(var(--border))] flex items-center justify-between">
+                <span className="text-sm font-semibold">Kurs Saat Ini (IDR)</span>
+                <div className="flex items-center gap-2">
+                  {lastUpdated && (
+                    <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                      Update: {lastUpdated.toLocaleTimeString("id-ID")}
+                    </span>
+                  )}
+                  <Button size="sm" variant="outline" className="h-7 text-xs rounded-lg" onClick={() => refreshRates()} disabled={ratesLoading}>
+                    <RefreshCw className={cn("h-3 w-3 mr-1", ratesLoading && "animate-spin")} />
+                    {ratesLoading ? "Memuat…" : "Refresh"}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-[hsl(var(--border))]">
+                {(["USD", "SAR"] as const).map((cur) => (
+                  <div key={cur} className="px-5 py-4">
+                    <p className="text-xs text-[hsl(var(--muted-foreground))] font-medium">1 {cur} =</p>
+                    <p className="text-xl font-bold text-[hsl(var(--foreground))] mt-1">
+                      Rp {rates[cur].toLocaleString("id-ID")}
+                    </p>
+                    {markupPct > 0 && (
+                      <p className="text-[10px] text-orange-500 mt-0.5">
+                        Dasar: Rp {rawRates[cur].toLocaleString("id-ID")} + {markupPct}% markup
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-5 space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-semibold">Buffer / Markup Harga</Label>
+                  <span className="text-sm font-bold text-orange-500">{markupPct.toFixed(1)}%</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={5}
+                  step={0.5}
+                  value={[markupPct]}
+                  onValueChange={([v]) => setMarkup(v)}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-[hsl(var(--muted-foreground))] mt-1.5">
+                  <span>0% (tanpa markup)</span>
+                  <span>5% (aman dari fluktuasi)</span>
+                </div>
+              </div>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] bg-orange-50 rounded-xl px-3 py-2 border border-orange-100">
+                Markup akan ditambahkan ke semua konversi kurs di kalkulator. Direkomendasikan 1–2% untuk melindungi margin dari fluktuasi harian.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {tab === "agents" && user?.role === "superadmin" && (
+          <div className="space-y-5 max-w-xl">
+            <SectionHeader title="Manajemen Agen" desc="Tambah, lihat, dan hapus akun agen yang bisa login secara mandiri" />
+
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
+                <p className="text-sm font-semibold">Tambah Agen Baru</p>
+              </div>
+              <div className="p-4 grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Username</Label>
+                  <Input value={newAgentUsername} onChange={(e) => setNewAgentUsername(e.target.value)} placeholder="cth: agen01" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Nama Lengkap</Label>
+                  <Input value={newAgentName} onChange={(e) => setNewAgentName(e.target.value)} placeholder="cth: Ahmad Fauzi" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">Password</Label>
+                  <div className="flex gap-2">
+                    <Input type="password" value={newAgentPass} onChange={(e) => setNewAgentPass(e.target.value)} placeholder="min. 6 karakter" className="h-9 text-sm" />
+                    <Button onClick={handleAddAgent} disabled={addingAgent} className="h-9 px-4 rounded-xl gradient-primary text-white shrink-0">
+                      <Plus className="h-4 w-4 mr-1" /> Tambah
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
+                <p className="text-sm font-semibold">Daftar Pengguna ({agents.length})</p>
+              </div>
+              <div className="divide-y divide-[hsl(var(--border))]">
+                {agents.map((a) => (
+                  <div key={a.username} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{a.displayName}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-[hsl(var(--muted-foreground))] font-mono">@{a.username}</span>
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                          a.role === "superadmin" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
+                        )}>{a.role}</span>
+                      </div>
+                    </div>
+                    {a.username !== user?.username && a.role !== "superadmin" && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-500"
+                        onClick={() => handleRemoveAgent(a.username)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "agents" && user?.role !== "superadmin" && (
+          <div className="max-w-xl py-8 text-center">
+            <p className="text-[hsl(var(--muted-foreground))] text-sm">Hanya superadmin yang dapat mengelola agen.</p>
           </div>
         )}
 

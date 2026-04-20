@@ -1,34 +1,78 @@
-/**
- * Exchange rate service — mock implementation.
- *
- * Replace `getExchangeRates` with a real API call later (e.g. fetch from
- * exchangerate.host or an internal edge function). The shape of `Rates`
- * and the function signature should stay the same so the calculator
- * doesn't need to change.
- */
-
 export type Currency = "USD" | "SAR" | "IDR";
+export type Rates = Record<Currency, number>;
 
-export type Rates = Record<Currency, number>; // value = how many IDR per 1 unit of currency
+const CACHE_KEY = "igh.rates.cache.v1";
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
-const MOCK_RATES: Rates = {
-  USD: 15500,
-  SAR: 4100,
-  IDR: 1,
-};
+interface RatesCache {
+  rates: Rates;
+  fetchedAt: number;
+}
 
-/** Get current exchange rates (mock). Async to mirror a real API. */
+function loadCache(): RatesCache | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const c: RatesCache = JSON.parse(raw);
+    if (Date.now() - c.fetchedAt > CACHE_TTL_MS) return null;
+    return c;
+  } catch {
+    return null;
+  }
+}
+
+function saveCache(rates: Rates) {
+  localStorage.setItem(CACHE_KEY, JSON.stringify({ rates, fetchedAt: Date.now() }));
+}
+
+async function fetchFromFrankfurter(): Promise<Rates> {
+  const url = typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "/api/frankfurter/latest?from=IDR&to=USD,SAR"
+    : "https://api.frankfurter.app/latest?from=IDR&to=USD,SAR";
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) throw new Error("Frankfurter API error");
+  const data = await res.json();
+  const usdPerIdr = data.rates?.USD ?? 0;
+  const sarPerIdr = data.rates?.SAR ?? 0;
+  if (!usdPerIdr || !sarPerIdr) throw new Error("Invalid rate data");
+  return {
+    IDR: 1,
+    USD: Math.round(1 / usdPerIdr),
+    SAR: Math.round(1 / sarPerIdr),
+  };
+}
+
+const FALLBACK_RATES: Rates = { USD: 16000, SAR: 4250, IDR: 1 };
+
 export async function getExchangeRates(): Promise<Rates> {
-  return MOCK_RATES;
+  const cached = loadCache();
+  if (cached) return cached.rates;
+
+  try {
+    const rates = await fetchFromFrankfurter();
+    saveCache(rates);
+    return rates;
+  } catch {
+    return FALLBACK_RATES;
+  }
 }
 
-/** Synchronous accessor for the current snapshot — used inside pure calculators. */
 export function getMockRates(): Rates {
-  return MOCK_RATES;
+  const cached = loadCache();
+  return cached?.rates ?? FALLBACK_RATES;
 }
 
-/** Convert an amount in `from` currency to IDR using the provided rates. */
 export function convertToIDR(amount: number, from: Currency, rates: Rates): number {
-  const rate = rates[from] ?? 1;
-  return amount * rate;
+  return amount * (rates[from] ?? 1);
+}
+
+export function applyMarkup(rates: Rates, markupPct: number): Rates {
+  const factor = 1 + markupPct / 100;
+  return {
+    IDR: 1,
+    USD: Math.round(rates.USD * factor),
+    SAR: Math.round(rates.SAR * factor),
+  };
 }

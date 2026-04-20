@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
-import { Search, SlidersHorizontal, Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText, TrendingUp, RefreshCw, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRatesStore } from "@/store/ratesStore";
+import { useAuthStore } from "@/store/authStore";
 
 const bottomNavItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
@@ -25,6 +25,14 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, noPadding = false }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { rates, loading: ratesLoading, lastUpdated, refresh: refreshRates } = useRatesStore();
+  const { user: currentUser, logout } = useAuthStore();
+
+  const handleLogout = () => { logout(); navigate("/login"); };
+
+  const displayName = currentUser?.displayName ?? "IGH Tour";
+  const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
   const activeCheck = (url: string, end: boolean) => {
     if (url.startsWith("/trips")) return location.pathname.startsWith("/trips");
@@ -60,41 +68,45 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
               <Menu strokeWidth={1.5} className="h-4.5 w-4.5" />
             </button>
 
-            {/* Mobile logo (only shows on mobile) */}
+            {/* Mobile logo */}
             <div className="md:hidden flex items-center gap-1.5 shrink-0">
               <img src="/logo-igh-tour.png" alt="IGH Tour" className="h-7 w-auto object-contain" />
             </div>
 
-            {/* Search */}
-            <div className="relative flex-1 max-w-md hidden sm:block">
-              <Search strokeWidth={1.5} className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-              <Input
-                placeholder="Cari destinasi, paket trip…"
-                className="pl-10 h-10 bg-[hsl(var(--secondary))] border-0 rounded-xl text-sm focus-visible:ring-[hsl(var(--primary))] focus-visible:ring-1"
-              />
+            {/* Live rates ticker */}
+            <div className="hidden sm:flex items-center gap-2 bg-[hsl(var(--secondary))] rounded-xl px-3 py-1.5 shrink-0">
+              <TrendingUp className="h-3.5 w-3.5 text-orange-500" strokeWidth={2} />
+              <div className="flex items-center gap-3 text-[11px] font-semibold text-[hsl(var(--foreground))]">
+                <span>USD <span className="text-orange-500">Rp{rates.USD?.toLocaleString("id-ID") ?? "—"}</span></span>
+                <span className="text-[hsl(var(--border))]">|</span>
+                <span>SAR <span className="text-orange-500">Rp{rates.SAR?.toLocaleString("id-ID") ?? "—"}</span></span>
+              </div>
+              <button
+                onClick={() => refreshRates()}
+                className="ml-1 text-[hsl(var(--muted-foreground))] hover:text-orange-500 transition-colors"
+                title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Belum diperbarui"}
+              >
+                <RefreshCw className={cn("h-3 w-3", ratesLoading && "animate-spin")} />
+              </button>
             </div>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="hidden sm:flex h-10 w-10 rounded-xl border-0 bg-transparent shadow-none text-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] hover:bg-transparent shrink-0"
-            >
-              <SlidersHorizontal strokeWidth={1.5} className="h-4 w-4" />
-            </Button>
-            <Button className="hidden sm:flex h-10 px-6 rounded-xl btn-primary text-sm shrink-0">
-              Cari
-            </Button>
 
             <div className="flex-1" />
 
-            {/* User info */}
+            {/* User info + logout */}
             <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
-              <Avatar className="h-8 w-8 md:h-10 md:w-10 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer">
-                <AvatarFallback className="gradient-primary text-white text-xs md:text-sm font-bold">TA</AvatarFallback>
+              <button
+                onClick={handleLogout}
+                className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-red-50 hover:text-red-500 transition-colors"
+                title="Keluar"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+              <Avatar className="h-8 w-8 md:h-10 md:w-10 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer" onClick={handleLogout}>
+                <AvatarFallback className="gradient-primary text-white text-xs md:text-sm font-bold">{initials}</AvatarFallback>
               </Avatar>
               <div className="hidden lg:block">
-                <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">IGH Tour Agent</div>
-                <div className="text-[11px] text-[hsl(var(--muted-foreground))]">igh@tour.id</div>
+                <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">{displayName}</div>
+                <div className="text-[11px] text-[hsl(var(--muted-foreground))] capitalize">{currentUser?.role ?? "agent"}</div>
               </div>
             </div>
           </motion.header>

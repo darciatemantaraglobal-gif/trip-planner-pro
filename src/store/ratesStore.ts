@@ -1,32 +1,56 @@
 import { create } from "zustand";
-import { getExchangeRates, type Rates } from "@/lib/exchangeRates";
+import { getExchangeRates, applyMarkup, type Rates } from "@/lib/exchangeRates";
 
-/**
- * Global exchange-rate store.
- * Shape mirrors what a real API/edge-function call would return,
- * so swapping `getExchangeRates` for a fetch later requires no UI changes.
- */
+const MARKUP_KEY = "igh.rates.markup.v1";
+
+function loadMarkup(): number {
+  try {
+    const v = localStorage.getItem(MARKUP_KEY);
+    return v ? Number(v) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 interface RatesState {
   rates: Rates;
+  rawRates: Rates;
   lastUpdated: Date | null;
   loading: boolean;
   error: string | null;
+  markupPct: number;
+  setMarkup: (pct: number) => void;
   refresh: () => Promise<void>;
 }
 
-export const useRatesStore = create<RatesState>((set) => ({
-  rates: { USD: 15500, SAR: 4100, IDR: 1 },
+export const useRatesStore = create<RatesState>((set, get) => ({
+  rates: { USD: 16000, SAR: 4250, IDR: 1 },
+  rawRates: { USD: 16000, SAR: 4250, IDR: 1 },
   lastUpdated: null,
   loading: false,
   error: null,
+  markupPct: loadMarkup(),
+
+  setMarkup: (pct: number) => {
+    localStorage.setItem(MARKUP_KEY, String(pct));
+    const raw = get().rawRates;
+    set({ markupPct: pct, rates: applyMarkup(raw, pct) });
+  },
+
   refresh: async () => {
     set({ loading: true, error: null });
     try {
-      const r = await getExchangeRates();
-      set({ rates: r, lastUpdated: new Date(), loading: false });
+      const raw = await getExchangeRates();
+      const markup = get().markupPct;
+      set({
+        rawRates: raw,
+        rates: applyMarkup(raw, markup),
+        lastUpdated: new Date(),
+        loading: false,
+      });
     } catch (e) {
       set({
-        error: e instanceof Error ? e.message : "Failed to load rates",
+        error: e instanceof Error ? e.message : "Gagal memuat kurs",
         loading: false,
       });
     }

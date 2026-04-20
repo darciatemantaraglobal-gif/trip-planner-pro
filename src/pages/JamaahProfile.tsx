@@ -6,11 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Camera, Upload, Trash2, FileText, Plane, HeartPulse, ShieldCheck, FolderOpen, ExternalLink, Pencil, Save, X,
+  ArrowLeft, Camera, Upload, Trash2, FileText, Plane, HeartPulse, ShieldCheck, FolderOpen, ExternalLink, Pencil, Save, X, ScanLine, CheckCircle2, FileKey, CreditCard, Clock,
 } from "lucide-react";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type JamaahDoc, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { scanPassport } from "@/lib/ocrPassport";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fileToBase64(file: File): Promise<string> {
@@ -176,9 +177,12 @@ export default function JamaahProfile() {
   const { jamaah, fetchJamaah, patchJamaah } = useJamaahStore();
   const { docs, fetchDocs } = useDocsStore();
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const ocrInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<Jamaah>>({});
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
 
   const trip = trips.find((t) => t.id === tripId);
   const person = jamaah.find((j) => j.id === jamaahId);
@@ -191,6 +195,33 @@ export default function JamaahProfile() {
   useEffect(() => {
     if (person) setForm({ name: person.name, phone: person.phone, birthDate: person.birthDate, passportNumber: person.passportNumber, gender: person.gender });
   }, [person?.id]);
+
+  const handleOcrScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    setOcrProgress(0);
+    setEditing(true);
+    try {
+      const result = await scanPassport(file, setOcrProgress);
+      const filled: Partial<Jamaah> = { ...form };
+      if (result.name) filled.name = result.name;
+      if (result.passportNumber) filled.passportNumber = result.passportNumber;
+      if (result.birthDate) filled.birthDate = result.birthDate;
+      if (result.gender) filled.gender = result.gender;
+      setForm(filled);
+      const fieldsFound = Object.keys(result).length;
+      if (fieldsFound > 0) {
+        toast.success(`OCR berhasil! ${fieldsFound} field terisi otomatis.`);
+      } else {
+        toast.warning("Teks MRZ tidak terbaca. Pastikan foto paspor jelas dan terbuka.");
+      }
+    } catch {
+      toast.error("Gagal memproses gambar paspor.");
+    }
+    setOcrLoading(false);
+    if (ocrInputRef.current) ocrInputRef.current.value = "";
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -265,7 +296,13 @@ export default function JamaahProfile() {
               <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
             </div>
 
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap justify-end">
+              <input ref={ocrInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrScan} />
+              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl border-violet-200 text-violet-700 hover:bg-violet-50"
+                onClick={() => ocrInputRef.current?.click()} disabled={ocrLoading}>
+                <ScanLine className="h-3 w-3 mr-1" />
+                {ocrLoading ? `Scan ${ocrProgress}%` : "Scan Paspor (OCR)"}
+              </Button>
               {editing ? (
                 <>
                   <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => setEditing(false)}>
@@ -339,6 +376,57 @@ export default function JamaahProfile() {
           )}
         </div>
       </div>
+
+      {/* Gamified Progress Tracker */}
+      {(() => {
+        const steps = [
+          { key: "Daftar",   icon: CheckCircle2, label: "Terdaftar", check: () => true },
+          { key: "Paspor",   icon: FileKey,      label: "Paspor",    check: () => docs.some((d) => d.category === "passport") },
+          { key: "Visa",     icon: ShieldCheck,  label: "Visa",      check: () => docs.some((d) => d.category === "visa") },
+          { key: "Bayar",    icon: CreditCard,   label: "Pembayaran",check: () => docs.some((d) => d.category === "other") },
+          { key: "Tiket",    icon: Plane,        label: "Tiket",     check: () => docs.some((d) => d.category === "ticket") },
+          { key: "Siap",     icon: Clock,        label: "Siap Berangkat", check: () => ["passport","visa","ticket"].every((c) => docs.some((d) => d.category === c)) },
+        ];
+        const completed = steps.filter((s) => s.check()).length;
+        const pct = Math.round((completed / steps.length) * 100);
+
+        return (
+          <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-[hsl(var(--border))] flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">Progres Kelengkapan</h3>
+              <span className="text-sm font-bold text-orange-500">{pct}%</span>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${pct}%`, background: "linear-gradient(90deg, #f97316, #fb923c)" }}
+                />
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {steps.map((step) => {
+                  const done = step.check();
+                  const Icon = step.icon;
+                  return (
+                    <div key={step.key} className={cn(
+                      "flex flex-col items-center gap-1 p-2 rounded-xl text-center transition-all",
+                      done ? "bg-orange-50 border border-orange-200" : "bg-gray-50 border border-gray-100"
+                    )}>
+                      <div className={cn(
+                        "h-7 w-7 rounded-full flex items-center justify-center",
+                        done ? "bg-orange-500" : "bg-gray-200"
+                      )}>
+                        <Icon className={cn("h-3.5 w-3.5", done ? "text-white" : "text-gray-400")} strokeWidth={2} />
+                      </div>
+                      <span className={cn("text-[9px] font-medium leading-tight", done ? "text-orange-700" : "text-gray-400")}>{step.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Document sections */}
       <div>

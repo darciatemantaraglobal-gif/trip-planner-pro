@@ -5,6 +5,7 @@ import {
   listDocs, addDoc, deleteDoc,
   type Trip, type Jamaah, type JamaahDoc, type DocCategory,
 } from "@/features/trips/tripsRepo";
+import { syncBus } from "@/lib/syncBus";
 
 interface TripsState {
   trips: Trip[];

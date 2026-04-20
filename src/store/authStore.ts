@@ -1,18 +1,20 @@
 import { create } from "zustand";
 
-/* ─── Types ──────────────────────────────────────────────────────── */
+export type UserRole = "superadmin" | "agent";
 
-interface Credential {
+export interface Credential {
   username: string;
   passwordHash: string;
   displayName: string;
-  role: "admin";
+  role: UserRole;
+  agentId?: string;
 }
 
 export interface AuthUser {
   username: string;
   displayName: string;
-  role: "admin";
+  role: UserRole;
+  agentId?: string;
 }
 
 interface Session {
@@ -20,12 +22,8 @@ interface Session {
   loginAt: string;
 }
 
-/* ─── Storage keys ───────────────────────────────────────────────── */
-
-const CREDENTIALS_KEY = "igh.auth.credentials.v1";
-const SESSION_KEY = "igh.auth.session.v1";
-
-/* ─── Crypto helpers ─────────────────────────────────────────────── */
+const CREDENTIALS_KEY = "igh.auth.credentials.v2";
+const SESSION_KEY = "igh.auth.session.v2";
 
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -36,9 +34,7 @@ async function hashPassword(password: string): Promise<string> {
     .join("");
 }
 
-/* ─── Credential helpers ─────────────────────────────────────────── */
-
-function loadCredentials(): Credential[] {
+export function loadCredentials(): Credential[] {
   try {
     const raw = localStorage.getItem(CREDENTIALS_KEY);
     return raw ? (JSON.parse(raw) as Credential[]) : [];
@@ -51,8 +47,6 @@ function saveCredentials(list: Credential[]) {
   localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(list));
 }
 
-/* ─── Seed default admin on first launch ─────────────────────────── */
-
 export async function seedDefaultAdmin() {
   const existing = loadCredentials();
   if (existing.length === 0) {
@@ -62,16 +56,13 @@ export async function seedDefaultAdmin() {
         username: "admin",
         passwordHash: hash,
         displayName: "Admin IGH Tour",
-        role: "admin",
+        role: "superadmin",
       },
     ]);
   }
 }
 
-/* Run immediately when module loads */
 seedDefaultAdmin();
-
-/* ─── Session helpers ────────────────────────────────────────────── */
 
 function loadSession(): Session | null {
   try {
@@ -82,8 +73,6 @@ function loadSession(): Session | null {
   }
 }
 
-/* ─── Store ──────────────────────────────────────────────────────── */
-
 interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -92,6 +81,9 @@ interface AuthState {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
+  addAgent: (username: string, displayName: string, password: string) => Promise<void>;
+  removeAgent: (username: string) => void;
+  allCredentials: () => Credential[];
 }
 
 const savedSession = loadSession();
@@ -104,7 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (username, password) => {
     set({ isLoading: true, error: null });
-    await new Promise((r) => setTimeout(r, 700)); // realistic delay
+    await new Promise((r) => setTimeout(r, 600));
 
     try {
       const creds = loadCredentials();
@@ -125,6 +117,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           username: found.username,
           displayName: found.displayName,
           role: found.role,
+          agentId: found.agentId,
         },
         loginAt: new Date().toISOString(),
       };
@@ -144,4 +137,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  addAgent: async (username, displayName, password) => {
+    const hash = await hashPassword(password);
+    const creds = loadCredentials();
+    if (creds.find((c) => c.username.toLowerCase() === username.toLowerCase())) {
+      throw new Error("Username sudah digunakan.");
+    }
+    const agentId = `agent_${Date.now()}`;
+    saveCredentials([...creds, { username, passwordHash: hash, displayName, role: "agent", agentId }]);
+  },
+
+  removeAgent: (username) => {
+    const creds = loadCredentials().filter(
+      (c) => c.username.toLowerCase() !== username.toLowerCase()
+    );
+    saveCredentials(creds);
+  },
+
+  allCredentials: () => loadCredentials(),
 }));
