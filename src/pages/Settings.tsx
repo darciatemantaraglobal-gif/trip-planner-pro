@@ -285,7 +285,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Nama Lengkap</Label>
                 <Input className="h-9 text-sm" placeholder="cth: Ahmad Fauzi" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
@@ -302,11 +302,11 @@ export default function Settings() {
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Nama Agen</Label>
                 <Input className="h-9 text-sm" placeholder="cth: IGH Tour & Travel" value={profile.agency} onChange={(e) => setProfile((p) => ({ ...p, agency: e.target.value }))} />
               </div>
-              <div className="space-y-1 col-span-2">
+              <div className="space-y-1 sm:col-span-2">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Alamat Kantor</Label>
                 <Input className="h-9 text-sm" placeholder="cth: Jl. Sudirman No. 1, Jakarta" value={profile.address} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} />
               </div>
-              <div className="space-y-1 col-span-2">
+              <div className="space-y-1 sm:col-span-2">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Bio Singkat</Label>
                 <textarea
                   rows={2}

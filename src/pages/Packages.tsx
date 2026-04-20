@@ -249,7 +249,7 @@ export default function Packages() {
                 className="group overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-[0_14px_40px_-24px_rgba(249,115,22,0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_20px_48px_-24px_rgba(15,23,42,0.30)]"
                 style={{ fontFamily: "Montserrat, ui-sans-serif, system-ui, sans-serif" }}
               >
-                <div className="relative h-24 overflow-hidden">
+                <div className="relative h-20 md:h-24 overflow-hidden">
                   {pkg.coverImage ? (
                     <img src={pkg.coverImage} alt={pkg.name} className="w-full h-full object-cover" />
                   ) : (
@@ -272,7 +272,7 @@ export default function Packages() {
                   </div>
                 </div>
 
-                <div className="p-4 space-y-3">
+                <div className="p-3 md:p-4 space-y-2.5 md:space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="text-[15px] font-extrabold leading-tight text-slate-950 truncate">{pkg.name}</h3>

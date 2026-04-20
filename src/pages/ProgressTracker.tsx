@@ -74,7 +74,7 @@ function JamaahRow({ jamaah, step, tripId }: { jamaah: Jamaah; step: number; tri
 
   return (
     <div
-      className="flex items-center gap-3 py-3 px-4 hover:bg-orange-50/50 rounded-xl cursor-pointer transition-colors"
+      className="flex items-center gap-2 py-2 px-3 md:py-3 md:px-4 hover:bg-orange-50/50 rounded-xl cursor-pointer transition-colors"
       onClick={() => navigate(`/trips/${tripId}/jamaah/${jamaah.id}`)}
     >
       <div className="h-9 w-9 rounded-full shrink-0 overflow-hidden bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
@@ -138,7 +138,7 @@ function TripBlock({ trip, jamaahList, docMap }: { trip: Trip; jamaahList: Jamaa
   return (
     <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
       <button
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-orange-50/40 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-3 md:px-5 md:py-3.5 hover:bg-orange-50/40 transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -318,18 +318,18 @@ export default function ProgressTracker() {
 
       {/* Summary cards */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }}
-        className="grid grid-cols-3 gap-3">
+        className="grid grid-cols-3 gap-2">
         {[
           { label: "Total Jamaah", value: totalJamaah, icon: Users, color: "#f97316" },
           { label: "Siap Berangkat", value: fullyDone, icon: Plane, color: "#10b981" },
           { label: "Progres Rata-rata", value: `${overallPct}%`, icon: TrendingUp, color: "#8b5cf6" },
         ].map((card) => (
-          <div key={card.label} className="rounded-2xl border border-[hsl(var(--border))] bg-white px-4 py-3.5 text-center">
-            <div className="h-8 w-8 rounded-xl mx-auto mb-1.5 flex items-center justify-center" style={{ background: `${card.color}18` }}>
-              <card.icon className="h-4 w-4" style={{ color: card.color }} strokeWidth={2} />
+          <div key={card.label} className="rounded-2xl border border-[hsl(var(--border))] bg-white px-2 py-2.5 md:px-4 md:py-3.5 text-center">
+            <div className="h-7 w-7 md:h-8 md:w-8 rounded-xl mx-auto mb-1 md:mb-1.5 flex items-center justify-center" style={{ background: `${card.color}18` }}>
+              <card.icon className="h-3.5 w-3.5 md:h-4 md:w-4" style={{ color: card.color }} strokeWidth={2} />
             </div>
-            <div className="text-lg font-bold text-[hsl(var(--foreground))]">{card.value}</div>
-            <div className="text-[10px] text-[hsl(var(--muted-foreground))]">{card.label}</div>
+            <div className="text-base md:text-lg font-bold text-[hsl(var(--foreground))]">{card.value}</div>
+            <div className="text-[9px] md:text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">{card.label}</div>
           </div>
         ))}
       </motion.div>

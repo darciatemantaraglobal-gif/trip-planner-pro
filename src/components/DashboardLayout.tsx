@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText, TrendingUp, RefreshCw, LogOut } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -104,9 +104,6 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
               >
                 <LogOut className="h-4 w-4" />
               </button>
-              <Avatar className="h-8 w-8 md:h-10 md:w-10 ring-2 ring-[hsl(var(--primary))]/20 cursor-pointer" onClick={handleLogout}>
-                <AvatarFallback className="gradient-primary text-white text-xs md:text-sm font-bold">{initials}</AvatarFallback>
-              </Avatar>
               <div className="hidden lg:block">
                 <div className="text-[13px] font-semibold text-[hsl(var(--foreground))] leading-tight">{displayName}</div>
                 <div className="text-[11px] text-[hsl(var(--muted-foreground))] capitalize">{currentUser?.role ?? "agent"}</div>

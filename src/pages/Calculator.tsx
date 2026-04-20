@@ -306,7 +306,7 @@ export default function Calculator() {
   ];
 
   return (
-    <div className="calculator-compact max-w-3xl mx-auto space-y-5">
+    <div className="calculator-compact max-w-3xl mx-auto space-y-3 md:space-y-5">
 
       {/* Page title */}
       <div className="calculator-page-title">
@@ -361,7 +361,7 @@ export default function Calculator() {
 
         {/* Branded header */}
         <div
-          className="calculator-card-header px-6 py-5 text-white relative overflow-hidden"
+          className="calculator-card-header px-4 py-4 md:px-6 md:py-5 text-white relative overflow-hidden"
           style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fb923c 100%)" }}
         >
           <div className="absolute inset-0 opacity-10"
@@ -399,12 +399,12 @@ export default function Calculator() {
         {/* Thin orange accent bar */}
         <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #f97316, #fdba74, #f97316)" }} />
 
-        <div className="calculator-card-body p-4 md:p-6 space-y-5">
+        <div className="calculator-card-body p-3 md:p-6 space-y-3 md:space-y-5">
 
           {/* ── Informasi Dasar ── */}
           <SectionLabel icon={Users} label="Informasi Dasar" />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Nama Paket</Label>
               <Input
@@ -694,7 +694,7 @@ export default function Calculator() {
           <span className="font-bold text-[14px] text-orange-800">Ringkasan Biaya</span>
         </div>
 
-        <div className="calculator-card-body p-4 md:p-6 grid md:grid-cols-2 gap-6">
+        <div className="calculator-card-body p-3 md:p-6 grid md:grid-cols-2 gap-4 md:gap-6">
           {/* Breakdown list */}
           <div className="space-y-1.5">
             {[

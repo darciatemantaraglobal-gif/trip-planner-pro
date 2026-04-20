@@ -408,7 +408,7 @@ export default function PdfGenerator() {
           Form Penawaran
         </div>
 
-        <div className="p-4 md:p-6 space-y-4">
+        <div className="p-3 md:p-6 space-y-3 md:space-y-4">
           {/* Row 1: No, Tipe, Customer */}
           <motion.div
             className="grid grid-cols-2 sm:grid-cols-3 gap-3"
@@ -565,7 +565,7 @@ export default function PdfGenerator() {
                 value={offer.included.join("\n")}
                 onChange={(e) => setOfferList("included", e.target.value)}
                 placeholder={"Tulis satu item per baris\ncth: Akomodasi hotel sesuai program.\ncth: Makan fullboard."}
-                className="min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))] resize-vertical"
+                className="min-h-24 md:min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))] resize-vertical"
               />
             </div>
             <div className="space-y-1.5">
@@ -574,7 +574,7 @@ export default function PdfGenerator() {
                 value={offer.excluded.join("\n")}
                 onChange={(e) => setOfferList("excluded", e.target.value)}
                 placeholder={"Tulis satu item per baris\ncth: Tiket pesawat.\ncth: Asuransi perjalanan."}
-                className="min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))] resize-vertical"
+                className="min-h-24 md:min-h-32 w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-xs outline-none focus:ring-1 focus:ring-[hsl(var(--primary))] resize-vertical"
               />
             </div>
           </motion.div>
@@ -613,7 +613,7 @@ export default function PdfGenerator() {
                   <iframe
                     srcDoc={livePreviewHtml}
                     className="w-full"
-                    style={{ height: "420px", border: "none" }}
+                    style={{ height: "280px", border: "none" }}
                     title="Live Preview PDF"
                     sandbox="allow-same-origin"
                   />
