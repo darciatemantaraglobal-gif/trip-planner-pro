@@ -11,6 +11,38 @@ import {
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
+import type { Currency } from "@/lib/exchangeRates";
+
+const CURRENCIES: Currency[] = ["IDR", "SAR", "USD"];
+
+const CURRENCY_COLORS: Record<Currency, string> = {
+  IDR: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200",
+  SAR: "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200",
+  USD: "bg-violet-100 text-violet-700 hover:bg-violet-200 border-violet-200",
+};
+
+function CurrencyToggle({
+  value,
+  onChange,
+}: {
+  value: Currency;
+  onChange: (v: Currency) => void;
+}) {
+  const next = () => {
+    const idx = CURRENCIES.indexOf(value);
+    onChange(CURRENCIES[(idx + 1) % CURRENCIES.length]);
+  };
+  return (
+    <button
+      type="button"
+      onClick={next}
+      title="Klik untuk ganti mata uang"
+      className={`shrink-0 h-9 px-2.5 rounded-lg border text-[11px] font-bold transition-colors ${CURRENCY_COLORS[value]}`}
+    >
+      {value}
+    </button>
+  );
+}
 
 const TRANSPORT_OPTIONS = [
   { value: "pesawat", label: "Pesawat", icon: Plane },
@@ -26,30 +58,35 @@ function daysBetween(start: string, end: string): number {
   return Math.max(0, Math.round(d));
 }
 
-
 interface Transport {
   jenis: string;
   harga: number;
+  currency: Currency;
 }
 
 interface FormState {
   namaPaket: string;
   pax: number;
-  currency: "SAR" | "USD" | "IDR";
-  manualRate: number;
   hotelMakkah: string;
   hargaMakkah: number;
+  hargaMakkahCurrency: Currency;
   startMakkah: string;
   endMakkah: string;
   hotelMadinah: string;
   hargaMadinah: number;
+  hargaMadinahCurrency: Currency;
   startMadinah: string;
   endMadinah: string;
   visaUmroh: number;
+  visaUmrohCurrency: Currency;
   muthowif: number;
+  muthowifCurrency: Currency;
   siskopatuh: number;
+  siskopatuhCurrency: Currency;
   zamZam: number;
+  zamZamCurrency: Currency;
   handlingBandara: number;
+  handlingBandaraCurrency: Currency;
   transports: Transport[];
   margin: number;
 }
@@ -57,22 +94,27 @@ interface FormState {
 const initForm: FormState = {
   namaPaket: "",
   pax: 1,
-  currency: "SAR",
-  manualRate: 0,
   hotelMakkah: "",
   hargaMakkah: 0,
+  hargaMakkahCurrency: "SAR",
   startMakkah: "",
   endMakkah: "",
   hotelMadinah: "",
   hargaMadinah: 0,
+  hargaMadinahCurrency: "SAR",
   startMadinah: "",
   endMadinah: "",
   visaUmroh: 0,
+  visaUmrohCurrency: "IDR",
   muthowif: 0,
+  muthowifCurrency: "IDR",
   siskopatuh: 0,
+  siskopatuhCurrency: "IDR",
   zamZam: 0,
+  zamZamCurrency: "IDR",
   handlingBandara: 0,
-  transports: Array.from({ length: 6 }, () => ({ jenis: "", harga: 0 })),
+  handlingBandaraCurrency: "IDR",
+  transports: Array.from({ length: 6 }, () => ({ jenis: "", harga: 0, currency: "IDR" as Currency })),
   margin: 10,
 };
 
@@ -106,24 +148,31 @@ function FormField({
   );
 }
 
-function NumInput({
+function NumInputWithCurrency({
   value,
   onChange,
+  currency,
+  onCurrencyChange,
   placeholder,
 }: {
   value: number;
   onChange: (v: number) => void;
+  currency: Currency;
+  onCurrencyChange: (c: Currency) => void;
   placeholder?: string;
 }) {
   return (
-    <Input
-      type="number"
-      min={0}
-      placeholder={placeholder ?? "0"}
-      value={value || ""}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="h-9 text-sm"
-    />
+    <div className="flex gap-1.5">
+      <Input
+        type="number"
+        min={0}
+        placeholder={placeholder ?? "0"}
+        value={value || ""}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-9 text-sm flex-1 min-w-0 bg-white"
+      />
+      <CurrencyToggle value={currency} onChange={onCurrencyChange} />
+    </div>
   );
 }
 
@@ -158,40 +207,37 @@ export default function Calculator() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const setTransport = (i: number, field: keyof Transport, value: string | number) =>
+  const setTransport = (i: number, field: keyof Transport, value: string | number | Currency) =>
     setForm((f) => {
       const t = [...f.transports];
       t[i] = { ...t[i], [field]: value };
       return { ...f, transports: t };
     });
 
-  const effectiveRate =
-    form.currency === "IDR"
-      ? 1
-      : form.manualRate > 0
-      ? form.manualRate
-      : (rates[form.currency as "SAR" | "USD"] ?? 1);
-
-  const toIDR = (amount: number) => {
-    if (form.currency === "IDR") return amount;
-    return amount * effectiveRate;
+  const toIDR = (amount: number, currency: Currency): number => {
+    if (currency === "IDR") return amount;
+    return amount * (rates[currency] ?? 1);
   };
 
   const nightsMakkah = daysBetween(form.startMakkah, form.endMakkah);
   const nightsMadinah = daysBetween(form.startMadinah, form.endMadinah);
 
   const summary = useMemo(() => {
-    const hotelMakkahIDR = toIDR(form.hargaMakkah) * nightsMakkah;
-    const hotelMadinahIDR = toIDR(form.hargaMadinah) * nightsMadinah;
+    const hotelMakkahIDR = toIDR(form.hargaMakkah, form.hargaMakkahCurrency) * nightsMakkah;
+    const hotelMadinahIDR = toIDR(form.hargaMadinah, form.hargaMadinahCurrency) * nightsMadinah;
+
     const perPaxIDR =
-      toIDR(
-        form.visaUmroh +
-          form.muthowif +
-          form.siskopatuh +
-          form.zamZam +
-          form.handlingBandara
-      ) * form.pax;
-    const transportIDR = form.transports.reduce((s, t) => s + toIDR(t.harga), 0);
+      (toIDR(form.visaUmroh, form.visaUmrohCurrency) +
+        toIDR(form.muthowif, form.muthowifCurrency) +
+        toIDR(form.siskopatuh, form.siskopatuhCurrency) +
+        toIDR(form.zamZam, form.zamZamCurrency) +
+        toIDR(form.handlingBandara, form.handlingBandaraCurrency)) *
+      form.pax;
+
+    const transportIDR = form.transports.reduce(
+      (s, t) => s + toIDR(t.harga, t.currency),
+      0
+    );
     const subtotal = hotelMakkahIDR + hotelMadinahIDR + perPaxIDR + transportIDR;
     const marginAmt = (subtotal * form.margin) / 100;
     const total = subtotal + marginAmt;
@@ -210,8 +256,6 @@ export default function Calculator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, rates, nightsMakkah, nightsMadinah]);
 
-  const currencyLabel = form.currency === "IDR" ? "IDR" : form.currency;
-
   const pdfCosts = [
     ...(summary.hotelMakkahIDR > 0
       ? [{ id: "hotel-makkah", label: `Penginapan 1 (${nightsMakkah} malam)`, amount: summary.hotelMakkahIDR }]
@@ -219,20 +263,20 @@ export default function Calculator() {
     ...(summary.hotelMadinahIDR > 0
       ? [{ id: "hotel-madinah", label: `Penginapan 2 (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
       : []),
-    ...(toIDR(form.visaUmroh) * form.pax > 0
-      ? [{ id: "visa", label: `Visa / Izin Masuk (${form.pax} pax)`, amount: toIDR(form.visaUmroh) * form.pax }]
+    ...(toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax > 0
+      ? [{ id: "visa", label: `Visa / Izin Masuk (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
       : []),
-    ...(toIDR(form.muthowif) * form.pax > 0
-      ? [{ id: "muthowif", label: `Tour Leader (${form.pax} pax)`, amount: toIDR(form.muthowif) * form.pax }]
+    ...(toIDR(form.muthowif, form.muthowifCurrency) * form.pax > 0
+      ? [{ id: "muthowif", label: `Tour Leader (${form.pax} pax)`, amount: toIDR(form.muthowif, form.muthowifCurrency) * form.pax }]
       : []),
-    ...(toIDR(form.siskopatuh) * form.pax > 0
-      ? [{ id: "sisko", label: `Biaya Admin (${form.pax} pax)`, amount: toIDR(form.siskopatuh) * form.pax }]
+    ...(toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax > 0
+      ? [{ id: "sisko", label: `Biaya Admin (${form.pax} pax)`, amount: toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax }]
       : []),
-    ...(toIDR(form.zamZam) * form.pax > 0
-      ? [{ id: "zamzam", label: `Oleh-oleh (${form.pax} pax)`, amount: toIDR(form.zamZam) * form.pax }]
+    ...(toIDR(form.zamZam, form.zamZamCurrency) * form.pax > 0
+      ? [{ id: "zamzam", label: `Oleh-oleh (${form.pax} pax)`, amount: toIDR(form.zamZam, form.zamZamCurrency) * form.pax }]
       : []),
-    ...(toIDR(form.handlingBandara) * form.pax > 0
-      ? [{ id: "handling", label: `Handling Bandara (${form.pax} pax)`, amount: toIDR(form.handlingBandara) * form.pax }]
+    ...(toIDR(form.handlingBandara, form.handlingBandaraCurrency) * form.pax > 0
+      ? [{ id: "handling", label: `Handling Bandara (${form.pax} pax)`, amount: toIDR(form.handlingBandara, form.handlingBandaraCurrency) * form.pax }]
       : []),
     ...form.transports
       .map((t, i) => ({ ...t, i }))
@@ -242,11 +286,9 @@ export default function Calculator() {
         label: t.jenis
           ? `Transport ${t.i + 1} — ${TRANSPORT_OPTIONS.find((o) => o.value === t.jenis)?.label ?? t.jenis}`
           : `Transport ${t.i + 1}`,
-        amount: toIDR(t.harga),
+        amount: toIDR(t.harga, t.currency),
       })),
   ];
-
-  const autoRate = form.currency !== "IDR" ? (rates[form.currency as "SAR" | "USD"] ?? 0) : 0;
 
   return (
     <div className="calculator-compact max-w-3xl mx-auto space-y-5">
@@ -260,6 +302,17 @@ export default function Calculator() {
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
           Hitung biaya paket trip secara otomatis, lalu ekspor ke PDF.
         </p>
+      </div>
+
+      {/* Currency legend */}
+      <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+        <span className="text-[hsl(var(--muted-foreground))]">Mata uang per item:</span>
+        {CURRENCIES.map((c) => (
+          <span key={c} className={`px-2 py-0.5 rounded-md border ${CURRENCY_COLORS[c]}`}>
+            {c}
+          </span>
+        ))}
+        <span className="text-[hsl(var(--muted-foreground))] font-normal">— klik badge untuk ganti</span>
       </div>
 
       {/* ─── Main form card ─── */}
@@ -310,24 +363,15 @@ export default function Calculator() {
           {/* ── Informasi Dasar ── */}
           <SectionLabel icon={Users} label="Informasi Dasar" />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Mata Uang</Label>
-              <Select
-                value={form.currency}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, currency: v as FormState["currency"], manualRate: 0 }))
-                }
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SAR">SAR — Riyal</SelectItem>
-                  <SelectItem value="USD">USD — Dollar</SelectItem>
-                  <SelectItem value="IDR">IDR — Rupiah</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-[12px] font-semibold">Nama Paket</Label>
+              <Input
+                placeholder="cth: Umrah Ramadhan 2026"
+                value={form.namaPaket}
+                onChange={(e) => set("namaPaket", e.target.value)}
+                className="h-9 text-sm"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-[12px] font-semibold">Jumlah Pax</Label>
@@ -339,45 +383,23 @@ export default function Calculator() {
                 className="h-9 text-sm"
               />
             </div>
-            {form.currency !== "IDR" && (
-              <div className="col-span-2 sm:col-span-1 space-y-1">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[12px] font-semibold">1 {form.currency} = Rp</Label>
-                  {form.manualRate > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => set("manualRate", 0)}
-                      className="text-[10px] text-orange-500 hover:underline font-semibold"
-                    >
-                      Pakai otomatis
-                    </button>
-                  )}
-                </div>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder={autoRate > 0 ? autoRate.toLocaleString("id-ID") : "cth: 4350"}
-                  value={form.manualRate || ""}
-                  onChange={(e) => set("manualRate", Number(e.target.value))}
-                  className="h-9 text-sm"
-                />
-                <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                  {form.manualRate > 0
-                    ? `Kurs manual: Rp ${form.manualRate.toLocaleString("id-ID")}`
-                    : `Kurs otomatis: Rp ${autoRate.toLocaleString("id-ID")}`}
-                </p>
-              </div>
-            )}
           </div>
 
-          <FormField label="Nama Paket">
-            <Input
-              placeholder="cth: Umrah Ramadhan 2026, Bali Trip, dll"
-              value={form.namaPaket}
-              onChange={(e) => set("namaPaket", e.target.value)}
-              className="h-9 text-sm"
-            />
-          </FormField>
+          {/* Rates info strip */}
+          <div className="flex flex-wrap gap-2">
+            {(["SAR", "USD"] as const).map((cur) => (
+              <div key={cur} className="flex items-center gap-1.5 rounded-lg bg-orange-50 border border-orange-100 px-2.5 py-1.5">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${CURRENCY_COLORS[cur]}`}>{cur}</span>
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))]">= Rp</span>
+                <span className="text-[11px] font-bold text-[hsl(var(--foreground))]">
+                  {(rates[cur] ?? 0).toLocaleString("id-ID")}
+                </span>
+              </div>
+            ))}
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] self-center">
+              Ubah kurs di <span className="font-semibold">Pengaturan</span>
+            </p>
+          </div>
 
           {/* ── Penginapan 1 ── */}
           <SectionLabel icon={BedDouble} label="Penginapan 1" />
@@ -392,8 +414,13 @@ export default function Calculator() {
                   className="h-9 text-sm bg-white"
                 />
               </FormField>
-              <FormField label="Harga / Malam" suffix={currencyLabel}>
-                <NumInput value={form.hargaMakkah} onChange={(v) => set("hargaMakkah", v)} />
+              <FormField label="Harga / Malam" suffix="/ malam">
+                <NumInputWithCurrency
+                  value={form.hargaMakkah}
+                  onChange={(v) => set("hargaMakkah", v)}
+                  currency={form.hargaMakkahCurrency}
+                  onCurrencyChange={(c) => set("hargaMakkahCurrency", c)}
+                />
               </FormField>
             </FieldRow>
 
@@ -423,7 +450,7 @@ export default function Calculator() {
                   {nightsMakkah} malam
                   {form.hargaMakkah > 0 && (
                     <span className="ml-1.5 text-orange-500 font-normal">
-                      · Total {formatCurrency(summary.hotelMakkahIDR)}
+                      · {form.hargaMakkah.toLocaleString("id-ID")} {form.hargaMakkahCurrency} × {nightsMakkah} = {formatCurrency(summary.hotelMakkahIDR)}
                     </span>
                   )}
                 </p>
@@ -444,8 +471,13 @@ export default function Calculator() {
                   className="h-9 text-sm bg-white"
                 />
               </FormField>
-              <FormField label="Harga / Malam" suffix={currencyLabel}>
-                <NumInput value={form.hargaMadinah} onChange={(v) => set("hargaMadinah", v)} />
+              <FormField label="Harga / Malam" suffix="/ malam">
+                <NumInputWithCurrency
+                  value={form.hargaMadinah}
+                  onChange={(v) => set("hargaMadinah", v)}
+                  currency={form.hargaMadinahCurrency}
+                  onCurrencyChange={(c) => set("hargaMadinahCurrency", c)}
+                />
               </FormField>
             </FieldRow>
 
@@ -475,7 +507,7 @@ export default function Calculator() {
                   {nightsMadinah} malam
                   {form.hargaMadinah > 0 && (
                     <span className="ml-1.5 text-orange-500 font-normal">
-                      · Total {formatCurrency(summary.hotelMadinahIDR)}
+                      · {form.hargaMadinah.toLocaleString("id-ID")} {form.hargaMadinahCurrency} × {nightsMadinah} = {formatCurrency(summary.hotelMadinahIDR)}
                     </span>
                   )}
                 </p>
@@ -489,25 +521,50 @@ export default function Calculator() {
           <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
             <FieldRow>
               <FormField label="Visa / Izin Masuk" suffix="/ pax">
-                <NumInput value={form.visaUmroh} onChange={(v) => set("visaUmroh", v)} placeholder={currencyLabel} />
+                <NumInputWithCurrency
+                  value={form.visaUmroh}
+                  onChange={(v) => set("visaUmroh", v)}
+                  currency={form.visaUmrohCurrency}
+                  onCurrencyChange={(c) => set("visaUmrohCurrency", c)}
+                />
               </FormField>
               <FormField label="Tour Leader" suffix="/ pax">
-                <NumInput value={form.muthowif} onChange={(v) => set("muthowif", v)} placeholder={currencyLabel} />
+                <NumInputWithCurrency
+                  value={form.muthowif}
+                  onChange={(v) => set("muthowif", v)}
+                  currency={form.muthowifCurrency}
+                  onCurrencyChange={(c) => set("muthowifCurrency", c)}
+                />
               </FormField>
             </FieldRow>
 
             <FieldRow>
               <FormField label="Biaya Admin" suffix="/ pax">
-                <NumInput value={form.siskopatuh} onChange={(v) => set("siskopatuh", v)} placeholder={currencyLabel} />
+                <NumInputWithCurrency
+                  value={form.siskopatuh}
+                  onChange={(v) => set("siskopatuh", v)}
+                  currency={form.siskopatuhCurrency}
+                  onCurrencyChange={(c) => set("siskopatuhCurrency", c)}
+                />
               </FormField>
               <FormField label="Oleh-oleh" suffix="/ pax">
-                <NumInput value={form.zamZam} onChange={(v) => set("zamZam", v)} placeholder={currencyLabel} />
+                <NumInputWithCurrency
+                  value={form.zamZam}
+                  onChange={(v) => set("zamZam", v)}
+                  currency={form.zamZamCurrency}
+                  onCurrencyChange={(c) => set("zamZamCurrency", c)}
+                />
               </FormField>
             </FieldRow>
 
             <FieldRow>
               <FormField label="Handling Bandara" suffix="/ pax">
-                <NumInput value={form.handlingBandara} onChange={(v) => set("handlingBandara", v)} placeholder={currencyLabel} />
+                <NumInputWithCurrency
+                  value={form.handlingBandara}
+                  onChange={(v) => set("handlingBandara", v)}
+                  currency={form.handlingBandaraCurrency}
+                  onCurrencyChange={(c) => set("handlingBandaraCurrency", c)}
+                />
               </FormField>
             </FieldRow>
           </div>
@@ -520,7 +577,7 @@ export default function Calculator() {
               {form.transports.map((t, i) => (
                 <div key={i} className="space-y-1">
                   <Label className="text-[12px] font-semibold">Transport {i + 1}</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <Select
                       value={t.jenis}
                       onValueChange={(v) => setTransport(i, "jenis", v)}
@@ -542,7 +599,11 @@ export default function Calculator() {
                       placeholder="Harga"
                       value={t.harga || ""}
                       onChange={(e) => setTransport(i, "harga", Number(e.target.value))}
-                      className="h-9 text-sm w-24 shrink-0 bg-white"
+                      className="h-9 text-sm w-20 shrink-0 bg-white"
+                    />
+                    <CurrencyToggle
+                      value={t.currency}
+                      onChange={(c) => setTransport(i, "currency", c)}
                     />
                   </div>
                 </div>
