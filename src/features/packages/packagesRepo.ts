@@ -8,6 +8,7 @@
  */
 
 export type PackageStatus = "Draft" | "Calculated" | "Confirmed" | "Paid" | "Completed";
+export type HotelLevel = "Bintang 3" | "Bintang 4" | "Bintang 5";
 
 export interface Package {
   id: string;
@@ -15,10 +16,16 @@ export interface Package {
   destination: string;
   people: number;
   days: number;
+  /** HPP / Modal (biaya pokok) */
+  hpp: number;
+  /** Harga Jual (selling price) */
   totalIDR: number;
   status: PackageStatus;
   emoji: string;
   coverImage?: string; // base64 data URL
+  departureDate?: string; // ISO date string YYYY-MM-DD
+  airline?: string;
+  hotelLevel?: HotelLevel;
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }

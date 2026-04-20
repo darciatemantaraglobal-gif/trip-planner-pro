@@ -154,7 +154,9 @@ export default function Packages() {
       return { revenue, margin };
     }
     const perPax = pkg.people > 0 ? pkg.totalIDR / pkg.people : 0;
-    return { revenue: perPax * occupied, margin: 0 };
+    const hppPerPax = pkg.people > 0 ? (pkg.hpp ?? 0) / pkg.people : 0;
+    const margin = (perPax - hppPerPax) * occupied;
+    return { revenue: perPax * occupied, margin };
   };
 
   const openShortcut = (event: React.MouseEvent, path: string) => {
