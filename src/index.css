@@ -468,3 +468,38 @@
 /* Hide scrollbar but keep scroll functionality */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ──────────────────────────────────────────────────────────
+   Global icon color — semua Lucide icon jadi orange (primary)
+   Opt-out: tambahkan class `icon-keep` pada svg/parent,
+   atau letakkan icon di dalam elemen dengan background solid
+   (.btn-primary, .btn-glow, .gradient-primary, .gradient-hero,
+   [data-slot="badge"] varian solid, dsb) — ditangani per-kasus.
+   ────────────────────────────────────────────────────────── */
+:where(svg.lucide):not(.icon-keep) {
+  color: hsl(var(--primary));
+}
+
+/* Jaga ikon tetap kontras saat berada di atas background solid berwarna */
+.btn-primary :where(svg.lucide),
+.btn-glow :where(svg.lucide),
+.gradient-primary :where(svg.lucide),
+.gradient-hero :where(svg.lucide),
+.bg-primary :where(svg.lucide),
+.bg-destructive :where(svg.lucide),
+.bg-success :where(svg.lucide),
+.bg-warning :where(svg.lucide),
+[data-state="checked"] :where(svg.lucide) {
+  color: inherit;
+}
+
+/* Hormati intent destructive/success/warning yang eksplisit */
+:where(.text-destructive, .text-success, .text-warning, .text-white,
+       [class*="text-red-"], [class*="text-green-"], [class*="text-emerald-"],
+       [class*="text-amber-"], [class*="text-yellow-"], [class*="text-blue-"])
+  :where(svg.lucide),
+svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
+                 [class*="text-red-"], [class*="text-green-"], [class*="text-emerald-"],
+                 [class*="text-amber-"], [class*="text-yellow-"], [class*="text-blue-"]) {
+  color: inherit;
+}

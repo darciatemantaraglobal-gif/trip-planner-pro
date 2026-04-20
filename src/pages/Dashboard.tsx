@@ -11,18 +11,18 @@ import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 8 },
   visible: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, delay: i * 0.04, ease: "easeOut" },
+    transition: { duration: 0.3, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] },
   }),
 };
 
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
 };
@@ -38,7 +38,7 @@ function getTotalJamaah(): number {
 
 const EMOJIS = ["🕌", "🌴", "🗼", "🏝️", "🏔️", "🌸", "🌍", "✈️", "🛕", "🏖️", "🌺", "🎑"];
 
-const GRADIENTS = [
+const GRADIENTS: [string, string][] = [
   ["#7C5FF5", "#9B84F7"],
   ["#3B82F6", "#60A5FA"],
   ["#10B981", "#34D399"],

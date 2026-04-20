@@ -6,7 +6,7 @@ import { FileText } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
 import type { LandArrangementOfferData, OfferPriceRow } from "@/lib/generatePdf";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 function FieldRow({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">{children}</div>;
@@ -51,7 +51,7 @@ const defaultOffer: LandArrangementOfferData = {
   contactName: "",
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: (i: number = 0) => ({
     opacity: 1,
