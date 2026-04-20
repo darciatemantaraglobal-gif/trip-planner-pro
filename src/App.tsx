@@ -5,6 +5,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { OfflineBar } from "@/components/OfflineBar";
 import Index from "./pages/Index.tsx";
 import Calculator from "./pages/Calculator";
 import Packages from "./pages/Packages";
@@ -110,8 +112,10 @@ const App = () => (
       <AppearanceBootstrap />
       <StoreBootstrap />
       <LoginAlertNotifier />
+      <OfflineBar />
       <BrowserRouter>
         <AnimatedRoutes />
+        <PwaInstallPrompt />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

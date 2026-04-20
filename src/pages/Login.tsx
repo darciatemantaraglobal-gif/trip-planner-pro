@@ -54,7 +54,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen relative flex items-center justify-center overflow-hidden"
+      className="min-h-fill relative flex items-center justify-center overflow-hidden"
       style={{
         backgroundImage: `url(${splashBackground})`,
         backgroundSize: "cover",

@@ -41,12 +41,12 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
 
   return (
     <div
-      className="mobile-compact min-h-screen md:p-3 lg:p-5"
+      className="mobile-compact min-h-fill md:p-3 lg:p-5"
       style={{ background: "hsl(var(--background))" }}
     >
       {/* App card */}
       <div
-        className="min-h-screen md:min-h-[calc(100vh-24px)] lg:min-h-[calc(100vh-40px)] md:rounded-3xl flex overflow-hidden"
+        className="min-h-fill md:min-h-[calc(100vh-24px)] lg:min-h-[calc(100vh-40px)] md:rounded-3xl flex overflow-hidden"
         style={{ background: "hsl(var(--card))", boxShadow: "0 4px 32px hsl(27 91% 54% / 0.15)" }}
       >
         <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -55,7 +55,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Top header */}
           <motion.header
-            className="flex items-center gap-1.5 md:gap-3 px-2.5 md:px-6 py-2 md:py-4 border-b border-[hsl(var(--border))] shrink-0"
+            className="pwa-header flex items-center gap-1.5 md:gap-3 px-2.5 md:px-6 py-2 md:py-4 border-b border-[hsl(var(--border))] shrink-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
@@ -119,9 +119,9 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             <AnimatePresence mode="wait" initial={false}>
               <motion.main
                 key={location.pathname}
-                className={`absolute inset-0 overflow-auto ${noPadding
+                className={`pwa-main-content absolute inset-0 overflow-auto ${noPadding
                   ? "pb-16 md:pb-0"
-                  : "p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
+                  : "p-3 pb-20 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
                 }`}
                 initial={{ x: 56, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -136,7 +136,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[hsl(var(--border))] px-1">
+      <nav className="pwa-bottom-nav nav-safe-bottom md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[hsl(var(--border))] px-1">
         <div className="flex items-center">
           {bottomNavItems.map((item, i) => {
             const isActive = activeCheck(item.url, item.end);
