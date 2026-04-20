@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Calculator, Calendar, CreditCard, FileKey, MapPin, Plus, Save, ScanLine, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Calculator, Calendar, CreditCard, FileKey, Layers, MapPin, Plus, Save, ScanLine, Trash2, Users } from "lucide-react";
+import BulkOcrDialog from "@/components/BulkOcrDialog";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -251,6 +252,7 @@ export default function PackageDetail() {
   const { formatCurrency, formatDate } = useRegional();
   const { jamaah, loadingJamaah, fetchJamaah, removeJamaah } = useJamaahStore();
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "jamaah" ? "jamaah" : "calculator");
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
   const pkg = items.find((item) => item.id === id);
@@ -493,22 +495,34 @@ export default function PackageDetail() {
         </TabsContent>
 
         <TabsContent value="jamaah" className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-bold">Jamaah paket ini</h2>
               <p className="text-sm text-muted-foreground">Daftar ini terpisah untuk paket “{pkg.name}”.</p>
             </div>
-            <Button onClick={() => setAddOpen(true)} className="rounded-xl">
-              <Plus className="h-4 w-4 mr-1.5" /> Tambah OCR
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setAddOpen(true)} className="rounded-xl">
+                <Plus className="h-4 w-4 mr-1.5" /> Satu
+              </Button>
+              <Button onClick={() => setBulkOpen(true)} className="rounded-xl gradient-primary text-white">
+                <Layers className="h-4 w-4 mr-1.5" /> Bulk Scan
+              </Button>
+            </div>
           </div>
           {loadingJamaah ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Memuat jamaah…</p>
           ) : jamaah.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] py-12 text-center space-y-3">
+            <div className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] py-12 text-center space-y-4">
               <Users className="h-8 w-8 mx-auto text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Belum ada jamaah di paket ini.</p>
-              <Button onClick={() => setAddOpen(true)} className="rounded-xl gradient-primary text-white">Tambah Jamaah dengan OCR</Button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                <Button variant="outline" onClick={() => setAddOpen(true)} className="rounded-xl">
+                  <Plus className="h-4 w-4 mr-1.5" /> Tambah Satu Jamaah
+                </Button>
+                <Button onClick={() => setBulkOpen(true)} className="rounded-xl gradient-primary text-white">
+                  <Layers className="h-4 w-4 mr-1.5" /> Bulk Scan Paspor
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
@@ -519,6 +533,13 @@ export default function PackageDetail() {
       </Tabs>
 
       {id && <AddJamaahWithOcrDialog open={addOpen} packageId={id} onClose={() => setAddOpen(false)} />}
+      {id && (
+        <BulkOcrDialog
+          open={bulkOpen}
+          tripId={id}
+          onClose={() => { setBulkOpen(false); fetchJamaah(id); }}
+        />
+      )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && setDeleteTarget(null)}>
         <AlertDialogContent className="bg-white">
