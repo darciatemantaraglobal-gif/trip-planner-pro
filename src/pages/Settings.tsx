@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -17,7 +18,7 @@ import {
   type AppearanceTheme,
 } from "@/lib/appearance";
 import { useRatesStore } from "@/store/ratesStore";
-import { useAuthStore, type Credential } from "@/store/authStore";
+import { useAuthStore, type Credential, type LoginEvent } from "@/store/authStore";
 import { useRegionalStore } from "@/store/regionalStore";
 
 const TABS = [
@@ -95,15 +96,41 @@ export default function Settings() {
     refresh: refreshRates,
   } = useRatesStore();
 
-  const { user, addAgent, removeAgent, allCredentials } = useAuthStore();
+  const {
+    user,
+    addAgent,
+    removeAgent,
+    allCredentials,
+    changePassword,
+    getSecuritySettings,
+    updateSecuritySettings,
+    setupPin,
+    getLoginHistory,
+  } = useAuthStore();
+
   const [agents, setAgents] = useState<Credential[]>([]);
   const [newAgentUsername, setNewAgentUsername] = useState("");
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentPass, setNewAgentPass] = useState("");
   const [addingAgent, setAddingAgent] = useState(false);
 
+  const [loginHistory, setLoginHistory] = useState<LoginEvent[]>([]);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
   useEffect(() => {
     if (tab === "agents") setAgents(allCredentials());
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab === "security") {
+      const sec = getSecuritySettings();
+      setSecurity((s) => ({ ...s, twoFactor: sec.twoFactor, loginAlert: sec.loginAlert }));
+      setLoginHistory(getLoginHistory());
+    }
   }, [tab]);
 
   const handleAddAgent = async () => {
@@ -140,6 +167,55 @@ export default function Settings() {
     applyAppearanceSettings(appearance);
     saveAppearanceSettings(appearance);
     toast.success("Pengaturan berhasil disimpan!");
+  };
+
+  const handleChangePassword = async () => {
+    if (!security.currentPw) { toast.error("Masukkan kata sandi saat ini."); return; }
+    if (!security.newPw) { toast.error("Masukkan kata sandi baru."); return; }
+    if (security.newPw !== security.confirmPw) { toast.error("Konfirmasi kata sandi tidak cocok."); return; }
+    setSavingPassword(true);
+    try {
+      await changePassword(security.currentPw, security.newPw);
+      setSecurity((s) => ({ ...s, currentPw: "", newPw: "", confirmPw: "" }));
+      toast.success("Kata sandi berhasil diubah.");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+    setSavingPassword(false);
+  };
+
+  const handleToggle2FA = (enabled: boolean) => {
+    if (enabled) {
+      setPinInput(""); setPinConfirm("");
+      setPinDialogOpen(true);
+    } else {
+      updateSecuritySettings({ twoFactor: false, pinHash: undefined });
+      setSecurity((s) => ({ ...s, twoFactor: false }));
+      toast.success("Autentikasi 2FA dinonaktifkan.");
+    }
+  };
+
+  const handleSavePin = async () => {
+    if (pinInput.length < 4) { toast.error("PIN minimal 4 digit."); return; }
+    if (pinInput !== pinConfirm) { toast.error("Konfirmasi PIN tidak cocok."); return; }
+    setPinLoading(true);
+    try {
+      await setupPin(pinInput);
+      updateSecuritySettings({ twoFactor: true });
+      setSecurity((s) => ({ ...s, twoFactor: true }));
+      setPinDialogOpen(false);
+      setPinInput(""); setPinConfirm("");
+      toast.success("Autentikasi 2FA diaktifkan.", { description: "PIN keamanan berhasil disimpan." });
+    } catch {
+      toast.error("Gagal menyimpan PIN. Coba lagi.");
+    }
+    setPinLoading(false);
+  };
+
+  const handleToggleLoginAlert = (enabled: boolean) => {
+    updateSecuritySettings({ loginAlert: enabled });
+    setSecurity((s) => ({ ...s, loginAlert: enabled }));
+    toast.success(enabled ? "Notifikasi login diaktifkan." : "Notifikasi login dinonaktifkan.");
   };
 
   return (
@@ -268,7 +344,13 @@ export default function Settings() {
         {tab === "security" && (
           <div className="space-y-4 max-w-xl">
             <SectionHeader title="Keamanan Akun" desc="Kelola kata sandi dan keamanan akun Anda" />
-            <div className="grid grid-cols-1 gap-2.5">
+
+            {/* Password Change */}
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Lock className="h-4 w-4 text-[hsl(var(--primary))]" />
+                <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">Ubah Kata Sandi</p>
+              </div>
               <div className="space-y-1">
                 <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Kata Sandi Saat Ini</Label>
                 <Input className="h-9 text-sm" type="password" placeholder="••••••••" value={security.currentPw} onChange={(e) => setSecurity((s) => ({ ...s, currentPw: e.target.value }))} />
@@ -276,31 +358,143 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="space-y-1">
                   <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Sandi Baru</Label>
-                  <Input className="h-9 text-sm" type="password" placeholder="••••••••" value={security.newPw} onChange={(e) => setSecurity((s) => ({ ...s, newPw: e.target.value }))} />
+                  <Input className="h-9 text-sm" type="password" placeholder="min. 6 karakter" value={security.newPw} onChange={(e) => setSecurity((s) => ({ ...s, newPw: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Konfirmasi</Label>
                   <Input className="h-9 text-sm" type="password" placeholder="••••••••" value={security.confirmPw} onChange={(e) => setSecurity((s) => ({ ...s, confirmPw: e.target.value }))} />
                 </div>
               </div>
+              <Button
+                onClick={handleChangePassword}
+                disabled={savingPassword || !security.currentPw || !security.newPw || !security.confirmPw}
+                className="h-8 px-4 rounded-xl text-xs gradient-primary text-white"
+              >
+                {savingPassword ? "Menyimpan…" : "Simpan Kata Sandi"}
+              </Button>
             </div>
-            <div className="space-y-2 pt-2 border-t border-[hsl(var(--border))]">
-              <p className="text-[12px] font-semibold text-[hsl(var(--foreground))]">Keamanan Lanjutan</p>
-              {[
-                { key: "twoFactor" as const, label: "Autentikasi 2FA",       desc: "Lapisan keamanan ekstra saat login" },
-                { key: "loginAlert" as const, label: "Notifikasi Login Baru", desc: "Email saat ada login dari perangkat baru" },
-              ].map((item) => (
-                <ToggleRow
-                  key={item.key}
-                  label={item.label}
-                  desc={item.desc}
-                  checked={security[item.key]}
-                  onChange={(v) => setSecurity((s) => ({ ...s, [item.key]: v }))}
-                />
-              ))}
+
+            {/* Advanced Security */}
+            <div className="space-y-2">
+              <p className="text-[12px] font-semibold text-[hsl(var(--foreground))] px-1">Keamanan Lanjutan</p>
+              <div className="flex items-center justify-between py-3 px-3 rounded-xl border border-[hsl(var(--border))] bg-white gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[12.5px] font-medium text-[hsl(var(--foreground))] leading-tight">Autentikasi 2FA</p>
+                    {security.twoFactor && (
+                      <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Aktif
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-tight">
+                    {security.twoFactor ? "PIN keamanan diperlukan saat login" : "Lapisan keamanan ekstra saat login menggunakan PIN"}
+                  </p>
+                </div>
+                <Switch checked={security.twoFactor} onCheckedChange={handleToggle2FA} className="shrink-0" />
+              </div>
+              <div className="flex items-center justify-between py-3 px-3 rounded-xl border border-[hsl(var(--border))] bg-white gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-medium text-[hsl(var(--foreground))] leading-tight">Notifikasi Login Baru</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-tight">Tampilkan peringatan setiap kali ada sesi login baru</p>
+                </div>
+                <Switch checked={security.loginAlert} onCheckedChange={handleToggleLoginAlert} className="shrink-0" />
+              </div>
             </div>
+
+            {/* Login History */}
+            {loginHistory.length > 0 && (
+              <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(var(--border))]">
+                  <Clock className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+                  <p className="text-[12px] font-semibold text-[hsl(var(--foreground))]">Riwayat Login Terakhir</p>
+                </div>
+                <div className="divide-y divide-[hsl(var(--border))]">
+                  {loginHistory.slice(0, 5).map((event, i) => (
+                    <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {i === 0 ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                        ) : (
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--border))] shrink-0" />
+                        )}
+                        <span className="text-[12px] text-[hsl(var(--foreground))]">
+                          {i === 0 ? "Sesi ini" : `Login ke-${i + 1}`}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+                        {new Intl.DateTimeFormat("id-ID", {
+                          day: "2-digit", month: "short", year: "numeric",
+                          hour: "2-digit", minute: "2-digit",
+                          timeZone: "Asia/Jakarta",
+                        }).format(new Date(event.at))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* PIN Setup Dialog */}
+        <Dialog open={pinDialogOpen} onOpenChange={(o) => { if (!o) { setPinDialogOpen(false); setPinInput(""); setPinConfirm(""); } }}>
+          <DialogContent className="max-w-sm bg-white">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <KeyRound className="h-4 w-4 text-orange-600" />
+                </div>
+                <DialogTitle className="text-[15px]">Buat PIN Keamanan</DialogTitle>
+              </div>
+              <DialogDescription className="text-[12px] mt-1">
+                PIN ini diperlukan setiap kali login. Gunakan 4–8 digit angka.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 pt-1">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Buat PIN</Label>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="min. 4 digit"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                  className="h-10 text-center tracking-widest text-lg font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Konfirmasi PIN</Label>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="ulangi PIN"
+                  value={pinConfirm}
+                  onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, ""))}
+                  className="h-10 text-center tracking-widest text-lg font-bold"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  className="flex-1 h-9 rounded-xl text-xs"
+                  onClick={() => { setPinDialogOpen(false); setPinInput(""); setPinConfirm(""); }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  className="flex-1 h-9 rounded-xl text-xs gradient-primary text-white"
+                  onClick={handleSavePin}
+                  disabled={pinLoading || pinInput.length < 4}
+                >
+                  {pinLoading ? "Menyimpan…" : "Aktifkan 2FA"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {tab === "appearance" && (
           <div className="space-y-4 max-w-xl">

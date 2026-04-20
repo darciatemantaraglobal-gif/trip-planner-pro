@@ -21,6 +21,7 @@ import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
 import { useAuthStore } from "@/store/authStore";
 import { applyAppearanceSettings, loadAppearanceSettings } from "@/lib/appearance";
+import { toast } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,26 @@ function StoreBootstrap() {
     refreshPackages();
     fetchTrips();
   }, [refreshRates, refreshPackages, fetchTrips]);
+  return null;
+}
+
+function LoginAlertNotifier() {
+  const newLoginAt = useAuthStore((s) => s.newLoginAt);
+  const clearNewLogin = useAuthStore((s) => s.clearNewLogin);
+  useEffect(() => {
+    if (newLoginAt) {
+      const formatted = new Intl.DateTimeFormat("id-ID", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+        timeZone: "Asia/Jakarta",
+      }).format(new Date(newLoginAt));
+      toast.warning("Login baru terdeteksi", {
+        description: `Sesi login sebelumnya: ${formatted}`,
+        duration: 6000,
+      });
+      clearNewLogin();
+    }
+  }, [newLoginAt, clearNewLogin]);
   return null;
 }
 
@@ -88,6 +109,7 @@ const App = () => (
       <Sonner />
       <AppearanceBootstrap />
       <StoreBootstrap />
+      <LoginAlertNotifier />
       <BrowserRouter>
         <AnimatedRoutes />
       </BrowserRouter>
