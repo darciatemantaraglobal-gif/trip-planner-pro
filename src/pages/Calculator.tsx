@@ -6,12 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import {
   FileText, Calculator as CalcIcon, Hotel, Plane, Bus, Train, Car,
-  BedDouble, Users, Wallet, TrendingUp,
+  BedDouble, Users, Wallet, TrendingUp, Moon, Globe,
 } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
 import type { Currency } from "@/lib/exchangeRates";
+
+type TripMode = "umroh" | "umum";
 
 const CURRENCIES: Currency[] = ["IDR", "SAR", "USD"];
 
@@ -203,6 +205,19 @@ export default function Calculator() {
   const { formatCurrency } = useRegional();
   const [form, setForm] = useState<FormState>(initForm);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [tripMode, setTripMode] = useState<TripMode>("umroh");
+
+  const isUmroh = tripMode === "umroh";
+  const labels = {
+    hotel1: isUmroh ? "Penginapan Makkah" : "Penginapan 1",
+    hotel2: isUmroh ? "Penginapan Madinah" : "Penginapan 2",
+    visa: isUmroh ? "Visa Umroh" : "Visa / Izin Masuk",
+    muthowif: isUmroh ? "Muthowif" : "Tour Leader",
+    siskopatuh: "Siskopatuh",
+    zamzam: isUmroh ? "ZamZam" : "Oleh-oleh / Souvenir",
+    headerTitle: isUmroh ? "Kalkulator Paket Umroh" : "Kalkulator Paket Trip",
+    headerSub: isUmroh ? "Umrah & Haji" : "Perjalanan Wisata",
+  };
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -258,22 +273,22 @@ export default function Calculator() {
 
   const pdfCosts = [
     ...(summary.hotelMakkahIDR > 0
-      ? [{ id: "hotel-makkah", label: `Penginapan 1 (${nightsMakkah} malam)`, amount: summary.hotelMakkahIDR }]
+      ? [{ id: "hotel-makkah", label: `${labels.hotel1} (${nightsMakkah} malam)`, amount: summary.hotelMakkahIDR }]
       : []),
     ...(summary.hotelMadinahIDR > 0
-      ? [{ id: "hotel-madinah", label: `Penginapan 2 (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
+      ? [{ id: "hotel-madinah", label: `${labels.hotel2} (${nightsMadinah} malam)`, amount: summary.hotelMadinahIDR }]
       : []),
     ...(toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax > 0
-      ? [{ id: "visa", label: `Visa / Izin Masuk (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
+      ? [{ id: "visa", label: `${labels.visa} (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
       : []),
     ...(toIDR(form.muthowif, form.muthowifCurrency) * form.pax > 0
-      ? [{ id: "muthowif", label: `Tour Leader (${form.pax} pax)`, amount: toIDR(form.muthowif, form.muthowifCurrency) * form.pax }]
+      ? [{ id: "muthowif", label: `${labels.muthowif} (${form.pax} pax)`, amount: toIDR(form.muthowif, form.muthowifCurrency) * form.pax }]
       : []),
-    ...(toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax > 0
-      ? [{ id: "sisko", label: `Biaya Admin (${form.pax} pax)`, amount: toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax }]
+    ...(isUmroh && toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax > 0
+      ? [{ id: "sisko", label: `${labels.siskopatuh} (${form.pax} pax)`, amount: toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax }]
       : []),
     ...(toIDR(form.zamZam, form.zamZamCurrency) * form.pax > 0
-      ? [{ id: "zamzam", label: `Oleh-oleh (${form.pax} pax)`, amount: toIDR(form.zamZam, form.zamZamCurrency) * form.pax }]
+      ? [{ id: "zamzam", label: `${labels.zamzam} (${form.pax} pax)`, amount: toIDR(form.zamZam, form.zamZamCurrency) * form.pax }]
       : []),
     ...(toIDR(form.handlingBandara, form.handlingBandaraCurrency) * form.pax > 0
       ? [{ id: "handling", label: `Handling Bandara (${form.pax} pax)`, amount: toIDR(form.handlingBandara, form.handlingBandaraCurrency) * form.pax }]
@@ -295,13 +310,45 @@ export default function Calculator() {
 
       {/* Page title */}
       <div className="calculator-page-title">
-        <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
-          <CalcIcon strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
-          Kalkulator Paket Trip
-        </h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
-          Hitung biaya paket trip secara otomatis, lalu ekspor ke PDF.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
+              <CalcIcon strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
+              {labels.headerTitle}
+            </h1>
+            <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+              Hitung biaya paket trip secara otomatis, lalu ekspor ke PDF.
+            </p>
+          </div>
+
+          {/* Mode Toggle */}
+          <div className="flex items-center shrink-0 rounded-xl border border-orange-200 bg-orange-50/60 p-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setTripMode("umroh")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                tripMode === "umroh"
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "text-orange-600 hover:bg-orange-100"
+              }`}
+            >
+              <Moon className={`h-3 w-3 ${tripMode === "umroh" ? "icon-keep text-white" : ""}`} />
+              Umroh
+            </button>
+            <button
+              type="button"
+              onClick={() => setTripMode("umum")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                tripMode === "umum"
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "text-orange-600 hover:bg-orange-100"
+              }`}
+            >
+              <Globe className={`h-3 w-3 ${tripMode === "umum" ? "icon-keep text-white" : ""}`} />
+              Umum
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Currency hint */}
@@ -336,7 +383,7 @@ export default function Calculator() {
                     IGH Tour — Formulir Paket
                   </p>
                   <p className="text-lg font-extrabold leading-tight tracking-tight">
-                    Kalkulator Paket Trip
+                    {labels.headerTitle}
                   </p>
                 </div>
               </div>
@@ -344,7 +391,7 @@ export default function Calculator() {
             <div className="text-right hidden sm:block">
               <p className="text-[10px] opacity-70 uppercase tracking-wider">Pelopor Layanan</p>
               <p className="text-[11px] font-bold opacity-90">Land Arrangement</p>
-              <p className="text-[11px] font-bold opacity-90">Umrah & Haji</p>
+              <p className="text-[11px] font-bold opacity-90">{labels.headerSub}</p>
             </div>
           </div>
         </div>
@@ -396,7 +443,7 @@ export default function Calculator() {
           </div>
 
           {/* ── Penginapan 1 ── */}
-          <SectionLabel icon={BedDouble} label="Penginapan 1" />
+          <SectionLabel icon={BedDouble} label={labels.hotel1} />
 
           <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
             <FieldRow>
@@ -453,7 +500,7 @@ export default function Calculator() {
           </div>
 
           {/* ── Penginapan 2 ── */}
-          <SectionLabel icon={BedDouble} label="Penginapan 2" />
+          <SectionLabel icon={BedDouble} label={labels.hotel2} />
 
           <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
             <FieldRow>
@@ -514,7 +561,7 @@ export default function Calculator() {
 
           <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
             <FieldRow>
-              <FormField label="Visa / Izin Masuk" suffix="/ pax">
+              <FormField label={labels.visa} suffix="/ pax">
                 <NumInputWithCurrency
                   value={form.visaUmroh}
                   onChange={(v) => set("visaUmroh", v)}
@@ -522,7 +569,7 @@ export default function Calculator() {
                   onCurrencyChange={(c) => set("visaUmrohCurrency", c)}
                 />
               </FormField>
-              <FormField label="Tour Leader" suffix="/ pax">
+              <FormField label={labels.muthowif} suffix="/ pax">
                 <NumInputWithCurrency
                   value={form.muthowif}
                   onChange={(v) => set("muthowif", v)}
@@ -533,15 +580,17 @@ export default function Calculator() {
             </FieldRow>
 
             <FieldRow>
-              <FormField label="Biaya Admin" suffix="/ pax">
-                <NumInputWithCurrency
-                  value={form.siskopatuh}
-                  onChange={(v) => set("siskopatuh", v)}
-                  currency={form.siskopatuhCurrency}
-                  onCurrencyChange={(c) => set("siskopatuhCurrency", c)}
-                />
-              </FormField>
-              <FormField label="Oleh-oleh" suffix="/ pax">
+              {isUmroh && (
+                <FormField label={labels.siskopatuh} suffix="/ pax">
+                  <NumInputWithCurrency
+                    value={form.siskopatuh}
+                    onChange={(v) => set("siskopatuh", v)}
+                    currency={form.siskopatuhCurrency}
+                    onCurrencyChange={(c) => set("siskopatuhCurrency", c)}
+                  />
+                </FormField>
+              )}
+              <FormField label={labels.zamzam} suffix="/ pax">
                 <NumInputWithCurrency
                   value={form.zamZam}
                   onChange={(v) => set("zamZam", v)}
@@ -649,8 +698,8 @@ export default function Calculator() {
           {/* Breakdown list */}
           <div className="space-y-1.5">
             {[
-              { label: `Penginapan 1 (${nightsMakkah} mlm)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
-              { label: `Penginapan 2 (${nightsMadinah} mlm)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
+              { label: `${labels.hotel1} (${nightsMakkah} mlm)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
+              { label: `${labels.hotel2} (${nightsMadinah} mlm)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
               { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxIDR, show: summary.perPaxIDR > 0 },
               { label: "Transportasi", value: summary.transportIDR, show: summary.transportIDR > 0 },
             ]
