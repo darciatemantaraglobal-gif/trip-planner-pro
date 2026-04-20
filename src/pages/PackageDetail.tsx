@@ -754,7 +754,7 @@ export default function PackageDetail() {
 
           {/* ── Package Info ── */}
           <div className="rounded-xl border border-orange-200 bg-white p-3 md:p-4 space-y-2.5 md:space-y-3">
-            <p style={M} className="text-[10px] font-extrabold uppercase tracking-widest text-orange-600">Info Paket</p>
+            <p style={M} className="text-[10px] font-extrabold uppercase tracking-wide text-orange-600">Info Paket</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
               <div className="col-span-2 space-y-1">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Nama Paket</label>
@@ -1243,7 +1243,7 @@ export default function PackageDetail() {
           {/* ── FINANCIAL PARAMETERS ── */}
           <div className="rounded-xl border border-orange-200 bg-white overflow-hidden">
             <div className="px-3 md:px-4 py-2.5 md:py-3 border-b border-orange-100 bg-orange-50/60">
-              <p style={M} className="text-[10px] font-extrabold uppercase tracking-widest text-orange-700 flex items-center gap-1.5">
+              <p style={M} className="text-[10px] font-extrabold uppercase tracking-wide text-orange-700 flex items-center gap-1.5">
                 <TrendingUp className="h-3.5 w-3.5" /> Parameter Finansial
               </p>
             </div>
@@ -1389,7 +1389,7 @@ export default function PackageDetail() {
                       >
                         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 90% 10%,white 0%,transparent 55%)" }} />
                         <div className="relative">
-                          <p style={M} className="text-[10px] font-bold uppercase tracking-widest opacity-75">Harga Jual Final</p>
+                          <p style={M} className="text-[10px] font-bold uppercase tracking-wide opacity-75">Harga Jual Final</p>
                           <p style={M} className="text-xl md:text-2xl font-extrabold mt-1 font-mono">{formatCurrency(quote.finalPrice)}</p>
                           <div className="mt-2.5 pt-2.5 border-t border-white/20 grid grid-cols-2 gap-2">
                             <div>

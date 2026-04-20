@@ -47,9 +47,9 @@ function formatRupiah(num: number): string {
   return "Rp " + num.toLocaleString("id-ID");
 }
 
-const lbl = "text-[9px] md:text-[10px] font-bold text-orange-500 uppercase tracking-widest";
-const inp = "h-7 md:h-8 text-[11.5px] md:text-[12.5px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
-const sel = "h-7 md:h-8 text-[11.5px] md:text-[12.5px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
+const lbl = "text-[10px] md:text-[10.5px] font-bold text-orange-500 uppercase tracking-wide";
+const inp = "h-8 md:h-9 text-[12px] md:text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
+const sel = "h-8 md:h-9 text-[12px] md:text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
 
 export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Props) {
   const [draft, setDraft] = useState<PackageDraft>(empty);
@@ -194,14 +194,14 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <Input placeholder="Umrah Ramadhan" value={draft.name}
                       onChange={(e) => { set("name", e.target.value); setErrors(p => ({ ...p, name: undefined })); }}
                       className={inp + (errors.name ? " border-red-400" : "")} autoFocus />
-                    {errors.name && <p className="text-[9px] text-red-500">{errors.name}</p>}
+                    {errors.name && <p className="text-[10px] text-red-500">{errors.name}</p>}
                   </div>
                   <div className="space-y-1">
                     <p className={lbl}>Tgl. Berangkat <span className="text-red-400">*</span></p>
                     <Input type="date" value={draft.departureDate ?? ""}
                       onChange={(e) => { set("departureDate", e.target.value); setErrors(p => ({ ...p, departureDate: undefined })); }}
                       className={inp + (errors.departureDate ? " border-red-400" : "")} />
-                    {errors.departureDate && <p className="text-[9px] text-red-500">{errors.departureDate}</p>}
+                    {errors.departureDate && <p className="text-[10px] text-red-500">{errors.departureDate}</p>}
                   </div>
                 </div>
 
@@ -212,14 +212,14 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <Input placeholder="Makkah, Madinah" value={draft.destination}
                       onChange={(e) => { set("destination", e.target.value); setErrors(p => ({ ...p, destination: undefined })); }}
                       className={inp + (errors.destination ? " border-red-400" : "")} />
-                    {errors.destination && <p className="text-[9px] text-red-500">{errors.destination}</p>}
+                    {errors.destination && <p className="text-[10px] text-red-500">{errors.destination}</p>}
                   </div>
                   <div className="space-y-1">
                     <p className={lbl}>Durasi (Hari) <span className="text-red-400">*</span></p>
                     <Input type="number" min={1} value={draft.days}
                       onChange={(e) => { set("days", Math.max(1, Number(e.target.value))); setErrors(p => ({ ...p, days: undefined })); }}
                       className={inp + (errors.days ? " border-red-400" : "")} />
-                    {errors.days && <p className="text-[9px] text-red-500">{errors.days}</p>}
+                    {errors.days && <p className="text-[10px] text-red-500">{errors.days}</p>}
                   </div>
                 </div>
 
@@ -239,7 +239,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <Input type="number" min={1} value={draft.people}
                       onChange={(e) => { set("people", Math.max(1, Number(e.target.value))); setErrors(p => ({ ...p, people: undefined })); }}
                       className={inp + (errors.people ? " border-red-400" : "")} />
-                    {errors.people && <p className="text-[9px] text-red-500">{errors.people}</p>}
+                    {errors.people && <p className="text-[10px] text-red-500">{errors.people}</p>}
                   </div>
                 </div>
 
@@ -256,7 +256,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                         {HOTEL_LEVELS.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    {errors.hotelLevel && <p className="text-[9px] text-red-500">{errors.hotelLevel}</p>}
+                    {errors.hotelLevel && <p className="text-[10px] text-red-500">{errors.hotelLevel}</p>}
                   </div>
                   <div className="space-y-1">
                     <p className={lbl}>Maskapai <span className="text-red-400">*</span></p>
@@ -269,7 +269,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                         {AIRLINES.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    {errors.airline && <p className="text-[9px] text-red-500">{errors.airline}</p>}
+                    {errors.airline && <p className="text-[10px] text-red-500">{errors.airline}</p>}
                   </div>
                 </div>
 
@@ -279,18 +279,18 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <div className="h-3.5 w-3.5 md:h-4 md:w-4 rounded-full bg-orange-500 flex items-center justify-center">
                       <TrendingUp className="h-2 w-2 md:h-2.5 md:w-2.5 text-white" strokeWidth={2.5} />
                     </div>
-                    <span className="text-[9px] md:text-[10px] font-bold text-orange-600 uppercase tracking-widest">Finansial & Margin</span>
+                    <span className="text-[10px] md:text-[10.5px] font-bold text-orange-600 uppercase tracking-wide">Finansial & Margin</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">HPP / Modal (IDR)</p>
+                      <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">HPP / Modal (IDR)</p>
                       <Input type="number" min={0} value={draft.hpp}
                         onChange={(e) => set("hpp", Math.max(0, Number(e.target.value)))}
                         className={inp + " border-orange-200/60"} placeholder="0" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Harga Jual (IDR)</p>
+                      <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">Harga Jual (IDR)</p>
                       <Input type="number" min={0} value={draft.totalIDR}
                         onChange={(e) => set("totalIDR", Math.max(0, Number(e.target.value)))}
                         className={inp + " border-orange-200/60"} placeholder="0" />

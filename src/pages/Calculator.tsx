@@ -192,7 +192,7 @@ function SectionLabel({
           <Icon className="h-3 w-3 text-orange-600" strokeWidth={2.5} />
         </div>
       )}
-      <span className="text-[11px] font-extrabold text-orange-600 uppercase tracking-widest">
+      <span className="text-[11px] font-extrabold text-orange-600 uppercase tracking-wide">
         {label}
       </span>
       <div className="h-px flex-1 bg-orange-100" />
@@ -379,7 +379,7 @@ export default function Calculator() {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest opacity-80">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
                     IGH Tour — Formulir Paket
                   </p>
                   <p className="text-base md:text-lg font-extrabold leading-tight tracking-tight">
@@ -753,7 +753,7 @@ export default function Calculator() {
                 }}
               />
               <div className="relative">
-                <p className="text-[11px] font-semibold uppercase tracking-widest opacity-75">
+                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">
                   Total Paket
                 </p>
                 <p className="text-2xl font-extrabold mt-1 tracking-tight">

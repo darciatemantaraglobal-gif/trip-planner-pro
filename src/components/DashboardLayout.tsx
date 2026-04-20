@@ -72,7 +72,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             <img src="/logo-igh-tour.png" alt="IGH Tour" className="h-6 w-auto object-contain" />
             <div className="flex flex-col leading-none">
               <span
-                className="text-[10.5px] font-black tracking-[0.08em] uppercase"
+                className="text-[11px] font-black tracking-[0.05em] uppercase"
                 style={{
                   fontFamily: "'Manrope', sans-serif",
                   background: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
@@ -83,7 +83,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
               >
                 IGH Tour
               </span>
-              <span className="text-[7.5px] font-medium tracking-[0.14em] uppercase text-[hsl(var(--muted-foreground))] mt-[2px]">
+              <span className="text-[9px] font-medium tracking-[0.1em] uppercase text-[hsl(var(--muted-foreground))] mt-[2px]">
                 Umrah & Haji
               </span>
             </div>
@@ -101,11 +101,11 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                   boxShadow: rateMode === "manual" ? "0 0 4px #f97316aa" : "0 0 4px #10b981aa",
                 }}
               />
-              <span className="text-[9.5px] font-semibold text-[hsl(var(--muted-foreground))]">
+              <span className="text-[10.5px] font-semibold text-[hsl(var(--muted-foreground))]">
                 USD <span className="text-orange-500 font-bold">{rates.USD ? `${(rates.USD / 1000).toFixed(1)}k` : "—"}</span>
               </span>
-              <span className="text-[8px] text-[hsl(var(--border))]">·</span>
-              <span className="text-[9.5px] font-semibold text-[hsl(var(--muted-foreground))]">
+              <span className="text-[9px] text-[hsl(var(--border))]">·</span>
+              <span className="text-[10.5px] font-semibold text-[hsl(var(--muted-foreground))]">
                 SAR <span className="text-orange-500 font-bold">{rates.SAR ? `${(rates.SAR / 1000).toFixed(1)}k` : "—"}</span>
               </span>
             </div>
@@ -189,7 +189,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                     {/* Label */}
                     <span
                       className={cn(
-                        "text-[8.5px] font-semibold leading-none tracking-tight transition-colors duration-150",
+                        "text-[9.5px] font-semibold leading-none tracking-tight transition-colors duration-150",
                         isActive ? "text-orange-500" : "text-[hsl(var(--muted-foreground))]"
                       )}
                     >
@@ -233,7 +233,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                 />
                 <div className="flex items-center gap-3 text-[11px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
                   <span className={cn(
-                    "text-[9px] uppercase tracking-widest font-bold",
+                    "text-[9px] uppercase tracking-wide font-bold",
                     rateMode === "manual" ? "text-orange-500" : "text-emerald-500"
                   )}>
                     {rateMode === "manual" ? "Manual" : "Live"}

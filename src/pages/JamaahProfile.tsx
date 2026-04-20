@@ -416,7 +416,7 @@ export default function JamaahProfile() {
                       )}>
                         <Icon className={cn("h-3.5 w-3.5", done ? "text-white" : "text-gray-400")} strokeWidth={2} />
                       </div>
-                      <span className={cn("text-[9px] font-medium leading-tight", done ? "text-orange-700" : "text-gray-400")}>{step.label}</span>
+                      <span className={cn("text-[10px] font-medium leading-tight", done ? "text-orange-700" : "text-gray-400")}>{step.label}</span>
                     </div>
                   );
                 })}

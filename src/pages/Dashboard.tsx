@@ -123,7 +123,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
         <form onSubmit={handleSubmit} className="px-5 pt-3.5 pb-4 space-y-3">
           {/* Emoji picker */}
           <div className="space-y-1.5">
-            <p className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Ikon</p>
+            <p className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Ikon</p>
             <div className="flex flex-wrap gap-1.5">
               {EMOJIS.map((e) => (
                 <button key={e} type="button" onClick={() => setForm((f) => ({ ...f, emoji: e }))}
@@ -140,7 +140,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
           {/* Name + Destination */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="space-y-1">
-              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Nama Paket *</Label>
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Nama Paket *</Label>
               <Input
                 className="h-8 text-[12.5px] rounded-xl"
                 placeholder="Umrah Ramadhan"
@@ -150,7 +150,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Destinasi *</Label>
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Destinasi *</Label>
               <Input
                 className="h-8 text-[12.5px] rounded-xl"
                 placeholder="Makkah, Saudi Arabia"
@@ -163,11 +163,11 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
           {/* Dates */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="space-y-1">
-              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Berangkat *</Label>
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Berangkat *</Label>
               <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Pulang *</Label>
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Pulang *</Label>
               <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
             </div>
           </div>

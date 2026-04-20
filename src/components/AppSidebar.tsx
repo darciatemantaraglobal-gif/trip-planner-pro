@@ -107,7 +107,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
           />
           <div className="leading-tight">
             <div className="font-bold text-[14.5px] text-[hsl(var(--foreground))]">IGH Tour</div>
-            <div className="text-[10px] font-medium tracking-widest text-[hsl(var(--muted-foreground))] uppercase mt-0.5">
+            <div className="text-[10px] font-medium tracking-wide text-[hsl(var(--muted-foreground))] uppercase mt-0.5">
               Travel Agency
             </div>
           </div>
@@ -134,7 +134,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
             {group.label && (
               <motion.p
                 variants={itemVariant}
-                className="px-4 mb-1 text-[10.5px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]"
+                className="px-4 mb-1 text-[10.5px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]"
               >
                 {group.label}
               </motion.p>
