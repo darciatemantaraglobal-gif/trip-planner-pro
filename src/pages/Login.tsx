@@ -194,9 +194,7 @@ export default function Login() {
                 </form>
               </div>
 
-              <p className="mt-4 text-center text-[10px] tracking-wide text-white/30">
-                Default: admin / admin123
-              </p>
+
             </motion.div>
           )}
         </AnimatePresence>
