@@ -47,9 +47,9 @@ function formatRupiah(num: number): string {
   return "Rp " + num.toLocaleString("id-ID");
 }
 
-const lbl = "text-[10px] font-bold text-orange-500 uppercase tracking-widest";
-const inp = "h-8 text-[12.5px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
-const sel = "h-8 text-[12.5px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
+const lbl = "text-[9px] md:text-[10px] font-bold text-orange-500 uppercase tracking-widest";
+const inp = "h-7 md:h-8 text-[11.5px] md:text-[12.5px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
+const sel = "h-7 md:h-8 text-[11.5px] md:text-[12.5px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
 
 export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Props) {
   const [draft, setDraft] = useState<PackageDraft>(empty);
@@ -121,29 +121,29 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
             onClick={() => onOpenChange(false)}
           />
 
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <motion.div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
             <motion.div
-              className="relative w-full max-w-lg pointer-events-auto rounded-2xl shadow-2xl overflow-hidden flex flex-col bg-white border border-[hsl(var(--border))]"
-              style={{ maxHeight: "90dvh" }}
-              initial={{ scale: 0.95, opacity: 0, y: 16 }}
+              className="relative w-full md:max-w-lg pointer-events-auto rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col bg-white border border-[hsl(var(--border))]"
+              style={{ maxHeight: "92dvh" }}
+              initial={{ scale: 0.97, opacity: 0, y: 32 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 16 }}
+              exit={{ scale: 0.97, opacity: 0, y: 32 }}
               transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
             >
               {/* Cover banner */}
-              <div className="relative shrink-0 h-[80px] overflow-hidden">
+              <div className="relative shrink-0 h-[52px] md:h-[80px] overflow-hidden">
                 {draft.coverImage ? (
                   <img src={draft.coverImage} alt="cover" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl"
+                  <div className="w-full h-full flex items-center justify-center text-3xl md:text-4xl"
                     style={{ background: COVER_GRADIENTS[gradientIndex] }}>
                     {draft.emoji}
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
-                <div className="absolute top-0 inset-x-0 flex items-center justify-between px-4 pt-2.5">
-                  <h2 className="text-[13px] font-bold text-white drop-shadow tracking-wide" style={{ fontFamily: "'Montserrat',sans-serif" }}>
+                <div className="absolute top-0 inset-x-0 flex items-center justify-between px-3 md:px-4 pt-2">
+                  <h2 className="text-[12px] md:text-[13px] font-bold text-white drop-shadow tracking-wide" style={{ fontFamily: "'Montserrat',sans-serif" }}>
                     {initial ? "✏️ Edit Paket Trip" : "✈️ Tambah Paket Trip"}
                   </h2>
                   <button onClick={() => onOpenChange(false)}
@@ -152,15 +152,15 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                   </button>
                 </div>
 
-                <div className="absolute bottom-0 inset-x-0 px-4 pb-2 flex items-end justify-end gap-1.5">
+                <div className="absolute bottom-0 inset-x-0 px-3 md:px-4 pb-1.5 flex items-end justify-end gap-1.5">
                   {draft.coverImage && (
                     <button onClick={() => set("coverImage", undefined)}
-                      className="h-6 w-6 flex items-center justify-center rounded-full bg-black/30 text-white hover:bg-red-500/80 transition-colors">
-                      <Trash2 strokeWidth={2} className="h-3 w-3" />
+                      className="h-5 w-5 flex items-center justify-center rounded-full bg-black/30 text-white hover:bg-red-500/80 transition-colors">
+                      <Trash2 strokeWidth={2} className="h-2.5 w-2.5" />
                     </button>
                   )}
                   <button onClick={() => fileRef.current?.click()}
-                    className="h-6 px-2 flex items-center gap-1 rounded-full bg-black/30 text-white text-[10px] font-semibold hover:bg-black/50 transition-colors">
+                    className="h-5 px-1.5 flex items-center gap-1 rounded-full bg-black/30 text-white text-[9px] font-semibold hover:bg-black/50 transition-colors">
                     <Camera strokeWidth={2} className="h-2.5 w-2.5" />
                     {draft.coverImage ? "Ganti" : "Foto"}
                   </button>
@@ -169,15 +169,15 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
               </div>
 
               {/* Body */}
-              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3.5">
+              <div className="overflow-y-auto flex-1 px-3 py-2.5 md:px-5 md:py-4 space-y-2.5 md:space-y-3.5">
 
                 {/* Emoji picker */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <p className={lbl}>Ikon</p>
-                  <div className="flex gap-1.5 flex-wrap">
+                  <div className="flex gap-1 flex-wrap">
                     {QUICK_EMOJIS.map((e) => (
                       <button key={e} type="button" onClick={() => set("emoji", e)}
-                        className={`h-8 w-8 rounded-xl text-base flex items-center justify-center transition-all border-2 ${draft.emoji === e
+                        className={`h-7 w-7 md:h-8 md:w-8 rounded-lg md:rounded-xl text-sm md:text-base flex items-center justify-center transition-all border-2 ${draft.emoji === e
                           ? "border-orange-500 bg-orange-50 shadow-sm scale-110"
                           : "border-gray-200/80 bg-white hover:border-orange-300 hover:scale-105"
                         }`}>
@@ -188,7 +188,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 1: Nama + Tanggal */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <div className="space-y-1">
                     <p className={lbl}>Nama Paket <span className="text-red-400">*</span></p>
                     <Input placeholder="Umrah Ramadhan" value={draft.name}
@@ -206,7 +206,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 2: Destinasi + Durasi */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <div className="space-y-1">
                     <p className={lbl}>Destinasi <span className="text-red-400">*</span></p>
                     <Input placeholder="Makkah, Madinah" value={draft.destination}
@@ -224,7 +224,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 3: Status + Kuota */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <div className="space-y-1">
                     <p className={lbl}>Status</p>
                     <Select value={draft.status} onValueChange={(v) => set("status", v as PackageStatus)}>
@@ -244,7 +244,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 4: Hotel + Maskapai */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <div className="space-y-1">
                     <p className={lbl}>Level Hotel <span className="text-red-400">*</span></p>
                     <Select value={draft.hotelLevel ?? ""}
@@ -274,47 +274,47 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Financial section */}
-                <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3 space-y-2.5">
+                <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-2.5 md:p-3 space-y-2 md:space-y-2.5">
                   <div className="flex items-center gap-1.5">
-                    <div className="h-4 w-4 rounded-full bg-orange-500 flex items-center justify-center">
-                      <TrendingUp className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
+                    <div className="h-3.5 w-3.5 md:h-4 md:w-4 rounded-full bg-orange-500 flex items-center justify-center">
+                      <TrendingUp className="h-2 w-2 md:h-2.5 md:w-2.5 text-white" strokeWidth={2.5} />
                     </div>
-                    <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Finansial & Margin</span>
+                    <span className="text-[9px] md:text-[10px] font-bold text-orange-600 uppercase tracking-widest">Finansial & Margin</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">HPP / Modal (IDR)</p>
+                      <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">HPP / Modal (IDR)</p>
                       <Input type="number" min={0} value={draft.hpp}
                         onChange={(e) => set("hpp", Math.max(0, Number(e.target.value)))}
                         className={inp + " border-orange-200/60"} placeholder="0" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Harga Jual (IDR)</p>
+                      <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Harga Jual (IDR)</p>
                       <Input type="number" min={0} value={draft.totalIDR}
                         onChange={(e) => set("totalIDR", Math.max(0, Number(e.target.value)))}
                         className={inp + " border-orange-200/60"} placeholder="0" />
                     </div>
                   </div>
 
-                  <div className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${profit > 0 ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : profit < 0 ? "bg-red-50 border border-red-200 text-red-600" : "bg-gray-50 border border-gray-200 text-gray-400"}`}>
+                  <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] font-semibold ${profit > 0 ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : profit < 0 ? "bg-red-50 border border-red-200 text-red-600" : "bg-gray-50 border border-gray-200 text-gray-400"}`}>
                     {profit >= 0
-                      ? <TrendingUp className={`h-3 w-3 shrink-0 ${profit > 0 ? "text-emerald-500" : "text-gray-400"}`} strokeWidth={2.5} />
-                      : <TrendingDown className="h-3 w-3 shrink-0 text-red-500" strokeWidth={2.5} />
+                      ? <TrendingUp className={`h-2.5 w-2.5 shrink-0 ${profit > 0 ? "text-emerald-500" : "text-gray-400"}`} strokeWidth={2.5} />
+                      : <TrendingDown className="h-2.5 w-2.5 shrink-0 text-red-500" strokeWidth={2.5} />
                     }
-                    <span>Estimasi Profit: <strong>{formatRupiah(profit)}</strong>{profit < 0 && " ⚠️ Di bawah modal!"}</span>
+                    <span>Profit: <strong>{formatRupiah(profit)}</strong>{profit < 0 && " ⚠️"}</span>
                   </div>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-[hsl(var(--border))] flex gap-2 shrink-0 bg-white/80 backdrop-blur-sm pb-[max(12px,env(safe-area-inset-bottom))]">
+              <div className="px-3 py-2.5 md:px-5 md:py-3 border-t border-[hsl(var(--border))] flex gap-2 shrink-0 bg-white/80 backdrop-blur-sm pb-[max(10px,env(safe-area-inset-bottom))]">
                 <button onClick={() => onOpenChange(false)} disabled={saving}
-                  className="flex-1 h-9 rounded-xl text-[12.5px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors disabled:opacity-50">
+                  className="flex-1 h-8 md:h-9 rounded-xl text-[12px] md:text-[12.5px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors disabled:opacity-50">
                   Batal
                 </button>
                 <button onClick={handleSave} disabled={saving || !canSave}
-                  className="flex-1 h-9 rounded-xl text-[12.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-400 shadow-sm"
+                  className="flex-1 h-8 md:h-9 rounded-xl text-[12px] md:text-[12.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-400 shadow-sm"
                   style={canSave && !saving ? { background: "linear-gradient(135deg,#f97316,#ea580c)" } : undefined}>
                   {saving ? (
                     <span className="flex items-center gap-1.5">
