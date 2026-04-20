@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2 } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -80,7 +80,19 @@ export default function Settings() {
 
   const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearanceSettings());
 
-  const { rates, rawRates, lastUpdated, loading: ratesLoading, markupPct, setMarkup, refresh: refreshRates } = useRatesStore();
+  const {
+    rates,
+    rawRates,
+    manualRates,
+    mode: rateMode,
+    lastUpdated,
+    loading: ratesLoading,
+    markupPct,
+    setMarkup,
+    setMode: setRateMode,
+    setManualRate,
+    refresh: refreshRates,
+  } = useRatesStore();
 
   const { user, addAgent, removeAgent, allCredentials } = useAuthStore();
   const [agents, setAgents] = useState<Credential[]>([]);
@@ -367,11 +379,57 @@ export default function Settings() {
 
         {tab === "rates" && (
           <div className="space-y-5 max-w-xl">
-            <SectionHeader title="Kurs & Buffer Harga" desc="Kurs real-time otomatis dengan markup pelindung fluktuasi" />
+            <SectionHeader title="Kurs & Buffer Harga" desc="Pakai kurs live otomatis atau kurs manual sesuai kondisi lapangan" />
+
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRateMode("live")}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-all",
+                    rateMode === "live"
+                      ? "border-orange-400 bg-orange-50 text-orange-600"
+                      : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+                  )}
+                >
+                  <div className="flex items-center gap-2 text-sm font-bold">
+                    <Radio className="h-4 w-4" />
+                    Live
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug">
+                    Ambil kurs otomatis dari internet, cocok untuk patokan harian.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRateMode("manual")}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-all",
+                    rateMode === "manual"
+                      ? "border-orange-400 bg-orange-50 text-orange-600"
+                      : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]"
+                  )}
+                >
+                  <div className="flex items-center gap-2 text-sm font-bold">
+                    <PencilLine className="h-4 w-4" />
+                    Manual Lapangan
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug">
+                    Isi sendiri kalau money changer/vendor pakai kurs berbeda.
+                  </p>
+                </button>
+              </div>
+            </div>
 
             <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
               <div className="px-4 py-3 border-b border-[hsl(var(--border))] flex items-center justify-between">
-                <span className="text-sm font-semibold">Kurs Saat Ini (IDR)</span>
+                <div>
+                  <span className="text-sm font-semibold">Kurs Aktif (IDR)</span>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                    Mode: {rateMode === "manual" ? "Manual Lapangan" : "Live Otomatis"}
+                  </p>
+                </div>
                 <div className="flex items-center gap-2">
                   {lastUpdated && (
                     <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
@@ -403,6 +461,43 @@ export default function Settings() {
 
             <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-5 space-y-4">
               <div>
+                <Label className="text-sm font-semibold">Kurs Manual Lapangan</Label>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                  Nilai ini dipakai saat mode Manual Lapangan aktif.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {(["USD", "SAR"] as const).map((cur) => (
+                  <div key={cur} className="space-y-1">
+                    <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">1 {cur} = Rp</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={manualRates[cur]}
+                      onChange={(e) => setManualRate(cur, Number(e.target.value))}
+                      className="h-10 text-sm"
+                    />
+                    <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                      Live saat ini: Rp {rawRates[cur].toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant={rateMode === "manual" ? "default" : "outline"}
+                className={cn("h-9 rounded-xl text-xs", rateMode === "manual" && "gradient-primary text-white")}
+                onClick={() => {
+                  setRateMode("manual");
+                  toast.success("Kurs manual dipakai untuk kalkulator.");
+                }}
+              >
+                Pakai Kurs Manual
+              </Button>
+            </div>
+
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-5 space-y-4">
+              <div>
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-sm font-semibold">Buffer / Markup Harga</Label>
                   <span className="text-sm font-bold text-orange-500">{markupPct.toFixed(1)}%</span>
@@ -421,7 +516,7 @@ export default function Settings() {
                 </div>
               </div>
               <p className="text-xs text-[hsl(var(--muted-foreground))] bg-orange-50 rounded-xl px-3 py-2 border border-orange-100">
-                Markup akan ditambahkan ke semua konversi kurs di kalkulator. Direkomendasikan 1–2% untuk melindungi margin dari fluktuasi harian.
+                Markup akan ditambahkan ke kurs aktif, baik live maupun manual. Direkomendasikan 1–2% untuk melindungi margin dari fluktuasi harian.
               </p>
             </div>
           </div>

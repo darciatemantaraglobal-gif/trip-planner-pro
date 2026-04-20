@@ -26,7 +26,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { rates, loading: ratesLoading, lastUpdated, refresh: refreshRates } = useRatesStore();
+  const { rates, mode: rateMode, loading: ratesLoading, lastUpdated, refresh: refreshRates } = useRatesStore();
   const { user: currentUser, logout } = useAuthStore();
 
   const handleLogout = () => { logout(); navigate("/login"); };
@@ -77,6 +77,9 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             <div className="hidden sm:flex items-center gap-2 bg-[hsl(var(--secondary))] rounded-xl px-3 py-1.5 shrink-0">
               <TrendingUp className="h-3.5 w-3.5 text-orange-500" strokeWidth={2} />
               <div className="flex items-center gap-3 text-[11px] font-semibold text-[hsl(var(--foreground))]">
+                <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-wide", rateMode === "manual" ? "bg-orange-100 text-orange-600" : "bg-emerald-100 text-emerald-600")}>
+                  {rateMode === "manual" ? "Manual" : "Live"}
+                </span>
                 <span>USD <span className="text-orange-500">Rp{rates.USD?.toLocaleString("id-ID") ?? "—"}</span></span>
                 <span className="text-[hsl(var(--border))]">|</span>
                 <span>SAR <span className="text-orange-500">Rp{rates.SAR?.toLocaleString("id-ID") ?? "—"}</span></span>

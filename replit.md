@@ -20,6 +20,7 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
    - Frankfurter API (IDR→USD,SAR), cache 5 menit, markup/buffer slider 0-5%
    - Live ticker di header DashboardLayout (dengan refresh button)
    - Proxy `/api/frankfurter` untuk dev (bypass CORS localhost)
+   - Mode kurs: Live Otomatis atau Manual Lapangan, tersimpan di localStorage dan dipakai semua kalkulator
 
 2. **PWA Readiness (T002)** — `vite.config.ts`
    - vite-plugin-pwa: manifest, service worker, offline cache, installable
