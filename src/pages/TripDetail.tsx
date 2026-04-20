@@ -60,7 +60,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
     setForm({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" });
     setPhotoDataUrl(undefined);
     setUploadedDocs([]);
-    setPendingCategory("Paspor");
+    setPendingCategory("passport");
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
