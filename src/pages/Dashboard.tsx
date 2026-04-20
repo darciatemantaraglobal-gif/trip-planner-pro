@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train, AlertCircle, Clock, Star, ChevronRight } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
+import { usePackagesStore } from "@/store/packagesStore";
+import { useAuthStore } from "@/store/authStore";
 import { formatDateStr, getLocale } from "@/lib/regional";
 import { useRegionalStore } from "@/store/regionalStore";
 import { toast } from "sonner";
@@ -31,12 +33,48 @@ const stagger: Variants = {
 
 function getTotalJamaah(): number {
   try {
-    const raw = localStorage.getItem("travelhub.jamaah.v1");
+    const raw = localStorage.getItem("travelhub.jamaah.v2");
     return raw ? (JSON.parse(raw) as unknown[]).length : 0;
   } catch {
     return 0;
   }
 }
+
+function getGreeting(name: string): string {
+  const h = new Date().getHours();
+  const prefix =
+    h < 5 ? "Selamat Malam" :
+    h < 12 ? "Selamat Pagi" :
+    h < 15 ? "Selamat Siang" :
+    h < 18 ? "Selamat Sore" : "Selamat Malam";
+  const firstName = name.split(" ")[0];
+  return `${prefix}, ${firstName}!`;
+}
+
+function formatTodayFull(): string {
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  Draft: "Draft",
+  Calculated: "Dihitung",
+  Confirmed: "Dikonfirmasi",
+  Paid: "Lunas",
+  Completed: "Selesai",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  Draft: "bg-gray-100 text-gray-600",
+  Calculated: "bg-blue-50 text-blue-600",
+  Confirmed: "bg-amber-50 text-amber-600",
+  Paid: "bg-emerald-50 text-emerald-700",
+  Completed: "bg-purple-50 text-purple-700",
+};
 
 const EMOJIS = ["🕌", "🌴", "🗼", "🏝️", "🏔️", "🌸", "🌍", "✈️", "🛕", "🏖️", "🌺", "🎑"];
 
@@ -496,11 +534,14 @@ function RightPanel({ trips }: { trips: Trip[] }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { trips, loadingTrips, fetchTrips, removeTrip } = useTripsStore();
+  const { items: packages, loaded: packagesLoaded, refresh: refreshPackages } = usePackagesStore();
+  const user = useAuthStore((s) => s.user);
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [tab, setTab] = useState<"all" | "upcoming" | "done">("all");
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
+  useEffect(() => { if (!packagesLoaded) refreshPackages(); }, [packagesLoaded, refreshPackages]);
 
   const filtered = trips.filter((t) => {
     if (tab === "all") return true;
@@ -511,6 +552,11 @@ export default function Dashboard() {
   const activeTrips = trips.filter((t) => new Date(t.endDate).getTime() >= Date.now()).length;
   const doneTrips = trips.length - activeTrips;
   const totalJamaah = getTotalJamaah();
+
+  const pendingPackages = packages.filter((p) => !["Paid", "Completed"].includes(p.status));
+  const nearestDeparture = [...packages]
+    .filter((p) => p.departureDate && new Date(p.departureDate + "T00:00:00").getTime() >= Date.now())
+    .sort((a, b) => new Date(a.departureDate!).getTime() - new Date(b.departureDate!).getTime())[0];
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -524,6 +570,45 @@ export default function Dashboard() {
       {/* ── Main content ── */}
       <div className="flex-1 overflow-auto min-w-0 p-3 md:p-6 lg:p-8">
 
+        {/* ── Greeting ── */}
+        <motion.div
+          className="mb-4 md:mb-6"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="rounded-2xl border border-[hsl(var(--border))] bg-gradient-to-br from-orange-50 to-white p-4 md:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-[18px] md:text-[22px] font-bold text-[hsl(var(--foreground))] leading-tight">
+                  {getGreeting(user?.displayName ?? "Admin")} 👋
+                </h1>
+                <p className="text-[11.5px] md:text-[12.5px] text-[hsl(var(--muted-foreground))] mt-1 capitalize">
+                  {formatTodayFull()}
+                </p>
+                {nearestDeparture ? (
+                  <div className="flex items-center gap-2 mt-2.5">
+                    <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 rounded-full px-3 py-1 text-[11px] font-semibold">
+                      <Plane strokeWidth={2} className="h-3 w-3 shrink-0" />
+                      <span>Keberangkatan terdekat:</span>
+                      <strong>{nearestDeparture.name}</strong>
+                      <span className="text-orange-500">({daysUntil(nearestDeparture.departureDate!)})</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-2 italic">
+                    Belum ada jadwal keberangkatan paket.
+                  </p>
+                )}
+              </div>
+              <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl md:text-3xl"
+                style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
+                🕌
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* ── Stat cards ── */}
         <motion.div
           className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
@@ -532,10 +617,10 @@ export default function Dashboard() {
           animate="visible"
         >
           {[
-            { icon: Plane, label: "Total Paket", value: trips.length, onClick: () => {} },
-            { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, onClick: () => setTab("upcoming") },
-            { icon: CheckCircle, label: "Selesai", value: doneTrips, onClick: () => setTab("done") },
-            { icon: Users, label: "Total Jamaah", value: totalJamaah, onClick: () => {} },
+            { icon: Plane, label: "Total Trip", value: trips.length, sub: "paket dibuat", color: "text-blue-500", onClick: () => {} },
+            { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, sub: "sedang berjalan", color: "text-emerald-500", onClick: () => setTab("upcoming") },
+            { icon: CheckCircle, label: "Selesai", value: doneTrips, sub: "trip selesai", color: "text-purple-500", onClick: () => setTab("done") },
+            { icon: Users, label: "Total Jamaah", value: totalJamaah, sub: "jamaah terdaftar", color: "text-orange-500", onClick: () => navigate("/progress") },
           ].map((stat) => (
             <motion.button
               key={stat.label}
@@ -543,23 +628,111 @@ export default function Dashboard() {
               className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-[border-color,box-shadow] duration-200 text-left active:scale-[0.98]"
               variants={fadeUp}
             >
-              <div className="h-7 w-7 md:h-9 md:w-9 flex items-center justify-center shrink-0">
-                <stat.icon strokeWidth={1.5} className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              <div className="h-8 w-8 md:h-10 md:w-10 flex items-center justify-center shrink-0 rounded-xl bg-[hsl(var(--secondary))]">
+                <stat.icon strokeWidth={1.5} className={cn("h-4 w-4 md:h-4.5 md:w-4.5", stat.color)} />
               </div>
               <div className="min-w-0">
-                <p className="text-[16px] md:text-[20px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
+                <p className="text-[18px] md:text-[22px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
                 <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{stat.label}</p>
               </div>
             </motion.button>
           ))}
         </motion.div>
 
+        {/* ── Akumulasi jamaah per trip & ringkasan paket ── */}
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
+        >
+          {[
+            { icon: Star, label: "Total Paket", value: packages.length, color: "bg-amber-50 text-amber-600", onClick: () => navigate("/packages") },
+            { icon: AlertCircle, label: "Perlu Aksi", value: pendingPackages.length, color: pendingPackages.length > 0 ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400", onClick: () => navigate("/packages") },
+            { icon: Clock, label: "Paket Lunas", value: packages.filter(p => p.status === "Paid").length, color: "bg-emerald-50 text-emerald-600", onClick: () => navigate("/packages") },
+            { icon: CheckCircle, label: "Paket Selesai", value: packages.filter(p => p.status === "Completed").length, color: "bg-purple-50 text-purple-600", onClick: () => navigate("/packages") },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={item.onClick}
+              className="flex items-center gap-2 md:gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left active:scale-[0.98]"
+            >
+              <div className={cn("h-7 w-7 md:h-9 md:w-9 flex items-center justify-center rounded-xl shrink-0", item.color)}>
+                <item.icon strokeWidth={1.5} className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[15px] md:text-[18px] font-bold text-[hsl(var(--foreground))] leading-none">{item.value}</p>
+                <p className="text-[10px] md:text-[10.5px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{item.label}</p>
+              </div>
+            </button>
+          ))}
+        </motion.div>
+
+        {/* ── Perlu Perhatian ── */}
+        {pendingPackages.length > 0 && (
+          <motion.div
+            className="mb-4 md:mb-5"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.18, ease: "easeOut" }}
+          >
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2">
+                <AlertCircle strokeWidth={1.5} className="h-4 w-4 text-amber-500" />
+                <h2 className="text-[13.5px] md:text-[14px] font-bold text-[hsl(var(--foreground))]">Paket Belum Selesai</h2>
+                <span className="h-5 px-2 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center">{pendingPackages.length}</span>
+              </div>
+              <button onClick={() => navigate("/packages")}
+                className="text-[11px] text-[hsl(var(--primary))] font-medium hover:underline flex items-center gap-1">
+                Lihat semua <ChevronRight strokeWidth={2} className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {pendingPackages.slice(0, 4).map((pkg) => (
+                <div
+                  key={pkg.id}
+                  onClick={() => navigate("/packages")}
+                  className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2.5 cursor-pointer hover:border-[hsl(var(--primary))]/40 hover:shadow-sm transition-all"
+                >
+                  <div className="h-9 w-9 rounded-xl flex items-center justify-center text-lg shrink-0"
+                    style={{ background: "linear-gradient(135deg,#fff7ed,#fed7aa)" }}>
+                    {pkg.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12.5px] font-semibold text-[hsl(var(--foreground))] truncate">{pkg.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">
+                      <MapPin strokeWidth={1.5} className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{pkg.destination}</span>
+                      {pkg.departureDate && (
+                        <>
+                          <span>·</span>
+                          <CalendarIcon strokeWidth={1.5} className="h-3 w-3 shrink-0" />
+                          <span>{daysUntil(pkg.departureDate)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <span className={cn("text-[10px] font-semibold px-2 py-1 rounded-full shrink-0", STATUS_COLORS[pkg.status] ?? "bg-gray-100 text-gray-500")}>
+                    {STATUS_LABELS[pkg.status] ?? pkg.status}
+                  </span>
+                </div>
+              ))}
+              {pendingPackages.length > 4 && (
+                <button onClick={() => navigate("/packages")}
+                  className="w-full py-2 text-[12px] text-[hsl(var(--primary))] font-medium rounded-xl border border-dashed border-[hsl(var(--border))] hover:bg-[hsl(var(--accent))] transition-colors">
+                  +{pendingPackages.length - 4} paket lainnya
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {/* ── Kalkulator & Laporan shortcut bar ── */}
         <motion.div
           className="grid grid-cols-2 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15, ease: "easeOut" }}
+          transition={{ duration: 0.3, delay: 0.22, ease: "easeOut" }}
         >
           <button
             onClick={() => navigate("/calculator")}

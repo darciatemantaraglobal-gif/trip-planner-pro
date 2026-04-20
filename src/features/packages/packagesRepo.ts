@@ -26,6 +26,8 @@ export interface Package {
   departureDate?: string; // ISO date string YYYY-MM-DD
   airline?: string;
   hotelLevel?: HotelLevel;
+  notes?: string;
+  facilities?: string[];
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }

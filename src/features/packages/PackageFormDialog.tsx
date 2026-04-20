@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Camera, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { X, Check, Camera, Trash2, NotebookPen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -27,6 +27,19 @@ const COVER_GRADIENTS = [
   "linear-gradient(135deg,#f59e0b,#fbbf24)",
 ];
 
+const FACILITIES_LIST = [
+  "Makan 3x/Hari",
+  "Hotel Makkah",
+  "Hotel Madinah",
+  "Transport Lokal",
+  "Pesawat PP",
+  "Visa Umrah",
+  "Manasik",
+  "Perlengkapan",
+  "Asuransi",
+  "Tour Guide",
+];
+
 const empty: PackageDraft = {
   name: "",
   destination: "",
@@ -40,6 +53,8 @@ const empty: PackageDraft = {
   departureDate: "",
   airline: "",
   hotelLevel: undefined,
+  notes: "",
+  facilities: [],
 };
 
 function formatRupiah(num: number): string {
@@ -61,7 +76,11 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
     () => (initial?.name ?? "").length % COVER_GRADIENTS.length,
     [initial]
   );
-  const profit = (draft.totalIDR || 0) - (draft.hpp || 0);
+  const toggleFacility = (fac: string) => {
+    const current = draft.facilities ?? [];
+    const updated = current.includes(fac) ? current.filter((f) => f !== fac) : [...current, fac];
+    set("facilities", updated);
+  };
 
   useEffect(() => {
     if (open) {
@@ -273,36 +292,47 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                   </div>
                 </div>
 
-                {/* Financial section */}
-                <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-2.5 md:p-3 space-y-2 md:space-y-2.5">
+                {/* Fasilitas & Catatan section */}
+                <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-2.5 md:p-3 space-y-2.5 md:space-y-3">
                   <div className="flex items-center gap-1.5">
                     <div className="h-3.5 w-3.5 md:h-4 md:w-4 rounded-full bg-orange-500 flex items-center justify-center">
-                      <TrendingUp className="h-2 w-2 md:h-2.5 md:w-2.5 text-white" strokeWidth={2.5} />
+                      <NotebookPen className="h-2 w-2 md:h-2.5 md:w-2.5 text-white" strokeWidth={2.5} />
                     </div>
-                    <span className="text-[10px] md:text-[10.5px] font-bold text-orange-600 uppercase tracking-wide">Finansial & Margin</span>
+                    <span className="text-[10px] md:text-[10.5px] font-bold text-orange-600 uppercase tracking-wide">Fasilitas & Catatan</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">HPP / Modal (IDR)</p>
-                      <Input type="number" min={0} value={draft.hpp}
-                        onChange={(e) => set("hpp", Math.max(0, Number(e.target.value)))}
-                        className={inp + " border-orange-200/60"} placeholder="0" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">Harga Jual (IDR)</p>
-                      <Input type="number" min={0} value={draft.totalIDR}
-                        onChange={(e) => set("totalIDR", Math.max(0, Number(e.target.value)))}
-                        className={inp + " border-orange-200/60"} placeholder="0" />
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">Fasilitas yang Tersedia</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FACILITIES_LIST.map((fac) => {
+                        const active = (draft.facilities ?? []).includes(fac);
+                        return (
+                          <button
+                            key={fac}
+                            type="button"
+                            onClick={() => toggleFacility(fac)}
+                            className={`text-[10px] md:text-[10.5px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                              active
+                                ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                                : "bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:text-orange-600"
+                            }`}
+                          >
+                            {fac}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] font-semibold ${profit > 0 ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : profit < 0 ? "bg-red-50 border border-red-200 text-red-600" : "bg-gray-50 border border-gray-200 text-gray-400"}`}>
-                    {profit >= 0
-                      ? <TrendingUp className={`h-2.5 w-2.5 shrink-0 ${profit > 0 ? "text-emerald-500" : "text-gray-400"}`} strokeWidth={2.5} />
-                      : <TrendingDown className="h-2.5 w-2.5 shrink-0 text-red-500" strokeWidth={2.5} />
-                    }
-                    <span>Profit: <strong>{formatRupiah(profit)}</strong>{profit < 0 && " ⚠️"}</span>
+                  <div className="space-y-1">
+                    <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">Catatan Tambahan</p>
+                    <textarea
+                      value={draft.notes ?? ""}
+                      onChange={(e) => set("notes", e.target.value)}
+                      rows={2}
+                      placeholder="Catatan khusus untuk paket ini..."
+                      className="w-full text-[12px] md:text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all resize-none"
+                    />
                   </div>
                 </div>
               </div>
