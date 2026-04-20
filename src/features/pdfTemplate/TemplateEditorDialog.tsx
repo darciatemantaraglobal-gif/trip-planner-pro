@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, Plus, Trash2, GripVertical, Check, ImageIcon, AlertCircle } from "lucide-react";
+import {
+  X, Upload, Plus, Trash2, GripVertical, Check,
+  ImageIcon, AlertCircle, Sparkles,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PdfTemplate, TemplateFieldConfig } from "./types";
@@ -13,6 +16,156 @@ interface Props {
   onSave: (t: Omit<PdfTemplate, "id" | "createdAt">) => void;
 }
 
+/* ─── Image Analysis ─────────────────────────────────────────────── */
+
+interface ImageZones {
+  hasColoredHeader: boolean;
+  hasColoredFooter: boolean;
+  headerEndPct: number;   // Y% where header ends
+  footerStartPct: number; // Y% where footer starts
+}
+
+async function analyzeImage(dataUrl: string): Promise<ImageZones> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const COLS = 20;
+      const ROWS = 20;
+      const canvas = document.createElement("canvas");
+      canvas.width = COLS;
+      canvas.height = ROWS;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, COLS, ROWS);
+
+      // Build brightness grid (0-255)
+      const grid: number[][] = [];
+      for (let y = 0; y < ROWS; y++) {
+        grid[y] = [];
+        for (let x = 0; x < COLS; x++) {
+          const d = ctx.getImageData(x, y, 1, 1).data;
+          grid[y][x] = d[0] * 0.299 + d[1] * 0.587 + d[2] * 0.114;
+        }
+      }
+
+      // Row average brightness
+      const rowAvg = grid.map((row) => row.reduce((a, b) => a + b, 0) / COLS);
+
+      // Detect header: dark rows at the top (< 160 brightness)
+      let headerEndRow = 0;
+      for (let y = 0; y < 8; y++) {
+        if (rowAvg[y] < 160) headerEndRow = y + 1;
+      }
+      const hasColoredHeader = headerEndRow >= 2;
+      if (!hasColoredHeader) headerEndRow = 0;
+
+      // Detect footer: dark rows at the bottom (< 160 brightness)
+      let footerStartRow = ROWS;
+      for (let y = ROWS - 1; y >= ROWS - 6; y--) {
+        if (rowAvg[y] < 160) footerStartRow = y;
+      }
+      const hasColoredFooter = footerStartRow <= ROWS - 2;
+      if (!hasColoredFooter) footerStartRow = ROWS;
+
+      resolve({
+        hasColoredHeader,
+        hasColoredFooter,
+        headerEndPct: (headerEndRow / ROWS) * 100,
+        footerStartPct: (footerStartRow / ROWS) * 100,
+      });
+    };
+    img.onerror = () =>
+      resolve({
+        hasColoredHeader: false,
+        hasColoredFooter: false,
+        headerEndPct: 0,
+        footerStartPct: 100,
+      });
+    img.src = dataUrl;
+  });
+}
+
+function buildPositions(
+  zones: ImageZones,
+  orientation: "portrait" | "landscape"
+): TemplateFieldConfig[] {
+  const { hasColoredHeader, hasColoredFooter, headerEndPct, footerStartPct } = zones;
+
+  // Content area boundaries
+  const cTop = hasColoredHeader ? headerEndPct + 2 : 6;
+  const cBottom = hasColoredFooter ? footerStartPct - 2 : 94;
+  const cH = Math.max(cBottom - cTop, 20);
+
+  const clamp = (v: number) => Math.max(1, Math.min(98, +v.toFixed(1)));
+
+  const mk = (
+    key: string,
+    xPct: number,
+    yPct: number,
+    fontSize?: number,
+    bold?: boolean,
+    color?: string
+  ): TemplateFieldConfig => {
+    const def = TEMPLATE_FIELD_DEFS.find((d) => d.key === key)!;
+    return {
+      key,
+      label: def.label,
+      x: clamp(xPct),
+      y: clamp(yPct),
+      fontSize: fontSize ?? def.defaultFontSize,
+      bold: bold ?? def.defaultBold,
+      color: color ?? "#1a1a1a",
+    };
+  };
+
+  // Colors for dark zones
+  const footerColor = hasColoredFooter ? "#ffffff" : "#444444";
+  const footerY = (offset: number) =>
+    hasColoredFooter
+      ? clamp(footerStartPct + (100 - footerStartPct) * offset)
+      : clamp(cBottom - 8 + 5 * offset);
+
+  if (orientation === "landscape") {
+    return [
+      mk("quoteNumber",    5,  clamp(cTop + cH * 0.01), 10,  true,  "#555555"),
+      mk("tier",          82,  clamp(cTop + cH * 0.01),  9,  false, "#888888"),
+      mk("title",          5,  clamp(cTop + cH * 0.10), 17,  true),
+      mk("subtitle",       5,  clamp(cTop + cH * 0.22), 11,  false),
+      mk("dateRange",      5,  clamp(cTop + cH * 0.31), 10,  false, "#555555"),
+      mk("customerName",  70,  clamp(cTop + cH * 0.10), 12,  true),
+      mk("updateDate",    70,  clamp(cTop + cH * 0.31),  9,  false, "#888888"),
+      mk("hotelMakkah",    5,  clamp(cTop + cH * 0.50), 12,  true),
+      mk("makkahNights",   5,  clamp(cTop + cH * 0.60), 10,  false, "#555555"),
+      mk("hotelMadinah",  55,  clamp(cTop + cH * 0.50), 12,  true),
+      mk("madinahNights", 55,  clamp(cTop + cH * 0.60), 10,  false, "#555555"),
+      mk("priceTable",     5,  clamp(cTop + cH * 0.70), 11,  false),
+      mk("website",        5,  footerY(0.35),             9,  false, footerColor),
+      mk("contactPhone",  68,  footerY(0.25),            10,  true,  footerColor),
+      mk("contactName",   68,  footerY(0.65),            10,  false, footerColor),
+    ];
+  } else {
+    // portrait
+    return [
+      mk("quoteNumber",    5,  clamp(cTop + cH * 0.01), 10,  true,  "#555555"),
+      mk("tier",          80,  clamp(cTop + cH * 0.01),  9,  false, "#888888"),
+      mk("title",          5,  clamp(cTop + cH * 0.10), 17,  true),
+      mk("subtitle",       5,  clamp(cTop + cH * 0.22), 11,  false),
+      mk("dateRange",      5,  clamp(cTop + cH * 0.31), 10,  false, "#555555"),
+      mk("customerName",  65,  clamp(cTop + cH * 0.10), 12,  true),
+      mk("updateDate",    65,  clamp(cTop + cH * 0.31),  9,  false, "#888888"),
+      mk("hotelMakkah",    5,  clamp(cTop + cH * 0.52), 12,  true),
+      mk("makkahNights",   5,  clamp(cTop + cH * 0.61), 10,  false, "#555555"),
+      mk("hotelMadinah",  55,  clamp(cTop + cH * 0.52), 12,  true),
+      mk("madinahNights", 55,  clamp(cTop + cH * 0.61), 10,  false, "#555555"),
+      mk("priceTable",     5,  clamp(cTop + cH * 0.70), 11,  false),
+      mk("website",        5,  footerY(0.35),             9,  false, footerColor),
+      mk("contactPhone",  60,  footerY(0.25),            10,  true,  footerColor),
+      mk("contactName",   60,  footerY(0.65),            10,  false, footerColor),
+    ];
+  }
+}
+
+/* ─── Component ──────────────────────────────────────────────────── */
+
 export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Props) {
   const [name, setName] = useState("");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("landscape");
@@ -21,6 +174,8 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
   const [dragging, setDragging] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuccess, setAiSuccess] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -39,6 +194,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
       }
       setSelected(null);
       setSizeWarning(false);
+      setAiSuccess(false);
     }
   }, [open, initial]);
 
@@ -107,6 +263,40 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
     onOpenChange(false);
   };
 
+  /* ── AI auto-arrange ── */
+  const handleAiAnalyze = async () => {
+    if (!backgroundImage || aiLoading) return;
+    setAiLoading(true);
+    setAiSuccess(false);
+    setSelected(null);
+
+    try {
+      // Minimum display time so the animation is visible
+      const [zones] = await Promise.all([
+        analyzeImage(backgroundImage),
+        new Promise<void>((r) => setTimeout(r, 1800)),
+      ]);
+
+      const suggested = buildPositions(zones, orientation);
+
+      // Stagger-animate the fields appearing one by one
+      setFields([]);
+      suggested.forEach((f, i) => {
+        setTimeout(() => {
+          setFields((prev) => {
+            if (prev.find((p) => p.key === f.key)) return prev;
+            return [...prev, f];
+          });
+        }, i * 60);
+      });
+
+      setAiSuccess(true);
+      setTimeout(() => setAiSuccess(false), 3000);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const usedKeys = new Set(fields.map((f) => f.key));
   const selectedField = fields.find((f) => f.key === selected);
 
@@ -137,7 +327,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                   {initial ? "Edit Template" : "Buat Template Baru"}
                 </h2>
                 <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
-                  Upload gambar template → tambah field → drag ke posisi yang tepat
+                  Upload gambar template → pakai AI untuk susun otomatis, atau drag field secara manual
                 </p>
               </div>
               <button
@@ -151,7 +341,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
             {/* Body */}
             <div className="flex flex-1 overflow-hidden min-h-0">
               {/* Left panel */}
-              <div className="w-[210px] shrink-0 border-r border-[hsl(var(--border))] flex flex-col overflow-y-auto">
+              <div className="w-[220px] shrink-0 border-r border-[hsl(var(--border))] flex flex-col overflow-y-auto">
                 <div className="p-3.5 space-y-3.5">
                   {/* Name */}
                   <div className="space-y-1">
@@ -189,7 +379,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                   </div>
 
                   {/* Upload */}
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Label className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                       Gambar Template
                     </Label>
@@ -217,13 +407,57 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                     )}
                   </div>
 
+                  {/* ── AI Assist ── */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                      Bantuan AI
+                    </Label>
+
+                    <button
+                      onClick={handleAiAnalyze}
+                      disabled={!backgroundImage || aiLoading}
+                      className={`w-full h-10 rounded-xl text-[12px] font-bold flex items-center justify-center gap-2 transition-all ${
+                        !backgroundImage
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : aiLoading
+                          ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white opacity-80 cursor-wait"
+                          : aiSuccess
+                          ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                          : "bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:opacity-90 shadow-md hover:shadow-lg"
+                      }`}
+                    >
+                      {aiLoading ? (
+                        <>
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                          Menganalisis...
+                        </>
+                      ) : aiSuccess ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          Field Tersusun!
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Susun Otomatis (AI)
+                        </>
+                      )}
+                    </button>
+
+                    <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-snug">
+                      {!backgroundImage
+                        ? "Upload gambar template dulu untuk menggunakan fitur ini."
+                        : "AI akan menganalisis zona header, konten, dan footer dari gambar kamu, lalu menyusun semua field secara otomatis."}
+                    </p>
+                  </div>
+
                   {/* Field list */}
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                       Field Data
                     </Label>
                     <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">
-                      Klik <Plus className="h-2.5 w-2.5 inline" /> lalu drag ke posisi di gambar
+                      Atau tambah manual lalu drag ke posisi
                     </p>
                     <div className="space-y-0.5">
                       {TEMPLATE_FIELD_DEFS.map((def, i) => {
@@ -320,7 +554,8 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                 <div
                   className="flex-1 overflow-auto p-4 flex items-center justify-center"
                   style={{
-                    background: "repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%) 0 0 / 20px 20px",
+                    background:
+                      "repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%) 0 0 / 20px 20px",
                     cursor: dragging ? "grabbing" : "default",
                   }}
                   onMouseMove={handleMouseMove}
@@ -332,7 +567,8 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                       ref={containerRef}
                       className="relative shadow-2xl select-none rounded-sm overflow-hidden"
                       style={{
-                        aspectRatio: orientation === "landscape" ? "841 / 595" : "595 / 841",
+                        aspectRatio:
+                          orientation === "landscape" ? "841 / 595" : "595 / 841",
                         height:
                           orientation === "landscape"
                             ? "min(62vh, 480px)"
@@ -349,6 +585,72 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                         className="w-full h-full object-fill"
                         draggable={false}
                       />
+
+                      {/* AI scanning overlay */}
+                      <AnimatePresence>
+                        {aiLoading && (
+                          <motion.div
+                            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3"
+                            style={{ background: "rgba(109,40,217,0.12)", backdropFilter: "blur(2px)" }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                          >
+                            {/* Scanning line */}
+                            <motion.div
+                              className="absolute left-0 right-0 h-0.5 z-40"
+                              style={{ background: "linear-gradient(90deg, transparent, #7c3aed, #a78bfa, #7c3aed, transparent)" }}
+                              animate={{ top: ["0%", "100%", "0%"] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            />
+                            {/* Scan grid lines */}
+                            {[20, 40, 60, 80].map((pct) => (
+                              <div
+                                key={pct}
+                                className="absolute left-0 right-0 h-px"
+                                style={{ top: `${pct}%`, background: "rgba(124,58,237,0.15)" }}
+                              />
+                            ))}
+                            {[25, 50, 75].map((pct) => (
+                              <div
+                                key={pct}
+                                className="absolute top-0 bottom-0 w-px"
+                                style={{ left: `${pct}%`, background: "rgba(124,58,237,0.15)" }}
+                              />
+                            ))}
+
+                            {/* Message pill */}
+                            <motion.div
+                              className="relative z-50 px-4 py-2 rounded-full text-white text-[12px] font-bold flex items-center gap-2 shadow-lg"
+                              style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}
+                              animate={{ scale: [1, 1.04, 1] }}
+                              transition={{ duration: 1, repeat: Infinity }}
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                              AI sedang menganalisis zona template...
+                            </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Success flash */}
+                      <AnimatePresence>
+                        {aiSuccess && (
+                          <motion.div
+                            className="absolute inset-0 z-30 flex items-start justify-center pt-4 pointer-events-none"
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                          >
+                            <div className="px-4 py-2 rounded-full bg-green-500 text-white text-[12px] font-bold flex items-center gap-2 shadow-lg">
+                              <Check className="h-3.5 w-3.5" />
+                              {fields.length} field berhasil disusun otomatis!
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Field badges */}
                       {fields.map((field) => {
                         const defIndex = TEMPLATE_FIELD_DEFS.findIndex(
                           (d) => d.key === field.key
@@ -356,7 +658,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                         const color = FIELD_COLORS[defIndex % FIELD_COLORS.length];
                         const isSelected = selected === field.key;
                         return (
-                          <div
+                          <motion.div
                             key={field.key}
                             className="absolute select-none"
                             style={{
@@ -365,6 +667,9 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                               transform: "translate(-50%, -50%)",
                               zIndex: isSelected ? 20 : 10,
                             }}
+                            initial={{ opacity: 0, scale: 0.4 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
                             onMouseDown={(e) => handleMouseDown(e, field.key)}
                           >
                             <div
@@ -376,7 +681,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                               <GripVertical className="h-2.5 w-2.5 opacity-70 shrink-0" />
                               {field.label}
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -393,7 +698,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                           Upload template terlebih dahulu
                         </p>
                         <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1 leading-relaxed">
-                          Upload gambar (JPG/PNG) dari template penawaran kamu, lalu drag field data ke posisi yang tepat di atasnya.
+                          Upload gambar (JPG/PNG) kop surat atau desain penawaran kamu, lalu gunakan AI untuk menyusun field secara otomatis.
                         </p>
                       </div>
                       <button
