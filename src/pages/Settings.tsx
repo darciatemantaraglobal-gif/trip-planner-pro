@@ -439,58 +439,70 @@ export default function Settings() {
 
         {/* PIN Setup Dialog */}
         <Dialog open={pinDialogOpen} onOpenChange={(o) => { if (!o) { setPinDialogOpen(false); setPinInput(""); setPinConfirm(""); } }}>
-          <DialogContent className="max-w-sm bg-white">
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-orange-100 flex items-center justify-center">
+          <DialogContent className="max-w-xs p-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-xl bg-white">
+            {/* Header */}
+            <div className="px-5 pt-4 pb-3 border-b border-[hsl(var(--border))]">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
                   <KeyRound className="h-4 w-4 text-orange-600" />
                 </div>
-                <DialogTitle className="text-[15px]">Buat PIN Keamanan</DialogTitle>
+                <div>
+                  <DialogTitle className="text-[13.5px] font-bold">Buat PIN Keamanan</DialogTitle>
+                  <DialogDescription className="text-[10.5px] text-muted-foreground mt-0.5">
+                    4–8 digit angka · Wajib saat login
+                  </DialogDescription>
+                </div>
               </div>
-              <DialogDescription className="text-[12px] mt-1">
-                PIN ini diperlukan setiap kali login. Gunakan 4–8 digit angka.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 pt-1">
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Buat PIN</Label>
+                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Buat PIN</Label>
                 <Input
                   type="password"
                   inputMode="numeric"
                   maxLength={8}
-                  placeholder="min. 4 digit"
+                  placeholder="••••"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-                  className="h-10 text-center tracking-widest text-lg font-bold"
+                  className="h-9 text-center tracking-[0.4em] text-base font-bold rounded-xl"
+                  autoFocus
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Konfirmasi PIN</Label>
+                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Konfirmasi PIN</Label>
                 <Input
                   type="password"
                   inputMode="numeric"
                   maxLength={8}
-                  placeholder="ulangi PIN"
+                  placeholder="••••"
                   value={pinConfirm}
                   onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, ""))}
-                  className="h-10 text-center tracking-widest text-lg font-bold"
+                  className={cn(
+                    "h-9 text-center tracking-[0.4em] text-base font-bold rounded-xl",
+                    pinConfirm && pinInput !== pinConfirm && "border-red-400 bg-red-50/30"
+                  )}
                 />
+                {pinConfirm && pinInput !== pinConfirm && (
+                  <p className="text-[10px] text-red-500">PIN tidak cocok</p>
+                )}
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-9 rounded-xl text-xs"
+
+              <div className="flex gap-2 pt-0.5">
+                <button
                   onClick={() => { setPinDialogOpen(false); setPinInput(""); setPinConfirm(""); }}
+                  className="flex-1 h-9 rounded-xl text-[12px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors"
                 >
                   Batal
-                </Button>
-                <Button
-                  className="flex-1 h-9 rounded-xl text-xs gradient-primary text-white"
+                </button>
+                <button
                   onClick={handleSavePin}
-                  disabled={pinLoading || pinInput.length < 4}
+                  disabled={pinLoading || pinInput.length < 4 || pinInput !== pinConfirm}
+                  className="flex-1 h-9 rounded-xl text-[12px] font-bold text-white transition-all disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
                 >
                   {pinLoading ? "Menyimpan…" : "Aktifkan 2FA"}
-                </Button>
+                </button>
               </div>
             </div>
           </DialogContent>

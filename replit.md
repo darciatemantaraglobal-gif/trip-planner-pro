@@ -2,6 +2,19 @@
 
 Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn/ui.
 
+## Dialog Redesign (Completed)
+Semua popup dialog telah didesain ulang dengan sistem desain yang konsisten:
+- `src/components/ui/alert-dialog.tsx` — base compact (max-w-sm, rounded-2xl)
+- `src/pages/Dashboard.tsx` — AddTripDialog (2-column grid, h-8 inputs)
+- `src/pages/TripDetail.tsx` — AddJamaahDialog (compact, OCR+photo row)
+- `src/pages/PackageDetail.tsx` — AddJamaahWithOcrDialog (compact)
+- `src/features/packages/PackageFormDialog.tsx` — cover banner, emoji picker, profit preview
+- `src/components/BulkOcrDialog.tsx` — 3-phase stepper (upload→scan→review)
+- `src/components/PdfPreviewDialog.tsx` — template preview + default layout
+- `src/pages/Settings.tsx` — PIN Setup Dialog (compact max-w-xs)
+
+**Design system**: h-8/h-9 inputs, text-[10px] uppercase labels, rounded-xl/2xl, orange gradient `linear-gradient(135deg,#f97316,#ea580c)` primary actions, Montserrat font.
+
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript, Vite

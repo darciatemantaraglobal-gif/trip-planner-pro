@@ -152,161 +152,175 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
-        <DialogHeader>
-          <DialogTitle>Tambah Jamaah</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-xl bg-white">
+        {/* Header */}
+        <div className="px-5 pt-4 pb-3 border-b border-[hsl(var(--border))] shrink-0">
+          <DialogTitle className="text-[14px] font-bold text-[hsl(var(--foreground))]">Tambah Jamaah</DialogTitle>
+          <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">Data jamaah untuk trip ini</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 pt-1">
-          {/* ── Photo upload ── */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="relative group cursor-pointer" onClick={() => photoRef.current?.click()}>
-              <div className={cn(
-                "h-20 w-20 rounded-2xl flex items-center justify-center overflow-hidden text-white font-bold text-3xl",
-                form.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500"
-              )}>
-                {photoDataUrl
-                  ? <img src={photoDataUrl} className="h-full w-full object-cover" alt="foto" />
-                  : <span>{form.name ? form.name.charAt(0).toUpperCase() : "?"}</span>
-                }
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[78vh]">
+          <div className="px-5 py-4 space-y-3">
+            {/* OCR + Photo row */}
+            <div className="flex items-center gap-3">
+              {/* Avatar */}
+              <div className="relative group cursor-pointer shrink-0" onClick={() => photoRef.current?.click()}>
+                <div className={cn(
+                  "h-14 w-14 rounded-xl flex items-center justify-center overflow-hidden text-white font-bold text-xl",
+                  form.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500"
+                )}>
+                  {photoDataUrl
+                    ? <img src={photoDataUrl} className="h-full w-full object-cover" alt="foto" />
+                    : <span>{form.name ? form.name.charAt(0).toUpperCase() : "?"}</span>
+                  }
+                </div>
+                <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera strokeWidth={1.5} className="h-4 w-4 text-white" />
+                </div>
+                {photoDataUrl && (
+                  <button type="button"
+                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                    onClick={(e) => { e.stopPropagation(); setPhotoDataUrl(undefined); }}>
+                    <X strokeWidth={2} className="h-2.5 w-2.5" />
+                  </button>
+                )}
+                <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handlePhotoChange} />
               </div>
-              <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera strokeWidth={1.5} className="h-6 w-6 text-white" />
-              </div>
-              {photoDataUrl && (
+
+              {/* OCR banner */}
+              <div className="flex-1 rounded-xl border border-orange-200 bg-orange-50/60 px-3 py-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11.5px] font-semibold text-orange-800">Scan Paspor OCR</p>
+                  <p className="text-[10px] text-orange-700/80 leading-tight">Isi otomatis dari foto MRZ</p>
+                </div>
+                <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcrScan} />
                 <button type="button"
-                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                  onClick={(e) => { e.stopPropagation(); setPhotoDataUrl(undefined); }}>
-                  <X strokeWidth={1.5} className="h-3 w-3" />
+                  onClick={() => ocrRef.current?.click()}
+                  disabled={ocrLoading}
+                  className="h-7 px-2.5 rounded-lg text-[11px] font-semibold border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0"
+                >
+                  <ScanLine strokeWidth={1.5} className="h-3 w-3" />
+                  {ocrLoading ? (ocrProgress < 35 ? "Memuat…" : `${ocrProgress}%`) : "Scan"}
                 </button>
+              </div>
+            </div>
+
+            {/* Nama */}
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Nama Lengkap *</Label>
+              <Input className="h-8 text-[12.5px] rounded-xl" placeholder="Nama sesuai paspor" value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
+            </div>
+
+            {/* Gender + No HP */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Kelamin</Label>
+                <Select value={form.gender} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
+                  <SelectTrigger className="h-8 text-[12.5px] rounded-xl"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                  <SelectContent style={{ background: "#fff" }}>
+                    <SelectItem value="L">Laki-laki</SelectItem>
+                    <SelectItem value="P">Perempuan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">No. HP</Label>
+                <Input className="h-8 text-[12.5px] rounded-xl" placeholder="08xx-xxxx" value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Birth + Passport */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Tgl. Lahir</Label>
+                <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.birthDate}
+                  onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">No. Paspor</Label>
+                <Input className="h-8 text-[12.5px] rounded-xl font-mono" placeholder="A1234567" value={form.passportNumber}
+                  onChange={(e) => setForm((f) => ({ ...f, passportNumber: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Documents */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Dokumen</Label>
+              </div>
+              <div className="flex gap-2">
+                <Select value={pendingCategory} onValueChange={(v) => setPendingCategory(v as DocCategory)}>
+                  <SelectTrigger className="flex-1 h-8 text-[12px] rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent style={{ background: "#fff" }}>
+                    {DOC_CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button type="button"
+                  onClick={() => docRef.current?.click()}
+                  className="h-8 px-3 rounded-xl text-[11.5px] font-semibold border border-[hsl(var(--border))] bg-white hover:bg-[hsl(var(--secondary))] transition-colors flex items-center gap-1.5 shrink-0"
+                >
+                  <Upload strokeWidth={1.5} className="h-3 w-3" /> Upload
+                </button>
+                <input ref={docRef} type="file" accept="image/png,image/jpeg,image/jpg" multiple className="hidden" onChange={handleDocChange} />
+              </div>
+
+              {uploadedDocs.length > 0 ? (
+                <div className="space-y-1.5">
+                  {uploadedDocs.map((doc) => (
+                    <div key={doc.id} className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-1.5">
+                      <div className="h-8 w-8 rounded-lg overflow-hidden shrink-0 border border-[hsl(var(--border))] bg-white flex items-center justify-center">
+                        {doc.fileType === "image"
+                          ? <img src={doc.dataUrl} className="h-full w-full object-cover" alt={doc.fileName} />
+                          : <FileText strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-medium text-[hsl(var(--foreground))] truncate">{doc.fileName}</p>
+                        <Select value={doc.category} onValueChange={(v) => changeDocCategory(doc.id, v as DocCategory)}>
+                          <SelectTrigger className="h-5 text-[10px] border-0 bg-transparent p-0 shadow-none gap-1 w-auto">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent style={{ background: "#fff" }}>
+                            {DOC_CATEGORIES.map((c) => (
+                              <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <button type="button" onClick={() => removeDoc(doc.id)}
+                        className="h-6 w-6 rounded-lg hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-[hsl(var(--muted-foreground))] transition-colors shrink-0">
+                        <X strokeWidth={1.5} className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border-2 border-dashed border-[hsl(var(--border))] py-3 text-center text-[11px] text-[hsl(var(--muted-foreground))]">
+                  <ImageIcon strokeWidth={1.5} className="h-5 w-5 mx-auto mb-1 opacity-40" />
+                  Belum ada dokumen
+                </div>
               )}
             </div>
-            <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Klik untuk upload foto (maks. 2 MB)</p>
-            <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handlePhotoChange} />
           </div>
 
-          <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 p-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-orange-800">Scan paspor otomatis</p>
-              <p className="text-xs text-orange-700/80">OCR akan isi nama, paspor, tanggal lahir, dan gender jika MRZ terbaca.</p>
-            </div>
-            <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcrScan} />
-            <Button type="button" variant="outline" className="shrink-0 gap-1.5 text-xs border-orange-200 text-orange-700" onClick={() => ocrRef.current?.click()} disabled={ocrLoading}>
-              <ScanLine strokeWidth={1.5} className="h-3.5 w-3.5" />
-              {ocrLoading ? (ocrProgress < 35 ? "Memuat AI…" : `OCR ${ocrProgress}%`) : "Scan OCR"}
-            </Button>
-          </div>
-
-          {/* ── Basic info ── */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Nama Lengkap *</Label>
-            <Input placeholder="Nama sesuai paspor" value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[hsl(var(--muted-foreground))]">Jenis Kelamin</Label>
-              <Select value={form.gender} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
-                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-                <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
-                  <SelectItem value="L">Laki-laki</SelectItem>
-                  <SelectItem value="P">Perempuan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[hsl(var(--muted-foreground))]">No. HP</Label>
-              <Input placeholder="08xx-xxxx-xxxx" value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[hsl(var(--muted-foreground))]">Tanggal Lahir</Label>
-              <Input type="date" value={form.birthDate}
-                onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[hsl(var(--muted-foreground))]">No. Paspor</Label>
-              <Input placeholder="A1234567" value={form.passportNumber}
-                onChange={(e) => setForm((f) => ({ ...f, passportNumber: e.target.value }))} />
-            </div>
-          </div>
-
-          {/* ── Document upload ── */}
-          <div className="space-y-3">
-            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Upload Dokumen (PNG / JPG)</Label>
-
-            {/* Category picker + upload button */}
-            <div className="flex gap-2">
-              <Select value={pendingCategory} onValueChange={(v) => setPendingCategory(v as DocCategory)}>
-                <SelectTrigger className="flex-1 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
-                  {DOC_CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button type="button" variant="outline" className="shrink-0 gap-1.5 text-xs"
-                onClick={() => docRef.current?.click()}>
-                <Upload strokeWidth={1.5} className="h-3.5 w-3.5" /> Pilih File
-              </Button>
-              <input ref={docRef} type="file" accept="image/png,image/jpeg,image/jpg" multiple className="hidden"
-                onChange={handleDocChange} />
-            </div>
-
-            {/* Uploaded docs list */}
-            {uploadedDocs.length > 0 && (
-              <div className="space-y-2">
-                {uploadedDocs.map((doc) => (
-                  <div key={doc.id} className="flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-2">
-                    {/* Thumbnail */}
-                    <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-[hsl(var(--border))] bg-white flex items-center justify-center">
-                      {doc.fileType === "image"
-                        ? <img src={doc.dataUrl} className="h-full w-full object-cover" alt={doc.fileName} />
-                        : <FileText strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
-                      }
-                    </div>
-                    {/* Name + category changer */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11.5px] font-medium text-[hsl(var(--foreground))] truncate">{doc.fileName}</p>
-                      <Select value={doc.category} onValueChange={(v) => changeDocCategory(doc.id, v as DocCategory)}>
-                        <SelectTrigger className="h-6 text-[11px] border-0 bg-transparent p-0 shadow-none gap-1 w-auto">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
-                          {DOC_CATEGORIES.map((c) => (
-                            <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Remove */}
-                    <button type="button" onClick={() => removeDoc(doc.id)}
-                      className="h-6 w-6 rounded-full hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-[hsl(var(--muted-foreground))] transition-colors shrink-0">
-                      <X strokeWidth={1.5} className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {uploadedDocs.length === 0 && (
-              <div className="rounded-xl border-2 border-dashed border-[hsl(var(--border))] p-4 text-center text-xs text-[hsl(var(--muted-foreground))]">
-                <ImageIcon strokeWidth={1.5} className="h-6 w-6 mx-auto mb-1.5 opacity-40" />
-                Belum ada dokumen — pilih kategori lalu klik "Pilih File"
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="pt-1">
-            <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>Batal</Button>
-            <Button type="submit" disabled={loading} className="gradient-primary text-white shadow-glow hover:opacity-90">
+          {/* Footer */}
+          <div className="px-5 pb-4 flex gap-2 border-t border-[hsl(var(--border))] pt-3">
+            <button type="button" onClick={() => { reset(); onClose(); }}
+              className="flex-1 h-9 rounded-xl text-[12.5px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors">
+              Batal
+            </button>
+            <button type="submit" disabled={loading}
+              className="flex-1 h-9 rounded-xl text-[12.5px] font-bold text-white transition-all disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
               {loading ? "Menyimpan…" : "Tambah Jamaah"}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

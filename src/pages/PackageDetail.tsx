@@ -370,66 +370,84 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
 
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!value) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white">
-        <DialogHeader><DialogTitle>Tambah Jamaah ke Paket</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/40 p-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-orange-800">Scan paspor otomatis</p>
-              <p className="text-xs text-orange-700/80">Upload foto halaman paspor yang ada MRZ-nya.</p>
-            </div>
-            <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcr} />
-            <Button type="button" variant="outline" onClick={() => ocrRef.current?.click()} disabled={ocrLoading} className="rounded-xl border-orange-200 text-orange-700">
-              <ScanLine className="h-4 w-4 mr-1.5" />
-              {ocrLoading ? (ocrProgress < 35 ? "Memuat AI…" : `OCR ${ocrProgress}%`) : "Scan OCR"}
-            </Button>
-          </div>
+      <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-xl bg-white">
+        {/* Header */}
+        <div className="px-5 pt-4 pb-3 border-b border-[hsl(var(--border))]">
+          <DialogTitle className="text-[14px] font-bold text-[hsl(var(--foreground))]">Tambah Jamaah ke Paket</DialogTitle>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Data jamaah untuk paket ini</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+          {/* Photo + OCR row */}
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => photoRef.current?.click()} className={cn("h-16 w-16 rounded-2xl overflow-hidden flex items-center justify-center text-white font-bold text-xl shrink-0", form.gender === "P" ? "bg-pink-500" : "bg-blue-500")}>
+            <button type="button" onClick={() => photoRef.current?.click()}
+              className={cn("h-14 w-14 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold text-xl shrink-0 transition-all", form.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500")}>
               {photoDataUrl ? <img src={photoDataUrl} alt="Foto jamaah" className="h-full w-full object-cover" /> : (form.name.charAt(0).toUpperCase() || "?")}
             </button>
-            <div className="flex-1">
-              <Button type="button" variant="outline" onClick={() => photoRef.current?.click()} className="h-8 rounded-xl text-xs">Upload Foto</Button>
-              <p className="text-[11px] text-muted-foreground mt-1">Opsional, maksimal 2 MB.</p>
-              <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handlePhoto} />
+            <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handlePhoto} />
+
+            <div className="flex-1 rounded-xl border border-orange-200 bg-orange-50/60 px-3 py-2 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[11.5px] font-semibold text-orange-800">Scan Paspor OCR</p>
+                <p className="text-[10px] text-orange-700/80 leading-tight">Isi otomatis dari foto MRZ</p>
+              </div>
+              <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcr} />
+              <button type="button" onClick={() => ocrRef.current?.click()} disabled={ocrLoading}
+                className="h-7 px-2.5 rounded-lg text-[11px] font-semibold border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0">
+                <ScanLine className="h-3 w-3" />
+                {ocrLoading ? (ocrProgress < 35 ? "Memuat…" : `${ocrProgress}%`) : "Scan"}
+              </button>
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Nama Lengkap *</Label>
-            <Input value={form.name} placeholder="Nama sesuai paspor" onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
+
+          {/* Nama */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nama Lengkap *</label>
+            <Input className="h-8 text-[12.5px] rounded-xl" value={form.name} placeholder="Nama sesuai paspor" onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Jenis Kelamin</Label>
+
+          {/* Gender + HP */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Kelamin</label>
               <Select value={form.gender} onValueChange={(value) => setForm((prev) => ({ ...prev, gender: value as "L" | "P" }))}>
-                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-8 text-[12.5px] rounded-xl"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                <SelectContent style={{ background: "#fff" }}>
                   <SelectItem value="L">Laki-laki</SelectItem>
                   <SelectItem value="P">Perempuan</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>No. HP</Label>
-              <Input value={form.phone} placeholder="08xx" onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">No. HP</label>
+              <Input className="h-8 text-[12.5px] rounded-xl" value={form.phone} placeholder="08xx" onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Tanggal Lahir</Label>
-              <Input type="date" value={form.birthDate} onChange={(e) => setForm((prev) => ({ ...prev, birthDate: e.target.value }))} />
+
+          {/* Lahir + Paspor */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tgl. Lahir</label>
+              <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.birthDate} onChange={(e) => setForm((prev) => ({ ...prev, birthDate: e.target.value }))} />
             </div>
-            <div className="space-y-1.5">
-              <Label>No. Paspor</Label>
-              <Input value={form.passportNumber} placeholder="A1234567" onChange={(e) => setForm((prev) => ({ ...prev, passportNumber: e.target.value }))} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">No. Paspor</label>
+              <Input className="h-8 text-[12.5px] rounded-xl font-mono" value={form.passportNumber} placeholder="A1234567" onChange={(e) => setForm((prev) => ({ ...prev, passportNumber: e.target.value }))} />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>Batal</Button>
-            <Button type="submit" disabled={saving} className="gradient-primary text-white">
+
+          {/* Footer */}
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={() => { reset(); onClose(); }}
+              className="flex-1 h-9 rounded-xl text-[12.5px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors">
+              Batal
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 h-9 rounded-xl text-[12.5px] font-bold text-white transition-all disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
               {saving ? "Menyimpan…" : "Tambah Jamaah"}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

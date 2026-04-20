@@ -110,47 +110,86 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-md" style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
-        <DialogHeader>
-          <DialogTitle>Tambah Paket Trip</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+      <DialogContent className="max-w-sm p-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-xl bg-white">
+        {/* Header */}
+        <div className="px-5 pt-4 pb-3 border-b border-[hsl(var(--border))]">
+          <DialogTitle className="text-[14px] font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
+            <span className="text-lg">{form.emoji}</span>
+            Tambah Paket Trip
+          </DialogTitle>
+          <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">Isi detail trip baru Anda</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-5 pt-3.5 pb-4 space-y-3">
+          {/* Emoji picker */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Ikon</Label>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Ikon</p>
+            <div className="flex flex-wrap gap-1.5">
               {EMOJIS.map((e) => (
                 <button key={e} type="button" onClick={() => setForm((f) => ({ ...f, emoji: e }))}
                   className={cn(
-                    "h-9 w-9 rounded-xl text-xl flex items-center justify-center border-2 transition-all",
-                    form.emoji === e ? "border-[hsl(var(--primary))] bg-[hsl(var(--accent))]" : "border-[hsl(var(--border))] hover:border-[hsl(var(--primary))/50]"
+                    "h-8 w-8 rounded-xl text-base flex items-center justify-center border-2 transition-all duration-150",
+                    form.emoji === e
+                      ? "border-[hsl(var(--primary))] bg-orange-50 scale-110 shadow-sm"
+                      : "border-[hsl(var(--border))] hover:border-orange-300 hover:bg-orange-50/50"
                   )}>{e}</button>
               ))}
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Nama Paket</Label>
-            <Input placeholder="cth: Umrah Ramadhan 2025" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-[hsl(var(--muted-foreground))]">Destinasi</Label>
-            <Input placeholder="cth: Mecca, Saudi Arabia" value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[hsl(var(--muted-foreground))]">Tanggal Berangkat</Label>
-              <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+
+          {/* Name + Destination */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Nama Paket *</Label>
+              <Input
+                className="h-8 text-[12.5px] rounded-xl"
+                placeholder="Umrah Ramadhan"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                autoFocus
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[hsl(var(--muted-foreground))]">Tanggal Pulang</Label>
-              <Input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Destinasi *</Label>
+              <Input
+                className="h-8 text-[12.5px] rounded-xl"
+                placeholder="Makkah, Saudi Arabia"
+                value={form.destination}
+                onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
+              />
             </div>
           </div>
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>Batal</Button>
-            <Button type="submit" disabled={loading} className="gradient-primary text-white shadow-glow hover:opacity-90">
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Berangkat *</Label>
+              <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Pulang *</Label>
+              <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => { reset(); onClose(); }}
+              className="flex-1 h-9 rounded-xl text-[12.5px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 h-9 rounded-xl text-[12.5px] font-bold text-white transition-all disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
+            >
               {loading ? "Menyimpan…" : "Simpan Paket"}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
