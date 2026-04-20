@@ -16,9 +16,9 @@ import type { Currency } from "@/lib/exchangeRates";
 const CURRENCIES: Currency[] = ["IDR", "SAR", "USD"];
 
 const CURRENCY_COLORS: Record<Currency, string> = {
-  IDR: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200",
-  SAR: "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200",
-  USD: "bg-violet-100 text-violet-700 hover:bg-violet-200 border-violet-200",
+  IDR: "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200",
+  SAR: "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200",
+  USD: "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200",
 };
 
 function CurrencyToggle({
@@ -304,16 +304,10 @@ export default function Calculator() {
         </p>
       </div>
 
-      {/* Currency legend */}
-      <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-        <span className="text-[hsl(var(--muted-foreground))]">Mata uang per item:</span>
-        {CURRENCIES.map((c) => (
-          <span key={c} className={`px-2 py-0.5 rounded-md border ${CURRENCY_COLORS[c]}`}>
-            {c}
-          </span>
-        ))}
-        <span className="text-[hsl(var(--muted-foreground))] font-normal">— klik badge untuk ganti</span>
-      </div>
+      {/* Currency hint */}
+      <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+        Klik badge <span className="font-semibold text-slate-600">IDR / SAR / USD</span> di setiap baris untuk ganti mata uang. Kurs diambil dari Pengaturan.
+      </p>
 
       {/* ─── Main form card ─── */}
       <div className="calculator-card rounded-2xl border border-orange-200 bg-white overflow-hidden shadow-card">
@@ -388,8 +382,8 @@ export default function Calculator() {
           {/* Rates info strip */}
           <div className="flex flex-wrap gap-2">
             {(["SAR", "USD"] as const).map((cur) => (
-              <div key={cur} className="flex items-center gap-1.5 rounded-lg bg-orange-50 border border-orange-100 px-2.5 py-1.5">
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${CURRENCY_COLORS[cur]}`}>{cur}</span>
+              <div key={cur} className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
+                <span className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100">{cur}</span>
                 <span className="text-[11px] text-[hsl(var(--muted-foreground))]">= Rp</span>
                 <span className="text-[11px] font-bold text-[hsl(var(--foreground))]">
                   {(rates[cur] ?? 0).toLocaleString("id-ID")}

@@ -17,9 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  computeProfessionalQuote,
+  computeProfessionalQuote, computeGeneralQuote,
   type HotelRow, type TransportRow, type VisaRow,
   type DestinationRow, type StaffRow,
+  type GeneralCostRow, type CalcCurrency, type CalcMode, type CostUnit,
 } from "@/features/calculator/pricing";
 import { usePackages } from "@/features/packages/usePackages";
 import { scanPassport } from "@/lib/ocrPassport";
@@ -31,14 +32,19 @@ import { useRegional } from "@/lib/regional";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ProfessionalCalcState {
+  mode: CalcMode;
   packageName: string;
   destination: string;
   pax: number;
+  // Umroh mode fields
   hotels: HotelRow[];
   transports: TransportRow[];
   visas: VisaRow[];
   destinations: DestinationRow[];
   staffs: StaffRow[];
+  // Umum mode fields
+  generalCosts: GeneralCostRow[];
+  // Shared financial params
   commissionFee: number;
   marginPercent: number;
   discount: number;
@@ -61,11 +67,13 @@ function loadPackageCalc(packageId: string, fallback: ProfessionalCalcState): Pr
   return {
     ...fallback,
     ...stored,
+    mode: (stored.mode === "umum" || stored.mode === "umroh") ? stored.mode : fallback.mode,
     hotels: stored.hotels ?? fallback.hotels,
     transports: stored.transports ?? fallback.transports,
     visas: stored.visas ?? fallback.visas,
     destinations: stored.destinations ?? fallback.destinations,
     staffs: stored.staffs ?? fallback.staffs,
+    generalCosts: stored.generalCosts ?? fallback.generalCosts,
   };
 }
 
@@ -77,8 +85,17 @@ function savePackageCalc(packageId: string, value: ProfessionalCalcState) {
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
+const DEFAULT_GENERAL_COSTS: GeneralCostRow[] = [
+  { id: "g1", label: "Penginapan", amount: 0, currency: "IDR", unit: "pax" },
+  { id: "g2", label: "Transportasi", amount: 0, currency: "IDR", unit: "group" },
+  { id: "g3", label: "Tiket & Aktivitas", amount: 0, currency: "IDR", unit: "pax" },
+  { id: "g4", label: "Makanan & Minuman", amount: 0, currency: "IDR", unit: "pax" },
+  { id: "g5", label: "Guide / Pemandu", amount: 0, currency: "IDR", unit: "group" },
+];
+
 function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcState {
   return {
+    mode: "umroh",
     packageName: name,
     destination: dest,
     pax,
@@ -86,18 +103,11 @@ function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcS
       { id: "h1", label: "Hotel Makkah", days: 4, pricePerNight: 0, rooms: 1 },
       { id: "h2", label: "Hotel Madinah", days: 3, pricePerNight: 0, rooms: 1 },
     ],
-    transports: [
-      { id: "t1", label: "Bus Lokal", fleet: 1, pricePerFleet: 0 },
-    ],
-    visas: [
-      { id: "v1", label: "Visa Umroh", pricePerPax: 0 },
-    ],
-    destinations: [
-      { id: "d1", label: "Destinasi & F&B", pricePerPax: 0 },
-    ],
-    staffs: [
-      { id: "s1", label: "Guide / Muthowif", totalCost: 0 },
-    ],
+    transports: [{ id: "t1", label: "Bus Lokal", fleet: 1, pricePerFleet: 0 }],
+    visas: [{ id: "v1", label: "Visa Umroh", pricePerPax: 0 }],
+    destinations: [{ id: "d1", label: "Destinasi & F&B", pricePerPax: 0 }],
+    staffs: [{ id: "s1", label: "Guide / Muthowif", totalCost: 0 }],
+    generalCosts: DEFAULT_GENERAL_COSTS.map((c) => ({ ...c })),
     commissionFee: 0,
     marginPercent: 10,
     discount: 0,
@@ -480,6 +490,9 @@ export default function PackageDetail() {
 
   const quote = useMemo(() => {
     if (!calc) return null;
+    if (calc.mode === "umum") {
+      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates });
+    }
     return computeProfessionalQuote({ ...calc, rates });
   }, [calc, rates]);
 
@@ -536,6 +549,16 @@ export default function PackageDetail() {
   }
   function removeStaff(rowId: string) {
     setCalc((prev) => prev ? { ...prev, staffs: prev.staffs.filter((s) => s.id !== rowId) } : prev);
+  }
+
+  function updateGeneralCost(rowId: string, patch: Partial<GeneralCostRow>) {
+    setCalc((prev) => prev ? { ...prev, generalCosts: prev.generalCosts.map((c) => c.id === rowId ? { ...c, ...patch } : c) } : prev);
+  }
+  function addGeneralCost() {
+    setCalc((prev) => prev ? { ...prev, generalCosts: [...prev.generalCosts, { id: `g${Date.now()}`, label: "Biaya Tambahan", amount: 0, currency: "IDR" as CalcCurrency, unit: "pax" as CostUnit }] } : prev);
+  }
+  function removeGeneralCost(rowId: string) {
+    setCalc((prev) => prev ? { ...prev, generalCosts: prev.generalCosts.filter((c) => c.id !== rowId) } : prev);
   }
 
   const syncToPackage = async () => {
@@ -627,17 +650,36 @@ export default function PackageDetail() {
         ══════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="calculator" className="space-y-4">
 
+          {/* ── Mode switcher ── */}
+          <div className="flex items-center gap-3 p-1 rounded-xl border border-orange-200 bg-orange-50/50 w-fit">
+            {(["umroh", "umum"] as CalcMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setField("mode", m)}
+                style={M}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-[12px] font-bold transition-all",
+                  calc.mode === m
+                    ? "bg-orange-500 text-white shadow-sm"
+                    : "text-orange-600 hover:bg-orange-100"
+                )}
+              >
+                {m === "umroh" ? "🕌 Umroh / Haji" : "🗺️ Umum"}
+              </button>
+            ))}
+          </div>
+
           {/* Kurs info strip */}
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-1.5">
-              <span className="text-[10px] font-bold text-blue-700 uppercase">SAR</span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
+              <span className="text-[10px] font-bold text-slate-600 uppercase">SAR</span>
               <span className="text-[11px] text-muted-foreground">= Rp</span>
-              <span className="text-[11px] font-bold text-blue-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
+              <span className="text-[11px] font-bold text-slate-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-violet-50 border border-violet-100 px-2.5 py-1.5">
-              <span className="text-[10px] font-bold text-violet-700 uppercase">USD</span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
+              <span className="text-[10px] font-bold text-slate-600 uppercase">USD</span>
               <span className="text-[11px] text-muted-foreground">= Rp</span>
-              <span className="text-[11px] font-bold text-violet-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
+              <span className="text-[11px] font-bold text-slate-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Ubah kurs di <span className="font-semibold">Pengaturan</span></p>
           </div>
@@ -689,6 +731,9 @@ export default function PackageDetail() {
               </div>
             </div>
           </div>
+
+          {/* ══ MODE-SPECIFIC INPUT SECTION ══ */}
+          {calc.mode === "umroh" && (<>
 
           {/* ── HOTEL TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
@@ -917,6 +962,99 @@ export default function PackageDetail() {
             </div>
           </div>
 
+          </>)}
+
+          {/* ── UMUM MODE TABLE ── */}
+          {calc.mode === "umum" && (
+            <div className="overflow-hidden rounded-xl border border-orange-200">
+              <div className="flex items-center justify-between px-3 py-2.5 rounded-t-xl border border-b-0 border-orange-200" style={{ background: "linear-gradient(135deg,#fff7ed,#ffedd5)" }}>
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-lg flex items-center justify-center bg-orange-500">
+                    <TrendingUp className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+                  </div>
+                  <span style={M} className="text-[12px] font-bold text-orange-800">Komponen Biaya</span>
+                  <span style={M} className="text-[10px] font-semibold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded">IDR / SAR / USD</span>
+                </div>
+                <button
+                  onClick={addGeneralCost}
+                  style={M}
+                  className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 rounded-lg px-2 py-1 transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Tambah Baris
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <Th>Nama Biaya</Th>
+                      <Th right>Jumlah</Th>
+                      <Th>Mata Uang</Th>
+                      <Th>Basis</Th>
+                      <Th right>Total IDR (Grup)</Th>
+                      <Th right>Per Pax IDR</Th>
+                      <Th> </Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calc.generalCosts.map((c) => {
+                      const qty = c.unit === "pax" ? safePax : 1;
+                      const sarRate2 = rates.SAR ?? 1;
+                      const usdRate2 = rates.USD ?? 1;
+                      const groupIDR = c.currency === "IDR" ? c.amount * qty : c.currency === "SAR" ? c.amount * qty * sarRate2 : c.amount * qty * usdRate2;
+                      return (
+                        <tr key={c.id} className="hover:bg-orange-50/30 transition-colors">
+                          <Td><TextCell value={c.label} onChange={(v) => updateGeneralCost(c.id, { label: v })} placeholder="cth: Penginapan" /></Td>
+                          <Td right><NumCell value={c.amount} onChange={(v) => updateGeneralCost(c.id, { amount: v })} /></Td>
+                          <Td>
+                            <select
+                              value={c.currency}
+                              onChange={(e) => updateGeneralCost(c.id, { currency: e.target.value as CalcCurrency })}
+                              style={M}
+                              className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                            >
+                              <option value="IDR">IDR</option>
+                              <option value="SAR">SAR</option>
+                              <option value="USD">USD</option>
+                            </select>
+                          </Td>
+                          <Td>
+                            <select
+                              value={c.unit}
+                              onChange={(e) => updateGeneralCost(c.id, { unit: e.target.value as CostUnit })}
+                              style={M}
+                              className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                            >
+                              <option value="pax">Per Pax</option>
+                              <option value="group">Per Grup</option>
+                            </select>
+                          </Td>
+                          <Td right bold mono>{formatCurrency(groupIDR)}</Td>
+                          <Td right muted mono>{formatCurrency(groupIDR / safePax)}</Td>
+                          <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeGeneralCost(c.id)} /></td>
+                        </tr>
+                      );
+                    })}
+                    {quote && calc.generalCosts.length > 0 && (
+                      <tr className="bg-orange-50/50">
+                        <td colSpan={4} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">
+                          TOTAL BIAYA
+                        </td>
+                        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">
+                          {formatCurrency(quote.hpp)}
+                        </td>
+                        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-600 border-t-2 border-orange-200 font-mono">
+                          {formatCurrency(quote.hpp / safePax)}
+                        </td>
+                        <td className="border-t-2 border-orange-200" />
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* ── FINANCIAL PARAMETERS ── */}
           <div className="rounded-xl border border-orange-200 bg-white overflow-hidden">
             <div className="px-4 py-3 border-b border-orange-100 bg-orange-50/60">
@@ -985,19 +1123,22 @@ export default function PackageDetail() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { label: "🏨 Hotel / Penginapan", idr: quote.hotelIDR, sar: quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
-                          { label: "🚌 Transportasi", idr: quote.transportIDR, sar: quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
-                          { label: "🛂 Visa", idr: quote.visaIDR, sar: 0, usd: quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesUSD, 0) },
-                          { label: "🗺️ Destinasi & F&B", idr: quote.destinationIDR, sar: quote.breakdown.filter(b => b.category === "Destinasi & F&B").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
-                          { label: "👤 Staff / Guide", idr: quote.staffIDR, sar: quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
-                        ].filter(r => r.idr > 0).map((r) => (
+                        {(calc.mode === "umum"
+                          ? quote.breakdown.map((b) => ({ label: b.label, idr: b.groupIDR, sar: b.notesSAR, usd: b.notesUSD }))
+                          : [
+                              { label: "🏨 Hotel / Penginapan", idr: quote.hotelIDR, sar: quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                              { label: "🚌 Transportasi", idr: quote.transportIDR, sar: quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                              { label: "🛂 Visa", idr: quote.visaIDR, sar: 0, usd: quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesUSD, 0) },
+                              { label: "🗺️ Destinasi & F&B", idr: quote.destinationIDR, sar: quote.breakdown.filter(b => b.category === "Destinasi & F&B").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                              { label: "👤 Staff / Guide", idr: quote.staffIDR, sar: quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                            ]
+                        ).filter(r => r.idr > 0).map((r) => (
                           <tr key={r.label} className="hover:bg-orange-50/20">
                             <td style={M} className="px-3 py-2 text-[12px] border-b border-orange-50">{r.label}</td>
                             <td style={M} className="px-3 py-2 text-[12px] font-semibold text-right border-b border-orange-50 font-mono">{formatCurrency(r.idr)}</td>
                             <td style={M} className="px-3 py-2 text-[12px] text-right text-muted-foreground border-b border-orange-50 font-mono">{formatCurrency(r.idr / safePax)}</td>
-                            <td style={M} className="px-3 py-2 text-[11px] text-right text-blue-600 border-b border-orange-50 font-mono">{r.sar > 0 ? fmtSAR(r.sar) : "—"}</td>
-                            <td style={M} className="px-3 py-2 text-[11px] text-right text-violet-600 border-b border-orange-50 font-mono">{r.usd > 0 ? fmtUSD(r.usd) : "—"}</td>
+                            <td style={M} className="px-3 py-2 text-[11px] text-right text-slate-600 border-b border-orange-50 font-mono">{r.sar > 0 ? fmtSAR(r.sar) : "—"}</td>
+                            <td style={M} className="px-3 py-2 text-[11px] text-right text-slate-600 border-b border-orange-50 font-mono">{r.usd > 0 ? fmtUSD(r.usd) : "—"}</td>
                           </tr>
                         ))}
 
@@ -1008,8 +1149,8 @@ export default function PackageDetail() {
                           </td>
                           <td style={M} className="px-3 py-2.5 text-[13px] font-extrabold text-orange-800 text-right border-t-2 border-orange-300 font-mono">{formatCurrency(quote.hpp)}</td>
                           <td style={M} className="px-3 py-2.5 text-[12px] font-bold text-orange-700 text-right border-t-2 border-orange-300 font-mono">{formatCurrency(quote.hpp / safePax)}</td>
-                          <td style={M} className="px-3 py-2.5 text-[11px] text-blue-600 text-right border-t-2 border-orange-300 font-mono">{fmtSAR(quote.totalSAR)}</td>
-                          <td style={M} className="px-3 py-2.5 text-[11px] text-violet-600 text-right border-t-2 border-orange-300 font-mono">{fmtUSD(quote.totalUSD)}</td>
+                          <td style={M} className="px-3 py-2.5 text-[11px] text-slate-600 text-right border-t-2 border-orange-300 font-mono">{fmtSAR(quote.totalSAR)}</td>
+                          <td style={M} className="px-3 py-2.5 text-[11px] text-slate-600 text-right border-t-2 border-orange-300 font-mono">{fmtUSD(quote.totalUSD)}</td>
                         </tr>
                       </tbody>
                     </table>
