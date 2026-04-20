@@ -1,7 +1,8 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { useAuthStore } from "@/store/authStore";
 
 const navGroups = [
   {
@@ -26,10 +27,7 @@ const navGroups = [
   },
 ];
 
-const bottomItems = [
-  { title: "Pengaturan", url: "/settings", icon: Settings, end: false, danger: false },
-  { title: "Logout", url: "/auth", icon: LogOut, end: false, danger: true },
-];
+const settingsItem = { title: "Pengaturan", url: "/settings", icon: Settings, end: false, danger: false };
 
 const stagger: Variants = {
   hidden: {},
@@ -48,6 +46,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
   const location = useLocation();
+  const { user, logout } = useAuthStore();
 
   const isActive = (url: string, end: boolean) => {
     if (url === "#") return false;
@@ -149,11 +148,38 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
         ))}
       </motion.div>
 
-      {/* ── Bottom: Settings + Logout ── */}
-      <div className="shrink-0 mx-3 px-0 py-4 border-t border-[hsl(var(--border))] space-y-0.5">
-        {bottomItems.map((item) => (
-          <NavItem key={item.url} {...item} />
-        ))}
+      {/* ── Bottom: User info + Settings + Logout ── */}
+      <div className="shrink-0 mx-3 py-4 border-t border-[hsl(var(--border))] space-y-0.5">
+        {/* User badge */}
+        {user && (
+          <div className="flex items-center gap-2.5 px-4 py-2.5 mb-1 rounded-2xl bg-orange-50">
+            <div className="h-7 w-7 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-3.5 w-3.5 text-white" strokeWidth={2} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[12px] font-bold text-orange-800 truncate leading-tight">
+                {user.displayName}
+              </p>
+              <p className="text-[10px] text-orange-500 uppercase tracking-wider">
+                {user.role}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <NavItem {...settingsItem} />
+
+        {/* Logout button */}
+        <button
+          onClick={() => { logout(); onClose?.(); }}
+          className="relative flex items-center gap-3 w-full px-4 py-2.5 text-[13.5px] font-medium rounded-2xl transition-[background-color,color] duration-150 text-[hsl(var(--muted-foreground))] hover:text-red-500 hover:bg-red-50 group"
+        >
+          <LogOut
+            strokeWidth={1.5}
+            className="h-[17px] w-[17px] shrink-0 transition-colors duration-150 group-hover:text-red-500"
+          />
+          <span className="flex-1 leading-none pl-1 text-left">Logout</span>
+        </button>
       </div>
     </aside>
   );
