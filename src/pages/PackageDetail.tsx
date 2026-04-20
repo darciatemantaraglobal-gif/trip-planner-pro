@@ -18,8 +18,8 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   computeProfessionalQuote, computeGeneralQuote,
-  type HotelRow, type TransportRow, type VisaRow,
-  type DestinationRow, type StaffRow,
+  type HotelRow, type TransportRow, type TicketRow, type VisaRow,
+  type DestinationRow, type FnBRow, type StaffRow,
   type GeneralCostRow, type CalcCurrency, type CalcMode, type CostUnit,
 } from "@/features/calculator/pricing";
 import { usePackages } from "@/features/packages/usePackages";
@@ -39,8 +39,10 @@ interface ProfessionalCalcState {
   // Umroh mode fields
   hotels: HotelRow[];
   transports: TransportRow[];
+  tickets: TicketRow[];
   visas: VisaRow[];
   destinations: DestinationRow[];
+  fnbs: FnBRow[];
   staffs: StaffRow[];
   // Umum mode fields
   generalCosts: GeneralCostRow[];
@@ -70,9 +72,11 @@ function loadPackageCalc(packageId: string, fallback: ProfessionalCalcState): Pr
     mode: (stored.mode === "umum" || stored.mode === "umroh") ? stored.mode : fallback.mode,
     hotels: stored.hotels ?? fallback.hotels,
     transports: stored.transports ?? fallback.transports,
+    tickets: stored.tickets ?? fallback.tickets,
     visas: stored.visas ?? fallback.visas,
     destinations: stored.destinations ?? fallback.destinations,
-    staffs: stored.staffs ?? fallback.staffs,
+    fnbs: stored.fnbs ?? fallback.fnbs,
+    staffs: (stored.staffs ?? fallback.staffs).map((s: StaffRow) => ({ numStaff: 1, ...s })),
     generalCosts: stored.generalCosts ?? fallback.generalCosts,
   };
 }
@@ -100,13 +104,20 @@ function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcS
     destination: dest,
     pax,
     hotels: [
-      { id: "h1", label: "Hotel Makkah", days: 4, pricePerNight: 0, rooms: 1 },
-      { id: "h2", label: "Hotel Madinah", days: 3, pricePerNight: 0, rooms: 1 },
+      { id: "h1", label: "Makkah", days: 4, pricePerNight: 0, rooms: 1 },
+      { id: "h2", label: "Madinah", days: 3, pricePerNight: 0, rooms: 1 },
     ],
-    transports: [{ id: "t1", label: "Bus Lokal", fleet: 1, pricePerFleet: 0 }],
+    transports: [{ id: "t1", label: "All Transport", fleet: 1, pricePerFleet: 0 }],
+    tickets: [{ id: "tk1", label: "SUB - JED", flightType: "Return", pricePerPax: 0, currency: "IDR" }],
     visas: [{ id: "v1", label: "Visa Umroh", pricePerPax: 0 }],
-    destinations: [{ id: "d1", label: "Destinasi & F&B", pricePerPax: 0 }],
-    staffs: [{ id: "s1", label: "Guide / Muthowif", totalCost: 0 }],
+    destinations: [
+      { id: "d1", label: "Tasreh", pricePerPax: 0 },
+    ],
+    fnbs: [{ id: "f1", label: "Zam-zam", pricePerPax: 0 }],
+    staffs: [
+      { id: "s1", label: "Akomodasi Guide", numStaff: 1, totalCost: 0 },
+      { id: "s2", label: "Muthowif", numStaff: 1, totalCost: 0 },
+    ],
     generalCosts: DEFAULT_GENERAL_COSTS.map((c) => ({ ...c })),
     commissionFee: 0,
     marginPercent: 10,
@@ -493,7 +504,20 @@ export default function PackageDetail() {
     if (calc.mode === "umum") {
       return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates });
     }
-    return computeProfessionalQuote({ ...calc, rates });
+    return computeProfessionalQuote({
+      pax: calc.pax,
+      hotels: calc.hotels,
+      transports: calc.transports,
+      tickets: calc.tickets ?? [],
+      visas: calc.visas,
+      destinations: calc.destinations,
+      fnbs: calc.fnbs ?? [],
+      staffs: calc.staffs,
+      commissionFee: calc.commissionFee,
+      marginPercent: calc.marginPercent,
+      discount: calc.discount,
+      rates,
+    });
   }, [calc, rates]);
 
   // ── State updaters ──────────────────────────────────────────────────────────
@@ -521,6 +545,16 @@ export default function PackageDetail() {
     setCalc((prev) => prev ? { ...prev, transports: prev.transports.filter((t) => t.id !== rowId) } : prev);
   }
 
+  function updateTicket(rowId: string, patch: Partial<TicketRow>) {
+    setCalc((prev) => prev ? { ...prev, tickets: prev.tickets.map((t) => t.id === rowId ? { ...t, ...patch } : t) } : prev);
+  }
+  function addTicket() {
+    setCalc((prev) => prev ? { ...prev, tickets: [...prev.tickets, { id: `tk${Date.now()}`, label: "Rute Baru", flightType: "Return", pricePerPax: 0, currency: "IDR" as const }] } : prev);
+  }
+  function removeTicket(rowId: string) {
+    setCalc((prev) => prev ? { ...prev, tickets: prev.tickets.filter((t) => t.id !== rowId) } : prev);
+  }
+
   function updateVisa(rowId: string, patch: Partial<VisaRow>) {
     setCalc((prev) => prev ? { ...prev, visas: prev.visas.map((v) => v.id === rowId ? { ...v, ...patch } : v) } : prev);
   }
@@ -529,6 +563,16 @@ export default function PackageDetail() {
   }
   function removeVisa(rowId: string) {
     setCalc((prev) => prev ? { ...prev, visas: prev.visas.filter((v) => v.id !== rowId) } : prev);
+  }
+
+  function updateFnB(rowId: string, patch: Partial<FnBRow>) {
+    setCalc((prev) => prev ? { ...prev, fnbs: prev.fnbs.map((f) => f.id === rowId ? { ...f, ...patch } : f) } : prev);
+  }
+  function addFnB() {
+    setCalc((prev) => prev ? { ...prev, fnbs: [...prev.fnbs, { id: `f${Date.now()}`, label: "F&B", pricePerPax: 0 }] } : prev);
+  }
+  function removeFnB(rowId: string) {
+    setCalc((prev) => prev ? { ...prev, fnbs: prev.fnbs.filter((f) => f.id !== rowId) } : prev);
   }
 
   function updateDest(rowId: string, patch: Partial<DestinationRow>) {
@@ -545,7 +589,7 @@ export default function PackageDetail() {
     setCalc((prev) => prev ? { ...prev, staffs: prev.staffs.map((s) => s.id === rowId ? { ...s, ...patch } : s) } : prev);
   }
   function addStaff() {
-    setCalc((prev) => prev ? { ...prev, staffs: [...prev.staffs, { id: `s${Date.now()}`, label: "Guide", totalCost: 0 }] } : prev);
+    setCalc((prev) => prev ? { ...prev, staffs: [...prev.staffs, { id: `s${Date.now()}`, label: "Guide", numStaff: 1, totalCost: 0 }] } : prev);
   }
   function removeStaff(rowId: string) {
     setCalc((prev) => prev ? { ...prev, staffs: prev.staffs.filter((s) => s.id !== rowId) } : prev);
@@ -828,6 +872,72 @@ export default function PackageDetail() {
             </div>
           </div>
 
+          {/* ── AIRLINE TICKET TABLE ── */}
+          <div className="overflow-hidden rounded-xl border border-orange-200">
+            <SectionHeader icon={Globe} title="Tiket Pesawat" currency="IDR / USD" color="bg-sky-500" onAdd={addTicket} />
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <Th>Rute</Th>
+                    <Th>Jenis</Th>
+                    <Th right>Harga/Pax</Th>
+                    <Th>Mata Uang</Th>
+                    <Th right>Total Grup (IDR)</Th>
+                    <Th right>Per Pax (IDR)</Th>
+                    <Th> </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(calc.tickets ?? []).map((tk) => {
+                    const totalIDR = tk.currency === "USD"
+                      ? tk.pricePerPax * safePax * usdRate
+                      : tk.pricePerPax * safePax;
+                    return (
+                      <tr key={tk.id} className="hover:bg-orange-50/30 transition-colors">
+                        <Td><TextCell value={tk.label} onChange={(v) => updateTicket(tk.id, { label: v })} placeholder="cth: SUB - JED" /></Td>
+                        <Td>
+                          <select
+                            value={tk.flightType}
+                            onChange={(e) => updateTicket(tk.id, { flightType: e.target.value })}
+                            style={M}
+                            className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                          >
+                            <option value="Return">Return</option>
+                            <option value="One Way">One Way</option>
+                          </select>
+                        </Td>
+                        <Td right><NumCell value={tk.pricePerPax} onChange={(v) => updateTicket(tk.id, { pricePerPax: v })} /></Td>
+                        <Td>
+                          <select
+                            value={tk.currency}
+                            onChange={(e) => updateTicket(tk.id, { currency: e.target.value as "IDR" | "USD" })}
+                            style={M}
+                            className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                          >
+                            <option value="IDR">IDR</option>
+                            <option value="USD">USD</option>
+                          </select>
+                        </Td>
+                        <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                        <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                        <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeTicket(tk.id)} /></td>
+                      </tr>
+                    );
+                  })}
+                  {quote && (
+                    <tr className="bg-orange-50/50">
+                      <td colSpan={4} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">SUBTOTAL TIKET</td>
+                      <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">{formatCurrency(quote.ticketIDR)}</td>
+                      <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-600 border-t-2 border-orange-200 font-mono">{formatCurrency(quote.ticketIDR / safePax)}</td>
+                      <td className="border-t-2 border-orange-200" />
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* ── VISA TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
             <SectionHeader icon={Globe} title="Visa" currency="USD" color="bg-violet-500" onAdd={addVisa} />
@@ -908,8 +1018,8 @@ export default function PackageDetail() {
                   })}
                   {quote && (
                     <SubtotalRow
-                      label="SUBTOTAL DESTINASI & F&B"
-                      sarAmount={quote.breakdown.filter(b => b.category === "Destinasi & F&B").reduce((s, b) => s + b.notesSAR, 0)}
+                      label="SUBTOTAL DESTINASI"
+                      sarAmount={quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesSAR, 0)}
                       groupIDR={quote.destinationIDR}
                       perPaxIDR={quote.destinationIDR / safePax}
                       formatCurrency={formatCurrency}
@@ -920,15 +1030,63 @@ export default function PackageDetail() {
             </div>
           </div>
 
+          {/* ── F&B TABLE ── */}
+          <div className="overflow-hidden rounded-xl border border-orange-200">
+            <SectionHeader icon={Globe} title="F&B (Konsumsi / Zam-zam)" currency="SAR / Pax" color="bg-teal-500" onAdd={addFnB} />
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <Th>Jenis Konsumsi</Th>
+                    <Th right>Harga/Pax (SAR)</Th>
+                    <Th right>Pax</Th>
+                    <Th right>Group SAR</Th>
+                    <Th right>Total IDR (Grup)</Th>
+                    <Th right>Per Pax IDR</Th>
+                    <Th> </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(calc.fnbs ?? []).map((f) => {
+                    const groupSAR = f.pricePerPax * safePax;
+                    const totalIDR = groupSAR * sarRate;
+                    return (
+                      <tr key={f.id} className="hover:bg-orange-50/30 transition-colors">
+                        <Td><TextCell value={f.label} onChange={(v) => updateFnB(f.id, { label: v })} placeholder="cth: Zam-zam" /></Td>
+                        <Td right><NumCell value={f.pricePerPax} onChange={(v) => updateFnB(f.id, { pricePerPax: v })} /></Td>
+                        <Td right muted>{safePax}</Td>
+                        <Td right muted mono>{fmtSAR(groupSAR)}</Td>
+                        <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                        <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                        <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeFnB(f.id)} /></td>
+                      </tr>
+                    );
+                  })}
+                  {quote && (
+                    <SubtotalRow
+                      label="SUBTOTAL F&B"
+                      sarAmount={quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesSAR, 0)}
+                      groupIDR={quote.fnbIDR}
+                      perPaxIDR={quote.fnbIDR / safePax}
+                      formatCurrency={formatCurrency}
+                    />
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* ── STAFF TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={UserCheck} title="Staff Cost (Guide / Muthowif)" currency="SAR Total" color="bg-orange-500" onAdd={addStaff} />
+            <SectionHeader icon={UserCheck} title="Cost for Staff" currency="SAR" color="bg-orange-500" onAdd={addStaff} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Jabatan / Nama</Th>
+                    <Th right>Jml Staff</Th>
                     <Th right>Total Biaya (SAR)</Th>
+                    <Th right>Per Pax (SAR)</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -937,10 +1095,13 @@ export default function PackageDetail() {
                 <tbody>
                   {calc.staffs.map((s) => {
                     const totalIDR = s.totalCost * sarRate;
+                    const perPaxSAR = s.totalCost / safePax;
                     return (
                       <tr key={s.id} className="hover:bg-orange-50/30 transition-colors">
-                        <Td><TextCell value={s.label} onChange={(v) => updateStaff(s.id, { label: v })} placeholder="cth: Guide / Muthowif" /></Td>
+                        <Td><TextCell value={s.label} onChange={(v) => updateStaff(s.id, { label: v })} placeholder="cth: Muthowif" /></Td>
+                        <Td right><NumCell value={(s as StaffRow).numStaff ?? 1} onChange={(v) => updateStaff(s.id, { numStaff: v })} /></Td>
                         <Td right><NumCell value={s.totalCost} onChange={(v) => updateStaff(s.id, { totalCost: v })} /></Td>
+                        <Td right muted mono>{fmtSAR(perPaxSAR)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeStaff(s.id)} /></td>
@@ -1127,8 +1288,10 @@ export default function PackageDetail() {
                           : [
                               { label: "🏨 Hotel / Penginapan", idr: quote.hotelIDR, sar: quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
                               { label: "🚌 Transportasi", idr: quote.transportIDR, sar: quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                              { label: "✈️ Tiket Pesawat", idr: quote.ticketIDR, sar: 0, usd: quote.breakdown.filter(b => b.category === "Tiket").reduce((s, b) => s + b.notesUSD, 0) },
                               { label: "🛂 Visa", idr: quote.visaIDR, sar: 0, usd: quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesUSD, 0) },
-                              { label: "🗺️ Destinasi & F&B", idr: quote.destinationIDR, sar: quote.breakdown.filter(b => b.category === "Destinasi & F&B").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                              { label: "🗺️ Destinasi", idr: quote.destinationIDR, sar: quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                              { label: "🍽️ F&B / Konsumsi", idr: quote.fnbIDR, sar: quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
                               { label: "👤 Staff / Guide", idr: quote.staffIDR, sar: quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
                             ]
                         ).filter(r => r.idr > 0).map((r) => (
