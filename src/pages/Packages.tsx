@@ -275,7 +275,7 @@ export default function Packages() {
                 <div className="p-3 md:p-4 space-y-2.5 md:space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h3 className="text-[15px] font-extrabold leading-tight text-slate-950 truncate">{pkg.name}</h3>
+                      <h3 className="text-[13px] md:text-[15px] font-extrabold leading-tight text-slate-950 truncate">{pkg.name}</h3>
                       <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-500 truncate">
                         <MapPin className="h-3 w-3 shrink-0 text-orange-500" />
                         {pkg.destination}
@@ -317,14 +317,14 @@ export default function Packages() {
                         <WalletCards className="h-3 w-3" />
                         Revenue
                       </p>
-                      <p className="mt-1 text-[13px] font-extrabold text-slate-950">{formatCurrency(Math.round(financial.revenue))}</p>
+                      <p className="mt-1 text-[12px] md:text-[13px] font-extrabold text-slate-950">{formatCurrency(Math.round(financial.revenue))}</p>
                     </div>
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
                       <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                         <TrendingUp className="h-3 w-3" />
                         Margin
                       </p>
-                      <p className="mt-1 text-[13px] font-extrabold text-emerald-700">{formatCurrency(Math.round(financial.margin))}</p>
+                      <p className="mt-1 text-[12px] md:text-[13px] font-extrabold text-emerald-700">{formatCurrency(Math.round(financial.margin))}</p>
                     </div>
                   </div>
 

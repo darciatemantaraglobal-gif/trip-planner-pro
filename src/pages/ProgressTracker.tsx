@@ -86,7 +86,7 @@ function JamaahRow({ jamaah, step, tripId }: { jamaah: Jamaah; step: number; tri
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[13px] font-semibold text-[hsl(var(--foreground))] truncate">{jamaah.name}</span>
+          <span className="text-[12px] md:text-[13px] font-semibold text-[hsl(var(--foreground))] truncate">{jamaah.name}</span>
           <span className="text-[11px] font-bold ml-2 shrink-0" style={{ color: stepColor }}>{pct}%</span>
         </div>
         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -146,8 +146,8 @@ function TripBlock({ trip, jamaahList, docMap }: { trip: Trip; jamaahList: Jamaa
             <Plane className="h-4 w-4 text-white" strokeWidth={2} />
           </div>
           <div className="min-w-0 text-left">
-            <div className="text-[13px] font-bold text-[hsl(var(--foreground))] truncate">{trip.name}</div>
-            <div className="text-[11px] text-[hsl(var(--muted-foreground))]">{jamaahList.length} jamaah · Progres {avgPct}%</div>
+            <div className="text-[12px] md:text-[13px] font-bold text-[hsl(var(--foreground))] truncate">{trip.name}</div>
+            <div className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">{jamaahList.length} jamaah · Progres {avgPct}%</div>
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-3">

@@ -199,11 +199,11 @@ export default function PdfGenerator() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       >
-        <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
+        <h1 className="text-lg md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
           <FileText strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
           Generator PDF Penawaran
         </h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+        <p className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
           Buat dokumen penawaran Land Arrangement Umrah & Haji secara profesional.
         </p>
       </motion.div>
@@ -402,7 +402,7 @@ export default function PdfGenerator() {
         transition={{ duration: 0.35, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
       >
         <div
-          className="px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
+          className="px-4 py-3 text-center font-bold text-sm md:text-base text-white tracking-wide"
           style={{ background: "linear-gradient(135deg, #f97316, #fb923c)" }}
         >
           Form Penawaran
@@ -418,32 +418,32 @@ export default function PdfGenerator() {
             custom={0}
           >
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">No. Penawaran</Label>
-              <Input value={offer.quoteNumber} onChange={(e) => setOfferField("quoteNumber", e.target.value)} className="h-9 text-sm" placeholder="cth: 001" />
+              <Label className="text-[11px] md:text-[12px] font-semibold">No. Penawaran</Label>
+              <Input value={offer.quoteNumber} onChange={(e) => setOfferField("quoteNumber", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: 001" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Tipe</Label>
-              <Input value={offer.tier} onChange={(e) => setOfferField("tier", e.target.value)} className="h-9 text-sm" placeholder="cth: Premium" />
+              <Label className="text-[11px] md:text-[12px] font-semibold">Tipe</Label>
+              <Input value={offer.tier} onChange={(e) => setOfferField("tier", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: Premium" />
             </div>
             <div className="space-y-1 col-span-2 sm:col-span-1">
-              <Label className="text-[12px] font-semibold">Nama Customer</Label>
-              <Input value={offer.customerName} onChange={(e) => setOfferField("customerName", e.target.value)} className="h-9 text-sm" placeholder="cth: IGH Tour" />
+              <Label className="text-[11px] md:text-[12px] font-semibold">Nama Customer</Label>
+              <Input value={offer.customerName} onChange={(e) => setOfferField("customerName", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: IGH Tour" />
             </div>
           </motion.div>
 
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
             <FormField label="Judul Penawaran">
-              <Input value={offer.title} onChange={(e) => setOfferField("title", e.target.value)} className="h-9 text-sm" placeholder="cth: Penawaran Umrah Ramadhan 1447H" />
+              <Input value={offer.title} onChange={(e) => setOfferField("title", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: Penawaran Umrah Ramadhan 1447H" />
             </FormField>
           </motion.div>
 
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={2}>
             <FieldRow>
               <FormField label="Program">
-                <Input value={offer.subtitle} onChange={(e) => setOfferField("subtitle", e.target.value)} className="h-9 text-sm" placeholder="cth: Program Umrah Regular" />
+                <Input value={offer.subtitle} onChange={(e) => setOfferField("subtitle", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: Program Umrah Regular" />
               </FormField>
               <FormField label="Periode">
-                <Input value={offer.dateRange} onChange={(e) => setOfferField("dateRange", e.target.value)} className="h-9 text-sm" placeholder="cth: 10 – 25 Maret 2025" />
+                <Input value={offer.dateRange} onChange={(e) => setOfferField("dateRange", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: 10 – 25 Maret 2025" />
               </FormField>
             </FieldRow>
           </motion.div>
@@ -451,10 +451,10 @@ export default function PdfGenerator() {
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={3}>
             <FieldRow>
               <FormField label="Penginapan 1 (Makkah)">
-                <Input value={offer.hotelMakkah} onChange={(e) => setOfferField("hotelMakkah", e.target.value)} className="h-9 text-sm" placeholder="Nama hotel Makkah" />
+                <Input value={offer.hotelMakkah} onChange={(e) => setOfferField("hotelMakkah", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="Nama hotel Makkah" />
               </FormField>
               <FormField label="Penginapan 2 (Madinah)">
-                <Input value={offer.hotelMadinah} onChange={(e) => setOfferField("hotelMadinah", e.target.value)} className="h-9 text-sm" placeholder="Nama hotel Madinah (opsional)" />
+                <Input value={offer.hotelMadinah} onChange={(e) => setOfferField("hotelMadinah", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="Nama hotel Madinah (opsional)" />
               </FormField>
             </FieldRow>
           </motion.div>
@@ -467,16 +467,16 @@ export default function PdfGenerator() {
             custom={4}
           >
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Malam Penginapan 1</Label>
-              <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-9 text-sm" />
+              <Label className="text-[11px] md:text-[12px] font-semibold">Malam Penginapan 1</Label>
+              <Input type="number" min={0} value={offer.makkahNights} onChange={(e) => setOfferField("makkahNights", Number(e.target.value))} className="h-8 md:h-9 text-[13px] md:text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Malam Penginapan 2</Label>
-              <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-9 text-sm" />
+              <Label className="text-[11px] md:text-[12px] font-semibold">Malam Penginapan 2</Label>
+              <Input type="number" min={0} value={offer.madinahNights} onChange={(e) => setOfferField("madinahNights", Number(e.target.value))} className="h-8 md:h-9 text-[13px] md:text-sm" />
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-1">
-                <Label className="text-[12px] font-semibold">
+                <Label className="text-[11px] md:text-[12px] font-semibold">
                   {offerCurrency !== "IDR" ? `Kurs ${offerCurrency} → IDR` : "Mata Uang"}
                 </Label>
                 <div className="flex gap-1">
@@ -499,7 +499,7 @@ export default function PdfGenerator() {
                   placeholder={offerAutoRate > 0 ? offerAutoRate.toLocaleString("id-ID") : "cth: 4350"}
                   value={offer.usdToSar || ""}
                   onChange={(e) => setOfferField("usdToSar", Number(e.target.value))}
-                  className="h-9 text-sm"
+                  className="h-8 md:h-9 text-[13px] md:text-sm"
                 />
               ) : (
                 <div className="h-9 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] flex items-center px-3 text-sm text-[hsl(var(--muted-foreground))]">
@@ -508,8 +508,8 @@ export default function PdfGenerator() {
               )}
             </div>
             <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Tgl. Update</Label>
-              <Input value={offer.updateDate} onChange={(e) => setOfferField("updateDate", e.target.value)} className="h-9 text-sm" placeholder="cth: 1 Jan 2025" />
+              <Label className="text-[11px] md:text-[12px] font-semibold">Tgl. Update</Label>
+              <Input value={offer.updateDate} onChange={(e) => setOfferField("updateDate", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: 1 Jan 2025" />
             </div>
           </motion.div>
 
@@ -560,7 +560,7 @@ export default function PdfGenerator() {
             custom={6}
           >
             <div className="space-y-1.5">
-              <Label className="text-[12px] font-semibold">Harga Sudah Termasuk</Label>
+              <Label className="text-[11px] md:text-[12px] font-semibold">Harga Sudah Termasuk</Label>
               <textarea
                 value={offer.included.join("\n")}
                 onChange={(e) => setOfferList("included", e.target.value)}
@@ -569,7 +569,7 @@ export default function PdfGenerator() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[12px] font-semibold">Harga Tidak Termasuk</Label>
+              <Label className="text-[11px] md:text-[12px] font-semibold">Harga Tidak Termasuk</Label>
               <textarea
                 value={offer.excluded.join("\n")}
                 onChange={(e) => setOfferList("excluded", e.target.value)}
@@ -587,9 +587,9 @@ export default function PdfGenerator() {
             animate="visible"
             custom={7}
           >
-            <Input value={offer.website} onChange={(e) => setOfferField("website", e.target.value)} className="h-9 text-sm" placeholder="Website (cth: www.ightour.id)" />
-            <Input value={offer.contactPhone} onChange={(e) => setOfferField("contactPhone", e.target.value)} className="h-9 text-sm" placeholder="Nomor kontak" />
-            <Input value={offer.contactName} onChange={(e) => setOfferField("contactName", e.target.value)} className="h-9 text-sm" placeholder="Nama kontak" />
+            <Input value={offer.website} onChange={(e) => setOfferField("website", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="Website (cth: www.ightour.id)" />
+            <Input value={offer.contactPhone} onChange={(e) => setOfferField("contactPhone", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="Nomor kontak" />
+            <Input value={offer.contactName} onChange={(e) => setOfferField("contactName", e.target.value)} className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="Nama kontak" />
           </motion.div>
 
           {/* Live preview toggle */}

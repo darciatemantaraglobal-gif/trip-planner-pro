@@ -39,7 +39,7 @@ function CurrencyToggle({
       type="button"
       onClick={next}
       title="Klik untuk ganti mata uang"
-      className={`shrink-0 h-9 px-2.5 rounded-lg border text-[11px] font-bold transition-colors ${CURRENCY_COLORS[value]}`}
+      className={`shrink-0 h-8 md:h-9 px-2 md:px-2.5 rounded-lg border text-[10px] md:text-[11px] font-bold transition-colors ${CURRENCY_COLORS[value]}`}
     >
       {value}
     </button>
@@ -136,7 +136,7 @@ function FormField({
   return (
     <div className="space-y-1 min-w-0">
       <div className="flex items-center justify-between gap-1">
-        <Label className="text-[12px] font-semibold text-[hsl(var(--foreground))] leading-tight">
+        <Label className="text-[11px] md:text-[12px] font-semibold text-[hsl(var(--foreground))] leading-tight">
           {label}
         </Label>
         {suffix && (
@@ -171,7 +171,7 @@ function NumInputWithCurrency({
         placeholder={placeholder ?? "0"}
         value={value || ""}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-9 text-sm flex-1 min-w-0 bg-white"
+        className="h-8 md:h-9 text-[13px] md:text-sm flex-1 min-w-0 bg-white"
       />
       <CurrencyToggle value={currency} onChange={onCurrencyChange} />
     </div>
@@ -316,7 +316,7 @@ export default function Calculator() {
               <CalcIcon strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
               {labels.headerTitle}
             </h1>
-            <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+            <p className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
               Hitung biaya paket trip secara otomatis, lalu ekspor ke PDF.
             </p>
           </div>
@@ -382,7 +382,7 @@ export default function Calculator() {
                   <p className="text-[10px] font-semibold uppercase tracking-widest opacity-80">
                     IGH Tour — Formulir Paket
                   </p>
-                  <p className="text-lg font-extrabold leading-tight tracking-tight">
+                  <p className="text-base md:text-lg font-extrabold leading-tight tracking-tight">
                     {labels.headerTitle}
                   </p>
                 </div>
@@ -411,7 +411,7 @@ export default function Calculator() {
                 placeholder="cth: Umrah Ramadhan 2026"
                 value={form.namaPaket}
                 onChange={(e) => set("namaPaket", e.target.value)}
-                className="h-9 text-sm"
+                className="h-8 md:h-9 text-[13px] md:text-sm"
               />
             </div>
             <div className="space-y-1">
@@ -421,7 +421,7 @@ export default function Calculator() {
                 min={1}
                 value={form.pax || ""}
                 onChange={(e) => set("pax", Math.max(1, Number(e.target.value)))}
-                className="h-9 text-sm"
+                className="h-8 md:h-9 text-[13px] md:text-sm"
               />
             </div>
           </div>
@@ -452,7 +452,7 @@ export default function Calculator() {
                   placeholder="Nama hotel / penginapan"
                   value={form.hotelMakkah}
                   onChange={(e) => set("hotelMakkah", e.target.value)}
-                  className="h-9 text-sm bg-white"
+                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
               <FormField label="Harga / Malam" suffix="/ malam">
@@ -471,7 +471,7 @@ export default function Calculator() {
                   type="date"
                   value={form.startMakkah}
                   onChange={(e) => set("startMakkah", e.target.value)}
-                  className="h-9 text-sm bg-white"
+                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
               <FormField label="Tgl. Keluar">
@@ -479,7 +479,7 @@ export default function Calculator() {
                   type="date"
                   value={form.endMakkah}
                   onChange={(e) => set("endMakkah", e.target.value)}
-                  className="h-9 text-sm bg-white"
+                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
             </FieldRow>
@@ -509,7 +509,7 @@ export default function Calculator() {
                   placeholder="Nama hotel / penginapan (opsional)"
                   value={form.hotelMadinah}
                   onChange={(e) => set("hotelMadinah", e.target.value)}
-                  className="h-9 text-sm bg-white"
+                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
               <FormField label="Harga / Malam" suffix="/ malam">
@@ -528,7 +528,7 @@ export default function Calculator() {
                   type="date"
                   value={form.startMadinah}
                   onChange={(e) => set("startMadinah", e.target.value)}
-                  className="h-9 text-sm bg-white"
+                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
               <FormField label="Tgl. Keluar">
@@ -536,7 +536,7 @@ export default function Calculator() {
                   type="date"
                   value={form.endMadinah}
                   onChange={(e) => set("endMadinah", e.target.value)}
-                  className="h-9 text-sm bg-white"
+                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
                 />
               </FormField>
             </FieldRow>
@@ -619,13 +619,13 @@ export default function Calculator() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
               {form.transports.map((t, i) => (
                 <div key={i} className="space-y-1">
-                  <Label className="text-[12px] font-semibold">Transport {i + 1}</Label>
+                  <Label className="text-[11px] md:text-[12px] font-semibold">Transport {i + 1}</Label>
                   <div className="flex gap-1.5">
                     <Select
                       value={t.jenis}
                       onValueChange={(v) => setTransport(i, "jenis", v)}
                     >
-                      <SelectTrigger className="h-9 text-sm flex-1 min-w-0 bg-white">
+                      <SelectTrigger className="h-8 md:h-9 text-[13px] md:text-sm flex-1 min-w-0 bg-white">
                         <SelectValue placeholder="Jenis" />
                       </SelectTrigger>
                       <SelectContent>
@@ -642,7 +642,7 @@ export default function Calculator() {
                       placeholder="Harga"
                       value={t.harga || ""}
                       onChange={(e) => setTransport(i, "harga", Number(e.target.value))}
-                      className="h-9 text-sm w-20 shrink-0 bg-white"
+                      className="h-8 md:h-9 text-[13px] md:text-sm w-20 shrink-0 bg-white"
                     />
                     <CurrencyToggle
                       value={t.currency}
@@ -659,10 +659,10 @@ export default function Calculator() {
 
           <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[12px] font-semibold">Persentase Margin</Label>
+              <Label className="text-[11px] md:text-[12px] font-semibold">Persentase Margin</Label>
               <div className="flex items-center gap-1.5">
-                <span className="text-xl font-extrabold text-orange-600">{form.margin}</span>
-                <span className="text-sm font-bold text-orange-400">%</span>
+                <span className="text-base md:text-xl font-extrabold text-orange-600">{form.margin}</span>
+                <span className="text-xs md:text-sm font-bold text-orange-400">%</span>
               </div>
             </div>
             <Slider

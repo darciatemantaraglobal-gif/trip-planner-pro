@@ -33,19 +33,19 @@ const TABS = [
 
 function SectionHeader({ title, desc }: { title: string; desc: string }) {
   return (
-    <div className="mb-4">
-      <h2 className="text-[14px] font-bold text-[hsl(var(--foreground))]">{title}</h2>
-      <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">{desc}</p>
+    <div className="mb-3">
+      <h2 className="text-[13px] md:text-[14px] font-bold text-[hsl(var(--foreground))]">{title}</h2>
+      <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">{desc}</p>
     </div>
   );
 }
 
 function ToggleRow({ label, desc, checked, onChange }: { label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between py-3 px-3 rounded-xl border border-[hsl(var(--border))] bg-white gap-3">
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-xl border border-[hsl(var(--border))] bg-white gap-3">
       <div className="min-w-0">
-        <p className="text-[12.5px] font-medium text-[hsl(var(--foreground))] leading-tight">{label}</p>
-        <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-tight">{desc}</p>
+        <p className="text-[12px] md:text-[12.5px] font-medium text-[hsl(var(--foreground))] leading-tight">{label}</p>
+        <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-tight">{desc}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} className="shrink-0" />
     </div>
@@ -287,33 +287,33 @@ export default function Settings() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Nama Lengkap</Label>
-                <Input className="h-9 text-sm" placeholder="cth: Ahmad Fauzi" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Nama Lengkap</Label>
+                <Input className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: Ahmad Fauzi" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Email</Label>
-                <Input className="h-9 text-sm" type="email" placeholder="cth: agen@ightour.id" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Email</Label>
+                <Input className="h-8 md:h-9 text-[13px] md:text-sm" type="email" placeholder="cth: agen@ightour.id" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">No. Telepon</Label>
-                <Input className="h-9 text-sm" placeholder="cth: 0812-3456-7890" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} />
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">No. Telepon</Label>
+                <Input className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: 0812-3456-7890" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Nama Agen</Label>
-                <Input className="h-9 text-sm" placeholder="cth: IGH Tour & Travel" value={profile.agency} onChange={(e) => setProfile((p) => ({ ...p, agency: e.target.value }))} />
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Nama Agen</Label>
+                <Input className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: IGH Tour & Travel" value={profile.agency} onChange={(e) => setProfile((p) => ({ ...p, agency: e.target.value }))} />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Alamat Kantor</Label>
-                <Input className="h-9 text-sm" placeholder="cth: Jl. Sudirman No. 1, Jakarta" value={profile.address} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} />
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Alamat Kantor</Label>
+                <Input className="h-8 md:h-9 text-[13px] md:text-sm" placeholder="cth: Jl. Sudirman No. 1, Jakarta" value={profile.address} onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))} />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Bio Singkat</Label>
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Bio Singkat</Label>
                 <textarea
                   rows={2}
                   value={profile.bio}
                   placeholder="Ceritakan sedikit tentang agen travel Anda…"
                   onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
-                  className="w-full rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+                  className="w-full rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2 text-[13px] md:text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
                 />
               </div>
             </div>
@@ -352,17 +352,17 @@ export default function Settings() {
                 <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">Ubah Kata Sandi</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Kata Sandi Saat Ini</Label>
-                <Input className="h-9 text-sm" type="password" placeholder="••••••••" value={security.currentPw} onChange={(e) => setSecurity((s) => ({ ...s, currentPw: e.target.value }))} />
+                <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Kata Sandi Saat Ini</Label>
+                <Input className="h-8 md:h-9 text-[13px] md:text-sm" type="password" placeholder="••••••••" value={security.currentPw} onChange={(e) => setSecurity((s) => ({ ...s, currentPw: e.target.value }))} />
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Sandi Baru</Label>
-                  <Input className="h-9 text-sm" type="password" placeholder="min. 6 karakter" value={security.newPw} onChange={(e) => setSecurity((s) => ({ ...s, newPw: e.target.value }))} />
+                  <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Sandi Baru</Label>
+                  <Input className="h-8 md:h-9 text-[13px] md:text-sm" type="password" placeholder="min. 6 karakter" value={security.newPw} onChange={(e) => setSecurity((s) => ({ ...s, newPw: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Konfirmasi</Label>
-                  <Input className="h-9 text-sm" type="password" placeholder="••••••••" value={security.confirmPw} onChange={(e) => setSecurity((s) => ({ ...s, confirmPw: e.target.value }))} />
+                  <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Konfirmasi</Label>
+                  <Input className="h-8 md:h-9 text-[13px] md:text-sm" type="password" placeholder="••••••••" value={security.confirmPw} onChange={(e) => setSecurity((s) => ({ ...s, confirmPw: e.target.value }))} />
                 </div>
               </div>
               <Button
@@ -512,7 +512,7 @@ export default function Settings() {
           <div className="space-y-4 max-w-xl">
             <SectionHeader title="Tampilan" desc="Sesuaikan tampilan aplikasi sesuai preferensi Anda" />
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Tema</Label>
+              <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Tema</Label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { key: "light", label: "Terang",    preview: "bg-white border" },
@@ -534,9 +534,9 @@ export default function Settings() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Ukuran Teks</Label>
+              <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">Ukuran Teks</Label>
               <Select value={appearance.fontSize} onValueChange={(v) => setAppearance((a) => ({ ...a, fontSize: v as AppearanceFontSize }))}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 md:h-9 text-[13px] md:text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent style={{ background: "#fff" }}>
                   <SelectItem value="small">Kecil</SelectItem>
                   <SelectItem value="medium">Sedang (Default)</SelectItem>
@@ -564,7 +564,7 @@ export default function Settings() {
                 { key: "dateFormat", label: "Format Tanggal",    opts: [{ v: "dd/mm/yyyy", l: "DD/MM/YYYY" }, { v: "mm/dd/yyyy", l: "MM/DD/YYYY" }, { v: "yyyy-mm-dd", l: "YYYY-MM-DD" }] },
               ].map((field) => (
                 <div key={field.key} className="space-y-1">
-                  <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">{field.label}</Label>
+                  <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">{field.label}</Label>
                   <Select
                     value={(regional as Record<string, string>)[field.key]}
                     onValueChange={(v) => {
@@ -572,7 +572,7 @@ export default function Settings() {
                       toast.success("Pengaturan regional diperbarui", { description: "Perubahan langsung diterapkan ke seluruh aplikasi." });
                     }}
                   >
-                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 md:h-9 text-[13px] md:text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent style={{ background: "#fff" }}>
                       {field.opts.map((o) => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}
                     </SelectContent>
@@ -734,7 +734,7 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-3">
                 {(["USD", "SAR"] as const).map((cur) => (
                   <div key={cur} className="space-y-1">
-                    <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">1 {cur} = Rp</Label>
+                    <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">1 {cur} = Rp</Label>
                     <Input
                       type="number"
                       min={1}
@@ -798,16 +798,16 @@ export default function Settings() {
               <div className="p-4 grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Username</Label>
-                  <Input value={newAgentUsername} onChange={(e) => setNewAgentUsername(e.target.value)} placeholder="cth: agen01" className="h-9 text-sm" />
+                  <Input value={newAgentUsername} onChange={(e) => setNewAgentUsername(e.target.value)} placeholder="cth: agen01" className="h-8 md:h-9 text-[13px] md:text-sm" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Nama Lengkap</Label>
-                  <Input value={newAgentName} onChange={(e) => setNewAgentName(e.target.value)} placeholder="cth: Ahmad Fauzi" className="h-9 text-sm" />
+                  <Input value={newAgentName} onChange={(e) => setNewAgentName(e.target.value)} placeholder="cth: Ahmad Fauzi" className="h-8 md:h-9 text-[13px] md:text-sm" />
                 </div>
                 <div className="space-y-1 col-span-2">
                   <Label className="text-xs">Password</Label>
                   <div className="flex gap-2">
-                    <Input type="password" value={newAgentPass} onChange={(e) => setNewAgentPass(e.target.value)} placeholder="min. 6 karakter" className="h-9 text-sm" />
+                    <Input type="password" value={newAgentPass} onChange={(e) => setNewAgentPass(e.target.value)} placeholder="min. 6 karakter" className="h-8 md:h-9 text-[13px] md:text-sm" />
                     <Button onClick={handleAddAgent} disabled={addingAgent} className="h-9 px-4 rounded-xl gradient-primary text-white shrink-0">
                       <Plus className="h-4 w-4 mr-1" /> Tambah
                     </Button>
