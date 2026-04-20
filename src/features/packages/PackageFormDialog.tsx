@@ -143,7 +143,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
                 <div className="absolute top-0 inset-x-0 flex items-center justify-between px-3 md:px-4 pt-2">
-                  <h2 className="text-[12px] md:text-[13px] font-bold text-white drop-shadow tracking-wide" style={{ fontFamily: "'Montserrat',sans-serif" }}>
+                  <h2 className="text-[12px] md:text-[13px] font-bold text-white drop-shadow tracking-wide" style={{ fontFamily: "'Manrope',sans-serif" }}>
                     {initial ? "✏️ Edit Paket Trip" : "✈️ Tambah Paket Trip"}
                   </h2>
                   <button onClick={() => onOpenChange(false)}

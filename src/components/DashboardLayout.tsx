@@ -74,7 +74,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
               <span
                 className="text-[10.5px] font-black tracking-[0.08em] uppercase"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Manrope', sans-serif",
                   background: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",

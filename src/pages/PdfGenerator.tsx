@@ -110,10 +110,10 @@ export default function PdfGenerator() {
 <html>
 <head>
   <meta charset="utf-8"/>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Montserrat', sans-serif; background: #fafaf9; color: #1a1412; padding: 28px 32px; font-size: 11px; }
+    body { font-family: 'Manrope', sans-serif; background: #fafaf9; color: #1a1412; padding: 28px 32px; font-size: 11px; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; border-bottom: 2px solid #f97316; padding-bottom: 12px; }
     .quote-num { font-size: 13px; font-weight: 800; color: #f97316; }
     .tier { display: inline-block; background: #f97316; color: #fff; border-radius: 4px; padding: 1px 7px; font-size: 9px; font-weight: 700; margin-left: 8px; }

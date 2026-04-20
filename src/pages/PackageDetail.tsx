@@ -127,7 +127,7 @@ function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcS
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const M = { fontFamily: "'Montserrat', sans-serif" };
+const M = { fontFamily: "'Manrope', sans-serif" };
 
 function fmtSAR(v: number) {
   if (!v) return "—";
