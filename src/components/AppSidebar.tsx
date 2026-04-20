@@ -1,7 +1,7 @@
 import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 
 const navGroups = [
   {
@@ -31,14 +31,14 @@ const bottomItems = [
   { title: "Logout", url: "/auth", icon: LogOut, end: false, danger: true },
 ];
 
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
 };
 
-const itemVariant = {
+const itemVariant: Variants = {
   hidden: { opacity: 0, x: -8 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.22, ease: "easeOut" } },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
 interface AppSidebarProps {
