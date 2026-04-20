@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Upload, Plus, Trash2, GripVertical, Check,
   ImageIcon, AlertCircle, Sparkles, FileText, Loader2,
+  Settings2, LayoutTemplate,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,6 +181,7 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
   const [imageNaturalSize, setImageNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfInfo, setPdfInfo] = useState<{ pages: number; widthPt: number; heightPt: number } | null>(null);
+  const [mobileTab, setMobileTab] = useState<"settings" | "canvas">("settings");
   const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -371,35 +373,56 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
             onClick={() => onOpenChange(false)}
           />
           <motion.div
-            className="fixed inset-3 md:inset-5 z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            className="fixed inset-2 md:inset-5 z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[hsl(var(--border))] shrink-0">
-              <div>
-                <h2 className="font-bold text-[15px] text-[hsl(var(--foreground))]">
+            <div className="flex items-center justify-between px-3 py-2 md:px-5 md:py-3 border-b border-[hsl(var(--border))] shrink-0">
+              <div className="min-w-0">
+                <h2 className="font-bold text-[13px] md:text-[15px] text-[hsl(var(--foreground))] truncate">
                   {initial ? "Edit Template" : "Buat Template Baru"}
                 </h2>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 hidden md:block">
                   Upload gambar template → pakai AI untuk susun otomatis, atau drag field secara manual
                 </p>
               </div>
               <button
                 onClick={() => onOpenChange(false)}
-                className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-[hsl(var(--secondary))] transition-colors"
+                className="h-7 w-7 md:h-8 md:w-8 shrink-0 ml-2 rounded-full flex items-center justify-center hover:bg-[hsl(var(--secondary))] transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
+            {/* Mobile Tab Bar */}
+            <div className="flex md:hidden border-b border-[hsl(var(--border))] shrink-0 bg-[hsl(var(--secondary)/0.4)]">
+              {(["settings", "canvas"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setMobileTab(tab)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold transition-colors border-b-2 ${
+                    mobileTab === tab
+                      ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))] bg-white"
+                      : "border-transparent text-[hsl(var(--muted-foreground))]"
+                  }`}
+                >
+                  {tab === "settings" ? (
+                    <><Settings2 className="h-3.5 w-3.5" />Pengaturan</>
+                  ) : (
+                    <><LayoutTemplate className="h-3.5 w-3.5" />Pratinjau</>
+                  )}
+                </button>
+              ))}
+            </div>
+
             {/* Body */}
             <div className="flex flex-1 overflow-hidden min-h-0">
-              {/* Left panel */}
-              <div className="w-[220px] shrink-0 border-r border-[hsl(var(--border))] flex flex-col overflow-y-auto">
-                <div className="p-3.5 space-y-3.5">
+              {/* Left panel — always visible on md+, shown on mobile when tab = settings */}
+              <div className={`${mobileTab === "settings" ? "flex" : "hidden"} md:flex w-full md:w-[210px] shrink-0 border-r border-[hsl(var(--border))] flex-col overflow-y-auto`}>
+                <div className="p-2.5 md:p-3.5 space-y-2.5 md:space-y-3.5">
                   {/* Name */}
                   <div className="space-y-1">
                     <Label className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
@@ -577,17 +600,25 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                       })}
                     </div>
                   </div>
+                  {/* Mobile shortcut to canvas */}
+                  <button
+                    onClick={() => setMobileTab("canvas")}
+                    className="md:hidden w-full h-8 rounded-lg border border-[hsl(var(--border))] flex items-center justify-center gap-1.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] transition-colors"
+                  >
+                    <LayoutTemplate className="h-3.5 w-3.5" />
+                    Lihat Pratinjau →
+                  </button>
                 </div>
               </div>
 
-              {/* Canvas area */}
-              <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+              {/* Canvas area — always visible on md+, shown on mobile when tab = canvas */}
+              <div className={`${mobileTab === "canvas" ? "flex" : "hidden"} md:flex flex-1 flex-col overflow-hidden min-w-0`}>
                 {/* Selected field toolbar */}
                 {selectedField && (
-                  <div className="px-4 py-2 border-b border-[hsl(var(--border))] flex items-center gap-4 shrink-0 bg-orange-50/70 flex-wrap">
-                    <span className="text-xs font-semibold text-orange-700">{selectedField.label}</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Ukuran:</span>
+                  <div className="px-2.5 py-1.5 md:px-4 md:py-2 border-b border-[hsl(var(--border))] flex items-center gap-2 md:gap-4 shrink-0 bg-orange-50/70 flex-wrap">
+                    <span className="text-[11px] md:text-xs font-semibold text-orange-700 truncate max-w-[80px] md:max-w-none">{selectedField.label}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-[hsl(var(--muted-foreground))] hidden md:inline">Ukuran:</span>
                       <Input
                         type="number"
                         min={6}
@@ -596,13 +627,13 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                         onChange={(e) =>
                           updateField(selected!, { fontSize: Number(e.target.value) })
                         }
-                        className="h-6 w-14 text-xs px-2"
+                        className="h-6 w-12 text-xs px-1.5"
                       />
                       <span className="text-[10px] text-[hsl(var(--muted-foreground))]">pt</span>
                     </div>
                     <button
                       onClick={() => updateField(selected!, { bold: !selectedField.bold })}
-                      className={`h-6 px-2.5 rounded text-xs font-bold border transition-colors ${
+                      className={`h-6 px-2 rounded text-xs font-bold border transition-colors ${
                         selectedField.bold
                           ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]"
                           : "border-[hsl(var(--border))] bg-white text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
@@ -610,20 +641,21 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                     >
                       B
                     </button>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Warna:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-[hsl(var(--muted-foreground))] hidden md:inline">Warna:</span>
                       <input
                         type="color"
                         value={selectedField.color}
                         onChange={(e) => updateField(selected!, { color: e.target.value })}
-                        className="h-6 w-8 rounded cursor-pointer border border-[hsl(var(--border))]"
+                        className="h-6 w-7 rounded cursor-pointer border border-[hsl(var(--border))]"
                       />
                     </div>
                     <button
                       onClick={() => removeField(selected!)}
                       className="ml-auto flex items-center gap-1 text-[11px] text-red-500 hover:text-red-600 transition-colors"
                     >
-                      <Trash2 className="h-3 w-3" /> Hapus
+                      <Trash2 className="h-3 w-3" />
+                      <span className="hidden md:inline">Hapus</span>
                     </button>
                   </div>
                 )}
@@ -793,29 +825,27 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 border-t border-[hsl(var(--border))] flex items-center justify-between shrink-0">
-              <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+            <div className="px-3 py-2 md:px-5 md:py-3 border-t border-[hsl(var(--border))] flex items-center justify-between shrink-0 gap-2">
+              <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] truncate">
                 {fields.length} field terpasang
-                {selectedField && (
-                  <span className="ml-2 text-orange-600 font-medium">
-                    · Klik badge untuk edit, drag untuk pindah posisi
-                  </span>
-                )}
+                <span className="ml-1.5 text-orange-600 font-medium hidden md:inline">
+                  {selectedField ? "· Klik badge untuk edit, drag untuk pindah" : ""}
+                </span>
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 shrink-0">
                 <button
                   onClick={() => onOpenChange(false)}
-                  className="btn-ghost h-9 px-4 text-sm rounded-xl"
+                  className="btn-ghost h-8 px-3 text-xs md:h-9 md:px-4 md:text-sm rounded-xl"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={!name.trim()}
-                  className="btn-primary h-9 px-5 text-sm rounded-xl flex items-center gap-1.5 disabled:opacity-40"
+                  className="btn-primary h-8 px-3 text-xs md:h-9 md:px-5 md:text-sm rounded-xl flex items-center gap-1 disabled:opacity-40"
                 >
                   <Check className="h-3.5 w-3.5" />
-                  Simpan Template
+                  Simpan
                 </button>
               </div>
             </div>
