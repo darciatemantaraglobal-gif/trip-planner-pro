@@ -7,6 +7,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@assets/*": [
+        "./attached_assets/*"
       ]
     },
     "skipLibCheck": true,

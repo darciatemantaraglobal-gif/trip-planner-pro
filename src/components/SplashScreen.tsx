@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import splashBackground from "@assets/image_1776663921386.png";
 
 export function SplashScreen() {
   const [visible, setVisible] = useState(true);
@@ -13,60 +14,63 @@ export function SplashScreen() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          className="fixed inset-0 z-[9999] md:hidden flex flex-col items-center justify-center bg-white"
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-[#190d23]"
+          style={{
+            backgroundImage: `url(${splashBackground})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
         >
-          {/* Center content */}
-          <motion.div
-            className="flex flex-col items-center gap-4"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.34, 1.2, 0.64, 1] }}
-          >
-            {/* Logo mark */}
-            <div
-              className="h-20 w-20 rounded-2xl flex items-center justify-center shadow-lg"
-              style={{ background: "linear-gradient(135deg,hsl(27 91% 54%),hsl(16 88% 58%))" }}
-            >
-              <img
-                src="/logo-igh-tour.png"
-                alt="IGH Tour"
-                className="h-13 w-13 object-contain"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.style.display = "none";
-                  const parent = img.parentElement!;
-                  parent.innerHTML = `<span style="font-size:2rem;font-weight:800;color:#fff;letter-spacing:-0.04em">IGH</span>`;
-                }}
-              />
-            </div>
+          <div className="absolute inset-0 bg-black/5" />
 
-            {/* Brand text */}
-            <div className="text-center space-y-0.5">
-              <h1 className="text-[26px] font-bold tracking-tight text-[hsl(var(--foreground))]">
-                IGH Tour
-              </h1>
-              <p className="text-[13px] font-medium text-[hsl(var(--primary))] tracking-widest uppercase">
-                Travel Agency
+          <motion.div
+            className="relative z-10 flex flex-col items-center"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.55, ease: [0.34, 1.2, 0.64, 1] }}
+          >
+            <img
+              src="/logo-igh-tour.png"
+              alt="IGH Tour"
+              className="h-24 w-auto object-contain brightness-0 invert drop-shadow-[0_10px_32px_rgba(0,0,0,0.35)]"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = "none";
+                const parent = img.parentElement!;
+                const fallback = document.createElement("span");
+                fallback.textContent = "IGH";
+                fallback.className = "text-5xl font-black tracking-[-0.06em] text-white drop-shadow-[0_10px_32px_rgba(0,0,0,0.35)]";
+                parent.appendChild(fallback);
+              }}
+            />
+
+            <motion.div
+              className="mt-9 flex flex-col items-center gap-4"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.35, ease: "easeOut" }}
+            >
+              <div className="h-9 w-9 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white/85">
+                Loading
               </p>
-            </div>
+            </motion.div>
           </motion.div>
 
-          {/* Progress bar */}
           <motion.div
-            className="absolute bottom-14 left-10 right-10 h-[2px] rounded-full bg-[hsl(var(--border))] overflow-hidden"
+            className="absolute bottom-14 left-10 right-10 z-10 h-[2px] overflow-hidden rounded-full bg-white/20 sm:left-1/2 sm:w-72 sm:-translate-x-1/2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.2 }}
+            transition={{ delay: 0.3, duration: 0.25 }}
           >
             <motion.div
-              className="h-full rounded-full"
-              style={{ background: "hsl(27 91% 54%)" }}
+              className="h-full rounded-full bg-white"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
-              transition={{ duration: 1.4, delay: 0.35, ease: "easeInOut" }}
+              transition={{ duration: 1.35, delay: 0.35, ease: "easeInOut" }}
             />
           </motion.div>
         </motion.div>
