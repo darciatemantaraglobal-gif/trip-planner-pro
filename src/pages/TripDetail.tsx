@@ -51,7 +51,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [loading, setLoading] = useState(false);
-  const [pendingCategory, setPendingCategory] = useState<DocCategory>("Paspor");
+  const [pendingCategory, setPendingCategory] = useState<DocCategory>("passport");
 
   const photoRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
