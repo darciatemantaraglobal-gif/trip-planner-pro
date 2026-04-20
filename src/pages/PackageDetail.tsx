@@ -137,6 +137,13 @@ function fmtUSD(v: number) {
   if (!v) return "—";
   return "USD " + v.toLocaleString("id-ID");
 }
+/** Compact IDR number for narrow mobile stat cards: 0→0, <1Jt→full, <1M→1,2 Jt, else→1,2 M */
+function fmtCompactIDR(v: number): string {
+  if (!v || isNaN(v)) return "Rp 0";
+  if (Math.abs(v) >= 1_000_000_000) return "Rp " + (v / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " M";
+  if (Math.abs(v) >= 1_000_000) return "Rp " + (v / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " Jt";
+  return "Rp " + Math.round(v).toLocaleString("id-ID");
+}
 
 const statusVariant: Record<string, string> = {
   Draft: "bg-muted text-muted-foreground",
@@ -456,20 +463,20 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
 
 function JamaahMiniCard({ jamaah, onDelete }: { jamaah: Jamaah; onDelete: (jamaah: Jamaah) => void }) {
   return (
-    <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-3 flex items-center gap-3">
-      <div className={cn("h-12 w-12 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold shrink-0", jamaah.gender === "P" ? "bg-pink-500" : "bg-blue-500")}>
+    <div className="rounded-xl border border-[hsl(var(--border))] bg-white p-2.5 flex items-center gap-2.5">
+      <div className={cn("h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold text-sm shrink-0", jamaah.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500")}>
         {jamaah.photoDataUrl ? <img src={jamaah.photoDataUrl} alt={jamaah.name} className="h-full w-full object-cover" /> : jamaah.name.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{jamaah.name}</p>
-        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {jamaah.passportNumber && <span className="inline-flex items-center gap-1"><FileKey className="h-3 w-3" />{jamaah.passportNumber}</span>}
-          {jamaah.phone && <span className="inline-flex items-center gap-1"><CreditCard className="h-3 w-3" />{jamaah.phone}</span>}
+        <p className="text-[12.5px] font-semibold truncate" style={M}>{jamaah.name}</p>
+        <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10.5px] text-muted-foreground">
+          {jamaah.passportNumber && <span className="inline-flex items-center gap-0.5 font-mono"><FileKey className="h-2.5 w-2.5 shrink-0" />{jamaah.passportNumber}</span>}
+          {jamaah.phone && <span className="inline-flex items-center gap-0.5"><CreditCard className="h-2.5 w-2.5 shrink-0" />{jamaah.phone}</span>}
         </div>
       </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50 hover:text-red-500" onClick={() => onDelete(jamaah)}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <button onClick={() => onDelete(jamaah)} className="h-7 w-7 rounded-lg hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-muted-foreground transition-colors shrink-0">
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }
@@ -681,18 +688,18 @@ export default function PackageDetail() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
-        <div className="rounded-xl md:rounded-2xl border bg-white p-2.5 md:p-4">
-          <p className="text-[10px] md:text-xs text-muted-foreground leading-tight" style={M}>Total paket</p>
-          <p className="mt-0.5 text-sm md:text-xl font-bold text-orange-600 leading-tight truncate" style={M}>{formatCurrency(pkg.totalIDR)}</p>
+      <div className="grid grid-cols-3 gap-1.5 md:gap-3">
+        <div className="rounded-xl md:rounded-2xl border bg-white px-2.5 py-2 md:p-4">
+          <p className="text-[9.5px] md:text-xs text-muted-foreground leading-tight" style={M}>Total Paket</p>
+          <p className="mt-0.5 text-[12px] md:text-xl font-bold text-orange-600 leading-tight tabular-nums" style={M}>{fmtCompactIDR(pkg.totalIDR)}</p>
         </div>
-        <div className="rounded-xl md:rounded-2xl border bg-white p-2.5 md:p-4">
-          <p className="text-[10px] md:text-xs text-muted-foreground leading-tight" style={M}>Per jamaah</p>
-          <p className="mt-0.5 text-sm md:text-xl font-bold leading-tight truncate" style={M}>{formatCurrency(pkg.people > 0 ? pkg.totalIDR / pkg.people : 0)}</p>
+        <div className="rounded-xl md:rounded-2xl border bg-white px-2.5 py-2 md:p-4">
+          <p className="text-[9.5px] md:text-xs text-muted-foreground leading-tight" style={M}>Per Jamaah</p>
+          <p className="mt-0.5 text-[12px] md:text-xl font-bold leading-tight tabular-nums" style={M}>{fmtCompactIDR(pkg.people > 0 ? pkg.totalIDR / pkg.people : 0)}</p>
         </div>
-        <div className="rounded-xl md:rounded-2xl border bg-white p-2.5 md:p-4">
-          <p className="text-[10px] md:text-xs text-muted-foreground leading-tight" style={M}>Jamaah</p>
-          <p className="mt-0.5 text-sm md:text-xl font-bold leading-tight" style={M}>{jamaah.length} / {pkg.people}</p>
+        <div className="rounded-xl md:rounded-2xl border bg-white px-2.5 py-2 md:p-4">
+          <p className="text-[9.5px] md:text-xs text-muted-foreground leading-tight" style={M}>Jamaah</p>
+          <p className="mt-0.5 text-[12px] md:text-xl font-bold leading-tight" style={M}>{jamaah.length} <span className="text-muted-foreground font-medium">/ {pkg.people}</span></p>
         </div>
       </div>
 
@@ -1240,7 +1247,7 @@ export default function PackageDetail() {
                 <TrendingUp className="h-3.5 w-3.5" /> Parameter Finansial
               </p>
             </div>
-            <div className="p-3 md:p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+            <div className="p-3 md:p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
               <div className="space-y-2">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
                   Commission Fee Admin (IDR Tetap)
@@ -1431,37 +1438,43 @@ export default function PackageDetail() {
             JAMAAH TAB
         ══════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="jamaah" className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-2">
             <div>
-              <h2 className="font-bold" style={M}>Jamaah paket ini</h2>
-              <p className="text-sm text-muted-foreground">Daftar ini terpisah untuk paket "{pkg.name}".</p>
+              <h2 className="font-bold text-[13px]" style={M}>Jamaah Paket</h2>
+              <p className="text-[11px] text-muted-foreground leading-tight">{jamaah.length}/{pkg.people} terdaftar</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setAddOpen(true)} className="rounded-xl">
-                <Plus className="h-4 w-4 mr-1.5" /> Satu
-              </Button>
-              <Button onClick={() => setBulkOpen(true)} className="rounded-xl gradient-primary text-white">
-                <Layers className="h-4 w-4 mr-1.5" /> Bulk Scan
-              </Button>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setAddOpen(true)}
+                className="h-8 px-2.5 rounded-xl text-[11.5px] font-semibold border border-[hsl(var(--border))] bg-white text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] flex items-center gap-1 transition-colors">
+                <Plus className="h-3.5 w-3.5" /> Satu
+              </button>
+              <button onClick={() => setBulkOpen(true)}
+                className="h-8 px-2.5 rounded-xl text-[11.5px] font-bold text-white flex items-center gap-1 transition-all"
+                style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
+                <Layers className="h-3.5 w-3.5" /> Bulk OCR
+              </button>
             </div>
           </div>
           {loadingJamaah ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Memuat jamaah…</p>
+            <p className="text-[12px] text-muted-foreground py-8 text-center">Memuat jamaah…</p>
           ) : jamaah.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] py-12 text-center space-y-4">
-              <Users className="h-8 w-8 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Belum ada jamaah di paket ini.</p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-                <Button variant="outline" onClick={() => setAddOpen(true)} className="rounded-xl">
-                  <Plus className="h-4 w-4 mr-1.5" /> Tambah Satu Jamaah
-                </Button>
-                <Button onClick={() => setBulkOpen(true)} className="rounded-xl gradient-primary text-white">
-                  <Layers className="h-4 w-4 mr-1.5" /> Bulk Scan Paspor
-                </Button>
+            <div className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] py-10 text-center space-y-3">
+              <Users className="h-7 w-7 mx-auto text-muted-foreground opacity-60" />
+              <p className="text-[12px] text-muted-foreground">Belum ada jamaah di paket ini.</p>
+              <div className="flex items-center justify-center gap-2">
+                <button onClick={() => setAddOpen(true)}
+                  className="h-8 px-3 rounded-xl text-[11.5px] font-semibold border border-[hsl(var(--border))] bg-white hover:bg-[hsl(var(--secondary))] flex items-center gap-1 transition-colors">
+                  <Plus className="h-3.5 w-3.5" /> Satu Jamaah
+                </button>
+                <button onClick={() => setBulkOpen(true)}
+                  className="h-8 px-3 rounded-xl text-[11.5px] font-bold text-white flex items-center gap-1"
+                  style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
+                  <Layers className="h-3.5 w-3.5" /> Bulk Scan
+                </button>
               </div>
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2 md:grid-cols-2">
               {jamaah.map((person) => <JamaahMiniCard key={person.id} jamaah={person} onDelete={setDeleteTarget} />)}
             </div>
           )}

@@ -136,31 +136,34 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="pwa-bottom-nav nav-safe-bottom md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[hsl(var(--border))] px-1">
+      <nav className="pwa-bottom-nav nav-safe-bottom md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[hsl(var(--border))] bg-white/95 backdrop-blur-sm px-1">
         <div className="flex items-center">
-          {bottomNavItems.map((item, i) => {
+          {bottomNavItems.map((item) => {
             const isActive = activeCheck(item.url, item.end);
             return (
               <NavLink
                 key={item.title}
                 to={item.url}
                 end={item.end}
-                className={cn(
-                  "flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg transition-smooth",
-                  isActive ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"
-                )}
+                className="flex-1 flex flex-col items-center gap-0.5 py-1.5 px-0.5"
               >
                 <motion.div
                   className={cn(
-                    "h-7 w-7 flex items-center justify-center transition-smooth"
+                    "h-8 w-full max-w-[44px] rounded-xl flex items-center justify-center transition-all",
+                    isActive
+                      ? "bg-orange-100 text-orange-600"
+                      : "text-[hsl(var(--muted-foreground))]"
                   )}
                   whileTap={{ scale: 0.85 }}
-                  animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
-                  transition={{ duration: 0.25 }}
+                  animate={isActive ? { scale: [1, 1.1, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <item.icon strokeWidth={1.5} className="h-4 w-4" />
+                  <item.icon strokeWidth={isActive ? 2 : 1.5} className="h-4 w-4" />
                 </motion.div>
-                <span className="text-[9.5px] font-medium leading-none">{item.title}</span>
+                <span className={cn(
+                  "text-[9px] font-semibold leading-none tracking-tight",
+                  isActive ? "text-orange-600" : "text-[hsl(var(--muted-foreground))]"
+                )}>{item.title}</span>
               </NavLink>
             );
           })}
