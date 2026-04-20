@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, Bell, Shield, Palette, Globe, Save, Camera } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,14 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  applyAppearanceSettings,
+  loadAppearanceSettings,
+  saveAppearanceSettings,
+  type AppearanceFontSize,
+  type AppearanceSettings,
+  type AppearanceTheme,
+} from "@/lib/appearance";
 
 const TABS = [
   { key: "profile",       label: "Profil",     icon: User },
@@ -65,11 +73,7 @@ export default function Settings() {
     loginAlert: true,
   });
 
-  const [appearance, setAppearance] = useState({
-    theme: "light",
-    fontSize: "medium",
-    compactMode: false,
-  });
+  const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearanceSettings());
 
   const [regional, setRegional] = useState({
     language: "id",
@@ -78,7 +82,16 @@ export default function Settings() {
     dateFormat: "dd/mm/yyyy",
   });
 
-  const handleSave = () => toast.success("Pengaturan berhasil disimpan!");
+  useEffect(() => {
+    applyAppearanceSettings(appearance);
+    saveAppearanceSettings(appearance);
+  }, [appearance]);
+
+  const handleSave = () => {
+    applyAppearanceSettings(appearance);
+    saveAppearanceSettings(appearance);
+    toast.success("Pengaturan berhasil disimpan!");
+  };
 
   return (
     <div className="flex flex-col md:flex-row gap-4 md:gap-6">
@@ -253,7 +266,7 @@ export default function Settings() {
                 ].map((t) => (
                   <button
                     key={t.key}
-                    onClick={() => setAppearance((a) => ({ ...a, theme: t.key }))}
+                    onClick={() => setAppearance((a) => ({ ...a, theme: t.key as AppearanceTheme }))}
                     className={cn(
                       "flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all",
                       appearance.theme === t.key ? "border-[hsl(var(--primary))] bg-[hsl(var(--accent))]" : "border-[hsl(var(--border))]"
@@ -267,7 +280,7 @@ export default function Settings() {
             </div>
             <div className="space-y-1">
               <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">Ukuran Teks</Label>
-              <Select value={appearance.fontSize} onValueChange={(v) => setAppearance((a) => ({ ...a, fontSize: v }))}>
+              <Select value={appearance.fontSize} onValueChange={(v) => setAppearance((a) => ({ ...a, fontSize: v as AppearanceFontSize }))}>
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent style={{ background: "#fff" }}>
                   <SelectItem value="small">Kecil</SelectItem>

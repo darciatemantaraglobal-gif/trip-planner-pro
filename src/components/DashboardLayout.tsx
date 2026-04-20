@@ -43,7 +43,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       {/* App card */}
       <div
         className="min-h-screen md:min-h-[calc(100vh-24px)] lg:min-h-[calc(100vh-40px)] md:rounded-3xl flex overflow-hidden"
-        style={{ background: "#ffffff", boxShadow: "0 4px 32px hsl(27 91% 54% / 0.15)" }}
+        style={{ background: "hsl(var(--card))", boxShadow: "0 4px 32px hsl(27 91% 54% / 0.15)" }}
       >
         <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

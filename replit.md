@@ -32,6 +32,7 @@ src/
     Calculator.tsx            # Trip package price builder plus LA-style offer table generator with PDF export
     Packages.tsx              # Package manager (CRUD)
     ProgressTracker.tsx       # Booking status pipeline
+    Settings.tsx              # Profile, notification, security, appearance, and regional preferences
     Auth.tsx                  # Login / register
     NotFound.tsx
   features/
@@ -46,6 +47,7 @@ src/
   lib/
     exchangeRates.ts          # Rate fetch/mock logic
     generatePdf.ts            # PDF generation for calculator and landscape land-arrangement offers
+    appearance.ts             # Persistent global appearance settings
     utils.ts                  # Tailwind cn helper
 ```
 
@@ -59,6 +61,7 @@ src/
 | `/calculator` | Trip cost calculator |
 | `/packages` | Package manager |
 | `/progress` | Progress tracker |
+| `/settings` | App settings |
 | `/auth` | Login/register |
 
 ## Data Model (localStorage)
@@ -76,6 +79,7 @@ Documents are stored as base64 in localStorage (max ~5 MB per file).
 - **Content card**: White `rounded-3xl` with `content-light` CSS class (resets variables to light mode)
 - **Theme**: Orange accent for active states, buttons, highlights, and outline Lucide icons
 - **Splash**: App opens with branded background splash, shows loading first, then requires pressing `Login` before revealing the dashboard
+- **Appearance settings**: `/settings` Tampilan tab persists theme (light/dark/auto), text size, and compact mode to localStorage and applies them globally on app load
 - **Mobile layout**: Compact spacing, shorter header/bottom navigation, smaller cards and controls under 640px; calculator has extra mobile compaction for dense forms and offer tables
 
 ## Key CSS Classes

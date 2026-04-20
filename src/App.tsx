@@ -20,6 +20,7 @@ import PdfGenerator from "./pages/PdfGenerator";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
+import { applyAppearanceSettings, loadAppearanceSettings } from "@/lib/appearance";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,25 @@ function StoreBootstrap() {
     refreshPackages();
     fetchTrips();
   }, [refreshRates, refreshPackages, fetchTrips]);
+  return null;
+}
+
+function AppearanceBootstrap() {
+  useEffect(() => {
+    const applySavedAppearance = () => applyAppearanceSettings(loadAppearanceSettings());
+
+    applySavedAppearance();
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    mediaQuery.addEventListener("change", applySavedAppearance);
+    window.addEventListener("storage", applySavedAppearance);
+
+    return () => {
+      mediaQuery.removeEventListener("change", applySavedAppearance);
+      window.removeEventListener("storage", applySavedAppearance);
+    };
+  }, []);
+
   return null;
 }
 
@@ -60,6 +80,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <AppearanceBootstrap />
       <StoreBootstrap />
       <SplashScreen />
       <BrowserRouter>
