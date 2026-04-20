@@ -65,19 +65,19 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
         end={end}
         onClick={onClose}
         className={cn(
-          "relative flex items-center gap-3 px-4 py-2.5 text-[13.5px] font-medium rounded-xl transition-[background-color,color] duration-150 group",
+          "relative flex items-center gap-3 px-4 py-2.5 text-[13.5px] font-medium rounded-2xl transition-[background-color,color,box-shadow,transform] duration-150 group",
           active
-            ? "text-[hsl(var(--primary))] bg-[hsl(var(--accent))]"
+            ? "text-[hsl(var(--primary))] bg-[hsl(var(--accent))] shadow-[0_10px_24px_hsl(27_91%_54%_/_0.12)]"
             : danger
               ? "text-[hsl(var(--muted-foreground))] hover:text-red-500 hover:bg-red-50"
-              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
+              : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:translate-x-0.5"
         )}
       >
         {/* Active left bar */}
         {active && (
           <motion.span
             layoutId="sidebar-pill"
-            className="absolute left-0 top-1/2 -translate-y-1/2 h-[22px] w-[3px] rounded-r-full bg-[hsl(var(--primary))]"
+            className="absolute left-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[hsl(var(--primary))]"
             transition={{ type: "spring", stiffness: 420, damping: 34 }}
           />
         )}
@@ -88,14 +88,14 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
             active ? "text-[hsl(var(--primary))]" : danger ? "group-hover:text-red-500" : ""
           )}
         />
-        <span className="flex-1 leading-none">{title}</span>
+        <span className="flex-1 leading-none pl-1">{title}</span>
       </NavLink>
     );
   };
 
   const sidebarContent = (
     <aside
-      className="flex flex-col h-full border-r border-[hsl(var(--border))] bg-white"
+      className="flex h-full flex-col border border-[hsl(var(--border))] bg-white/95 shadow-[0_18px_45px_hsl(27_91%_54%_/_0.10)] backdrop-blur md:m-3 md:h-[calc(100%-1.5rem)] md:rounded-[2rem] max-md:rounded-r-[2rem]"
       style={{ width: "var(--sidebar-width)" }}
     >
       {/* ── Logo ── */}
@@ -150,7 +150,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
       </motion.div>
 
       {/* ── Bottom: Settings + Logout ── */}
-      <div className="shrink-0 px-3 py-4 border-t border-[hsl(var(--border))] space-y-0.5">
+      <div className="shrink-0 mx-3 px-0 py-4 border-t border-[hsl(var(--border))] space-y-0.5">
         {bottomItems.map((item) => (
           <NavItem key={item.url} {...item} />
         ))}
