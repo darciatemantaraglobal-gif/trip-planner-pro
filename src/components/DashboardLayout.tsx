@@ -32,13 +32,9 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
   };
 
   return (
-    <motion.div
+    <div
       className="mobile-compact min-h-screen md:p-3 lg:p-5"
       style={{ background: "hsl(var(--background))" }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
     >
       {/* App card */}
       <div
@@ -112,10 +108,10 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                   ? "pb-16 md:pb-0"
                   : "p-3 pb-16 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
                 }`}
-                initial={{ x: 32, opacity: 0 }}
+                initial={{ x: 56, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -32, opacity: 0 }}
-                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                exit={{ x: -56, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 {children}
               </motion.main>
@@ -155,6 +151,6 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           })}
         </div>
       </nav>
-    </motion.div>
+    </div>
   );
 }
