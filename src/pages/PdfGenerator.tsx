@@ -112,7 +112,7 @@ export default function PdfGenerator() {
       >
         <div
           className="px-6 py-4 text-center font-bold text-base md:text-lg text-white tracking-wide"
-          style={{ background: "linear-gradient(135deg, #7a5a1a, #b5862b)" }}
+          style={{ background: "linear-gradient(135deg, #f97316, #fb923c)" }}
         >
           Form Penawaran
         </div>
@@ -231,7 +231,7 @@ export default function PdfGenerator() {
             custom={5}
           >
             <table className="w-full min-w-[580px] text-sm">
-              <thead className="bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
+              <thead className="bg-orange-50 text-orange-700">
                 <tr>
                   <th className="px-3 py-2.5 text-left font-semibold">Total Pax</th>
                   <th className="px-3 py-2.5 text-left font-semibold">Quad</th>

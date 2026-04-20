@@ -77,7 +77,7 @@ function generateLandArrangementPdf(data: QuotationData) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 34;
-  const gold: [number, number, number] = [188, 132, 47];
+  const gold: [number, number, number] = [249, 115, 22];
   const dark: [number, number, number] = [38, 30, 22];
   const muted: [number, number, number] = [103, 94, 83];
 
@@ -221,7 +221,7 @@ export function generateQuotationPdf(data: QuotationData) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 48;
 
-  doc.setFillColor(37, 99, 235);
+  doc.setFillColor(249, 115, 22);
   doc.rect(0, 0, pageWidth, 90, "F");
 
   doc.setTextColor(255, 255, 255);
@@ -275,8 +275,8 @@ export function generateQuotationPdf(data: QuotationData) {
       ["Per person", formatAmount(data.perPerson, data.currency)],
     ],
     footStyles: {
-      fillColor: [239, 246, 255],
-      textColor: [37, 99, 235],
+      fillColor: [255, 247, 237],
+      textColor: [249, 115, 22],
       fontStyle: "bold",
       fontSize: 12,
     },
