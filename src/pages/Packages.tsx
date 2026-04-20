@@ -18,8 +18,7 @@ import { toast } from "sonner";
 import { usePackages } from "@/features/packages/usePackages";
 import { PackageFormDialog } from "@/features/packages/PackageFormDialog";
 import type { Package } from "@/features/packages/packagesRepo";
-import { computeQuote, type CostInput } from "@/features/calculator/pricing";
-import type { Currency } from "@/lib/exchangeRates";
+import { computeProfessionalQuote, type HotelRow, type TransportRow, type VisaRow, type DestinationRow, type StaffRow } from "@/features/calculator/pricing";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
 
@@ -37,13 +36,18 @@ interface StoredJamaah {
   tripId: string;
 }
 
-interface PackageCalculatorState {
+interface ProfessionalCalcState {
   packageName: string;
   destination: string;
-  people: number;
-  currency: Currency;
+  pax: number;
+  hotels: HotelRow[];
+  transports: TransportRow[];
+  visas: VisaRow[];
+  destinations: DestinationRow[];
+  staffs: StaffRow[];
+  commissionFee: number;
   marginPercent: number;
-  costs: CostInput[];
+  discount: number;
 }
 
 type EnrichedPackage = Package & {
@@ -69,7 +73,7 @@ function readLocalArray<T>(key: string): T[] {
   }
 }
 
-function readPackageCalculations(): Record<string, PackageCalculatorState> {
+function readPackageCalculations(): Record<string, ProfessionalCalcState> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(CALC_STORAGE_KEY);
@@ -147,11 +151,11 @@ export default function Packages() {
 
   const getFinancialSnapshot = (pkg: Package, occupied: number) => {
     const calc = calculations[pkg.id];
-    if (calc) {
-      const quote = computeQuote({ costs: calc.costs, people: calc.people, currency: calc.currency, marginPercent: calc.marginPercent, rates });
-      const safePeople = Math.max(1, calc.people);
-      const revenue = quote.finalPerPersonIDR * occupied;
-      const margin = (quote.marginIDR / safePeople) * occupied;
+    if (calc && calc.hotels && Array.isArray(calc.hotels)) {
+      const quote = computeProfessionalQuote({ ...calc, rates });
+      const safePax = Math.max(1, calc.pax);
+      const revenue = quote.perPaxFinal * occupied;
+      const margin = (quote.netProfit / safePax) * occupied;
       return { revenue, margin };
     }
     const perPax = pkg.people > 0 ? pkg.totalIDR / pkg.people : 0;
