@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin, ScanLine } from "lucide-react";
+import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin, ScanLine, Pencil, Save, ExternalLink, ShieldCheck, Copy, Check } from "lucide-react";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -327,14 +327,282 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   );
 }
 
-// ── JAMAAH CARD ────────────────────────────────────────────────────────────────
-function JamaahCard({ jamaah, tripId, onDelete }: { jamaah: Jamaah; tripId: string; onDelete: (j: Jamaah) => void }) {
+// ── JAMAAH PREVIEW DIALOG ──────────────────────────────────────────────────────
+function JamaahPreviewDialog({
+  jamaah: person,
+  tripId,
+  open,
+  onClose,
+}: {
+  jamaah: Jamaah | null;
+  tripId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
+  const { patchJamaah } = useJamaahStore();
+  const { docs, fetchDocs } = useDocsStore();
+  const { formatDate } = useRegional();
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Partial<Jamaah>>({});
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (person) {
+      setForm({ name: person.name, phone: person.phone, birthDate: person.birthDate, passportNumber: person.passportNumber, gender: person.gender });
+      fetchDocs(person.id);
+    }
+    setEditing(false);
+    setCopied(false);
+  }, [person?.id]);
+
+  if (!person) return null;
+
+  const passportDocs = docs.filter((d) => d.jamaahId === person.id && d.category === "passport");
+
+  const handleSave = async () => {
+    if (!form.name) { toast.error("Nama wajib diisi."); return; }
+    setSaving(true);
+    await patchJamaah(person.id, form);
+    toast.success("Data diperbarui.");
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Foto maks. 2 MB."); return; }
+    const dataUrl = await fileToBase64(file);
+    await patchJamaah(person.id, { photoDataUrl: dataUrl });
+    toast.success("Foto diperbarui.");
+    e.target.value = "";
+  };
+
+  const copyPassport = () => {
+    if (!person.passportNumber) return;
+    navigator.clipboard.writeText(person.passportNumber).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setEditing(false); onClose(); } }}>
+      <DialogContent className="max-w-sm p-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-xl bg-white">
+        {/* Gradient banner */}
+        <div className={cn(
+          "h-20 relative",
+          person.gender === "P" ? "bg-gradient-to-r from-pink-400 to-rose-500" : "bg-gradient-to-r from-blue-400 to-indigo-500"
+        )}>
+          {/* Close button */}
+          <button
+            onClick={() => { setEditing(false); onClose(); }}
+            className="absolute top-3 right-3 h-7 w-7 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center transition-colors"
+          >
+            <X className="h-3.5 w-3.5 text-white" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-5">
+          {/* Avatar row */}
+          <div className="flex items-end justify-between -mt-10 mb-4">
+            <div className="relative group">
+              <div className={cn(
+                "h-20 w-20 rounded-2xl border-4 border-white shadow-md overflow-hidden flex items-center justify-center text-white text-3xl font-bold",
+                person.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500"
+              )}>
+                {person.photoDataUrl
+                  ? <img src={person.photoDataUrl} alt={person.name} className="h-full w-full object-cover" />
+                  : person.name.charAt(0).toUpperCase()}
+              </div>
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Camera className="h-4 w-4 text-white" />
+              </button>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            </div>
+
+            <div className="flex gap-2 mb-1">
+              {editing ? (
+                <>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="h-8 px-3 rounded-xl text-[11.5px] font-semibold border border-[hsl(var(--border))] bg-white hover:bg-[hsl(var(--secondary))] transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="h-8 px-3 rounded-xl text-[11.5px] font-bold text-white flex items-center gap-1.5 disabled:opacity-60"
+                    style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
+                  >
+                    <Save className="h-3 w-3" />
+                    {saving ? "Menyimpan…" : "Simpan"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="h-8 px-3 rounded-xl text-[11.5px] font-semibold border border-[hsl(var(--border))] bg-white hover:bg-[hsl(var(--secondary))] transition-colors flex items-center gap-1.5"
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </button>
+              )}
+            </div>
+          </div>
+
+          {editing ? (
+            /* ── Edit form ── */
+            <div className="space-y-2.5">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Nama Lengkap *</Label>
+                <Input className="h-8 text-[12.5px] rounded-xl" value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Kelamin</Label>
+                  <Select value={form.gender ?? ""} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
+                    <SelectTrigger className="h-8 text-[12.5px] rounded-xl"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                    <SelectContent style={{ background: "#fff" }}>
+                      <SelectItem value="L">Laki-laki</SelectItem>
+                      <SelectItem value="P">Perempuan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">No. HP</Label>
+                  <Input className="h-8 text-[12.5px] rounded-xl" placeholder="08xx" value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Tgl. Lahir</Label>
+                  <Input type="date" className="h-8 text-[12.5px] rounded-xl" value={form.birthDate ?? ""} onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">No. Paspor</Label>
+                  <Input className="h-8 text-[12.5px] rounded-xl font-mono" placeholder="A1234567" value={form.passportNumber ?? ""} onChange={(e) => setForm((f) => ({ ...f, passportNumber: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ── View mode ── */
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-lg font-bold text-[hsl(var(--card-foreground))] leading-tight">{person.name}</h2>
+                {person.gender && (
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block",
+                    person.gender === "P" ? "bg-pink-50 text-pink-500" : "bg-blue-50 text-blue-500")}>
+                    {person.gender === "P" ? "Perempuan" : "Laki-laki"}
+                  </span>
+                )}
+              </div>
+
+              {/* Passport number — prominent */}
+              {person.passportNumber && (
+                <div className="flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-200 px-3.5 py-2.5">
+                  <ShieldCheck className="h-4 w-4 text-orange-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-orange-500 font-semibold uppercase tracking-wide">No. Paspor</p>
+                    <p className="font-mono font-bold text-[15px] text-orange-800 tracking-widest">{person.passportNumber}</p>
+                  </div>
+                  <button
+                    onClick={copyPassport}
+                    className="h-7 w-7 rounded-lg hover:bg-orange-100 flex items-center justify-center transition-colors shrink-0"
+                    title="Salin nomor paspor"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-orange-400" />}
+                  </button>
+                </div>
+              )}
+
+              {/* Other info */}
+              <div className="grid grid-cols-1 gap-1.5">
+                {person.phone && (
+                  <div className="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+                    <Phone strokeWidth={1.5} className="h-3.5 w-3.5 shrink-0" />
+                    <span>{person.phone}</span>
+                  </div>
+                )}
+                {person.birthDate && (
+                  <div className="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+                    <CalendarDays strokeWidth={1.5} className="h-3.5 w-3.5 shrink-0" />
+                    <span>{formatDate(person.birthDate, "full")}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Passport doc preview */}
+              {passportDocs.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Dokumen Paspor</p>
+                  <div className="flex flex-wrap gap-2">
+                    {passportDocs.map((doc) => (
+                      <button
+                        key={doc.id}
+                        onClick={() => {
+                          const w = window.open();
+                          if (!w) return;
+                          if (doc.fileType === "image") {
+                            w.document.write(`<img src="${doc.dataUrl}" style="max-width:100%;"/>`);
+                          } else {
+                            w.document.write(`<iframe src="${doc.dataUrl}" style="width:100%;height:100vh;border:none;"></iframe>`);
+                          }
+                        }}
+                        className="relative rounded-xl overflow-hidden border border-[hsl(var(--border))] hover:border-orange-300 transition-all group"
+                      >
+                        {doc.fileType === "image" ? (
+                          <img src={doc.dataUrl} alt={doc.label} className="h-20 w-20 object-cover" />
+                        ) : (
+                          <div className="h-20 w-20 flex flex-col items-center justify-center bg-[hsl(var(--secondary))] gap-1">
+                            <FileText className="h-6 w-6 text-[hsl(var(--muted-foreground))]" />
+                            <span className="text-[9px] text-[hsl(var(--muted-foreground))] px-1 text-center truncate w-full">PDF</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <ExternalLink className="h-4 w-4 text-white" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          {!editing && (
+            <div className="mt-4 pt-3 border-t border-[hsl(var(--border))]">
+              <button
+                onClick={() => { onClose(); navigate(`/trips/${tripId}/jamaah/${person.id}`); }}
+                className="w-full h-9 rounded-xl text-[12.5px] font-semibold border border-[hsl(var(--border))] bg-white hover:bg-[hsl(var(--secondary))] transition-colors flex items-center justify-center gap-2"
+              >
+                <ExternalLink strokeWidth={1.5} className="h-3.5 w-3.5" />
+                Lihat Profil & Dokumen Lengkap
+              </button>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── JAMAAH CARD ────────────────────────────────────────────────────────────────
+function JamaahCard({ jamaah, tripId, onDelete, onPreview }: { jamaah: Jamaah; tripId: string; onDelete: (j: Jamaah) => void; onPreview: (j: Jamaah) => void }) {
+  const { formatDate } = useRegional();
 
   return (
     <div
       className="group relative rounded-2xl border border-[hsl(var(--border))] bg-white p-4 flex gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-      onClick={() => navigate(`/trips/${tripId}/jamaah/${jamaah.id}`)}
+      onClick={() => onPreview(jamaah)}
       data-testid={`card-jamaah-${jamaah.id}`}
     >
       {/* Avatar */}
@@ -403,6 +671,7 @@ export default function TripDetail() {
   const { jamaah, loadingJamaah, fetchJamaah, removeJamaah } = useJamaahStore();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<Jamaah | null>(null);
 
   const trip = trips.find((t) => t.id === id);
 
@@ -482,7 +751,7 @@ export default function TripDetail() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {jamaah.map((j) => (
-            <JamaahCard key={j.id} jamaah={j} tripId={id!} onDelete={setDeleteTarget} />
+            <JamaahCard key={j.id} jamaah={j} tripId={id!} onDelete={setDeleteTarget} onPreview={setPreviewTarget} />
           ))}
           <button onClick={() => setAddOpen(true)}
             className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 py-10 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
@@ -495,6 +764,13 @@ export default function TripDetail() {
       )}
 
       {id && <AddJamaahDialog open={addOpen} tripId={id} onClose={() => setAddOpen(false)} />}
+
+      <JamaahPreviewDialog
+        jamaah={previewTarget}
+        tripId={id!}
+        open={!!previewTarget}
+        onClose={() => setPreviewTarget(null)}
+      />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
