@@ -555,14 +555,6 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-          <Button
-            onClick={() => setAddOpen(true)}
-            className="btn-glow rounded-lg md:rounded-xl h-8 md:h-10 px-2.5 md:px-5 text-xs md:text-sm shrink-0"
-          >
-            <Plus strokeWidth={1.5} className="h-4 w-4 mr-1 md:mr-2" />
-            <span className="hidden sm:inline">Tambah Paket Trip</span>
-            <span className="sm:hidden">Tambah</span>
-          </Button>
         </div>
 
         {/* Cards grid */}
@@ -586,9 +578,9 @@ export default function Dashboard() {
             </div>
             <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">Belum ada paket trip</h2>
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 max-w-xs">
-              Klik "Tambah Paket Trip" untuk membuat paket perjalanan pertama.
+              Buat paket perjalanan pertama kamu di halaman Paket Trip.
             </p>
-            <Button onClick={() => setAddOpen(true)}
+            <Button onClick={() => navigate("/packages")}
               className="btn-glow mt-6 rounded-xl px-6 h-10">
               <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> Buat Paket Pertama
             </Button>
