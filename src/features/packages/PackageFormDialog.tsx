@@ -1,31 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Camera, Trash2, NotebookPen } from "lucide-react";
+import { X, Check, Camera, Trash2, NotebookPen, ImagePlus, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import type { Package, PackageDraft, PackageStatus, HotelLevel } from "@/features/packages/packagesRepo";
+import type { Package as PackageType, PackageDraft, PackageStatus, HotelLevel } from "@/features/packages/packagesRepo";
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  initial?: Package | null;
+  initial?: PackageType | null;
   onSubmit: (draft: PackageDraft) => Promise<void> | void;
 }
 
 const STATUSES: PackageStatus[] = ["Draft", "Calculated", "Confirmed", "Paid", "Completed"];
 const HOTEL_LEVELS: HotelLevel[] = ["Bintang 3", "Bintang 4", "Bintang 5"];
 const AIRLINES = ["Saudi Airlines", "Garuda Indonesia", "Lion Air", "Batik Air", "Emirates", "Qatar Airways", "Oman Air", "Flynas"];
-const QUICK_EMOJIS = ["✈️", "🕌", "🌙", "🕋", "🗺️", "🏨", "⛵", "🌍", "🎒", "🌅", "🏔️", "🌴"];
-
-const COVER_GRADIENTS = [
-  "linear-gradient(135deg,#f97316,#fb923c)",
-  "linear-gradient(135deg,#0ea5e9,#38bdf8)",
-  "linear-gradient(135deg,#8b5cf6,#a78bfa)",
-  "linear-gradient(135deg,#10b981,#34d399)",
-  "linear-gradient(135deg,#f59e0b,#fbbf24)",
-];
 
 const FACILITIES_LIST = [
   "Makan 3x/Hari",
@@ -57,25 +48,17 @@ const empty: PackageDraft = {
   facilities: [],
 };
 
-function formatRupiah(num: number): string {
-  if (!num || isNaN(num)) return "Rp 0";
-  return "Rp " + num.toLocaleString("id-ID");
-}
-
-const lbl = "text-[10px] md:text-[10.5px] font-bold text-orange-500 uppercase tracking-wide";
-const inp = "h-8 md:h-9 text-[12px] md:text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
-const sel = "h-8 md:h-9 text-[12px] md:text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
+const lbl = "text-[10.5px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wide";
+const inp = "h-9 text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
+const sel = "h-9 text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
 
 export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Props) {
   const [draft, setDraft] = useState<PackageDraft>(empty);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof PackageDraft, string>>>({});
+  const [coverHover, setCoverHover] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const gradientIndex = useMemo(
-    () => (initial?.name ?? "").length % COVER_GRADIENTS.length,
-    [initial]
-  );
   const toggleFacility = (fac: string) => {
     const current = draft.facilities ?? [];
     const updated = current.includes(fac) ? current.filter((f) => f !== fac) : [...current, fac];
@@ -131,6 +114,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
     <AnimatePresence>
       {open && (
         <>
+          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
@@ -140,111 +124,155 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
             onClick={() => onOpenChange(false)}
           />
 
+          {/* Dialog */}
           <motion.div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
             <motion.div
-              className="relative w-full md:max-w-lg pointer-events-auto rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col bg-white border border-[hsl(var(--border))]"
+              className="relative w-full md:max-w-lg pointer-events-auto rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col bg-white border border-[hsl(var(--border))]"
               style={{ maxHeight: "92dvh" }}
-              initial={{ scale: 0.97, opacity: 0, y: 32 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.97, opacity: 0, y: 32 }}
-              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             >
-              {/* Cover banner */}
-              <div className="relative shrink-0 h-[52px] md:h-[80px] overflow-hidden">
-                {draft.coverImage ? (
-                  <img src={draft.coverImage} alt="cover" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl md:text-4xl"
-                    style={{ background: COVER_GRADIENTS[gradientIndex] }}>
-                    {draft.emoji}
+              {/* ── Header ── */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[hsl(var(--border))] shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
+                    <Package strokeWidth={1.8} className="h-4.5 w-4.5 text-white" />
                   </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-
-                <div className="absolute top-0 inset-x-0 flex items-center justify-between px-3 md:px-4 pt-2">
-                  <h2 className="text-[12px] md:text-[13px] font-bold text-white drop-shadow tracking-wide" style={{ fontFamily: "'Manrope',sans-serif" }}>
-                    {initial ? "✏️ Edit Paket Trip" : "✈️ Tambah Paket Trip"}
-                  </h2>
-                  <button onClick={() => onOpenChange(false)}
-                    className="h-6 w-6 flex items-center justify-center rounded-full bg-black/30 text-white hover:bg-black/60 transition-colors">
-                    <X strokeWidth={2} className="h-3 w-3" />
-                  </button>
+                  <div>
+                    <h2 className="text-[14.5px] font-bold text-[hsl(var(--foreground))] leading-tight">
+                      {initial ? "Edit Paket Trip" : "Tambah Paket Trip"}
+                    </h2>
+                    <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                      Isi informasi lengkap paket perjalanan
+                    </p>
+                  </div>
                 </div>
-
-                <div className="absolute bottom-0 inset-x-0 px-3 md:px-4 pb-1.5 flex items-end justify-end gap-1.5">
-                  {draft.coverImage && (
-                    <button onClick={() => set("coverImage", undefined)}
-                      className="h-5 w-5 flex items-center justify-center rounded-full bg-black/30 text-white hover:bg-red-500/80 transition-colors">
-                      <Trash2 strokeWidth={2} className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                  <button onClick={() => fileRef.current?.click()}
-                    className="h-5 px-1.5 flex items-center gap-1 rounded-full bg-black/30 text-white text-[9px] font-semibold hover:bg-black/50 transition-colors">
-                    <Camera strokeWidth={2} className="h-2.5 w-2.5" />
-                    {draft.coverImage ? "Ganti" : "Foto"}
-                  </button>
-                </div>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+                <button
+                  onClick={() => onOpenChange(false)}
+                  className="h-8 w-8 rounded-full bg-[hsl(var(--secondary))] flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0 ml-3"
+                >
+                  <X strokeWidth={2} className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                </button>
               </div>
 
-              {/* Body */}
-              <div className="overflow-y-auto flex-1 px-3 py-2.5 md:px-5 md:py-4 space-y-2.5 md:space-y-3.5">
+              {/* ── Body ── */}
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
 
-                {/* Emoji picker */}
-                <div className="space-y-1">
-                  <p className={lbl}>Ikon</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {QUICK_EMOJIS.map((e) => (
-                      <button key={e} type="button" onClick={() => set("emoji", e)}
-                        className={`h-7 w-7 md:h-8 md:w-8 rounded-lg md:rounded-xl text-sm md:text-base flex items-center justify-center transition-all border-2 ${draft.emoji === e
-                          ? "border-orange-500 bg-orange-50 shadow-sm scale-110"
-                          : "border-gray-200/80 bg-white hover:border-orange-300 hover:scale-105"
-                        }`}>
-                        {e}
-                      </button>
-                    ))}
-                  </div>
+                {/* Cover Photo */}
+                <div className="space-y-1.5">
+                  <p className={lbl}>Foto Cover <span className="normal-case font-normal text-gray-400">· opsional</span></p>
+                  {draft.coverImage ? (
+                    <div
+                      className="relative h-32 rounded-2xl overflow-hidden border border-[hsl(var(--border))] cursor-pointer"
+                      onMouseEnter={() => setCoverHover(true)}
+                      onMouseLeave={() => setCoverHover(false)}
+                    >
+                      <img src={draft.coverImage} alt="cover" className="w-full h-full object-cover" />
+                      <AnimatePresence>
+                        {coverHover && (
+                          <motion.div
+                            className="absolute inset-0 bg-black/45 flex items-center justify-center gap-2.5"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => fileRef.current?.click()}
+                              className="h-8 px-3.5 rounded-xl bg-white text-[11.5px] font-semibold flex items-center gap-1.5 hover:bg-orange-50 transition-colors"
+                            >
+                              <Camera strokeWidth={2} className="h-3.5 w-3.5" />
+                              Ganti Foto
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => set("coverImage", undefined)}
+                              className="h-8 px-3.5 rounded-xl bg-red-500 text-white text-[11.5px] font-semibold flex items-center gap-1.5 hover:bg-red-600 transition-colors"
+                            >
+                              <Trash2 strokeWidth={2} className="h-3.5 w-3.5" />
+                              Hapus
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="w-full h-24 rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50/40 transition-all group"
+                    >
+                      <ImagePlus strokeWidth={1.5} className="h-5 w-5 text-gray-300 group-hover:text-orange-400 transition-colors" />
+                      <span className="text-[11.5px] text-gray-400 group-hover:text-orange-500 transition-colors">Klik untuk unggah foto cover</span>
+                    </button>
+                  )}
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
                 </div>
 
-                {/* Row 1: Nama + Tanggal */}
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <div className="space-y-1">
-                    <p className={lbl}>Nama Paket <span className="text-red-400">*</span></p>
-                    <Input placeholder="Umrah Ramadhan" value={draft.name}
+                {/* Divider label */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                  <span className="text-[10px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wider px-1">Informasi Paket</span>
+                  <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                </div>
+
+                {/* Row 1: Nama + Tanggal Berangkat */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Nama Paket <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Input
+                      placeholder="Umrah Ramadhan"
+                      value={draft.name}
                       onChange={(e) => { set("name", e.target.value); setErrors(p => ({ ...p, name: undefined })); }}
-                      className={inp + (errors.name ? " border-red-400" : "")} autoFocus />
+                      className={inp + (errors.name ? " border-red-400" : "")}
+                      autoFocus
+                    />
                     {errors.name && <p className="text-[10px] text-red-500">{errors.name}</p>}
                   </div>
-                  <div className="space-y-1">
-                    <p className={lbl}>Tgl. Berangkat <span className="text-red-400">*</span></p>
-                    <Input type="date" value={draft.departureDate ?? ""}
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Tgl. Berangkat <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Input
+                      type="date"
+                      value={draft.departureDate ?? ""}
                       onChange={(e) => { set("departureDate", e.target.value); setErrors(p => ({ ...p, departureDate: undefined })); }}
-                      className={inp + (errors.departureDate ? " border-red-400" : "")} />
+                      className={inp + (errors.departureDate ? " border-red-400" : "")}
+                    />
                     {errors.departureDate && <p className="text-[10px] text-red-500">{errors.departureDate}</p>}
                   </div>
                 </div>
 
                 {/* Row 2: Destinasi + Durasi */}
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <div className="space-y-1">
-                    <p className={lbl}>Destinasi <span className="text-red-400">*</span></p>
-                    <Input placeholder="Makkah, Madinah" value={draft.destination}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Destinasi <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Input
+                      placeholder="Makkah, Madinah"
+                      value={draft.destination}
                       onChange={(e) => { set("destination", e.target.value); setErrors(p => ({ ...p, destination: undefined })); }}
-                      className={inp + (errors.destination ? " border-red-400" : "")} />
+                      className={inp + (errors.destination ? " border-red-400" : "")}
+                    />
                     {errors.destination && <p className="text-[10px] text-red-500">{errors.destination}</p>}
                   </div>
-                  <div className="space-y-1">
-                    <p className={lbl}>Durasi (Hari) <span className="text-red-400">*</span></p>
-                    <Input type="number" min={1} value={draft.days}
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Durasi (Hari) <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={draft.days}
                       onChange={(e) => { set("days", Math.max(1, Number(e.target.value))); setErrors(p => ({ ...p, days: undefined })); }}
-                      className={inp + (errors.days ? " border-red-400" : "")} />
+                      className={inp + (errors.days ? " border-red-400" : "")}
+                    />
                     {errors.days && <p className="text-[10px] text-red-500">{errors.days}</p>}
                   </div>
                 </div>
 
                 {/* Row 3: Status + Kuota */}
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
                     <p className={lbl}>Status</p>
                     <Select value={draft.status} onValueChange={(v) => set("status", v as PackageStatus)}>
                       <SelectTrigger className={sel}><SelectValue /></SelectTrigger>
@@ -253,21 +281,27 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <p className={lbl}>Kuota (Pax) <span className="text-red-400">*</span></p>
-                    <Input type="number" min={1} value={draft.people}
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Kuota (Pax) <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={draft.people}
                       onChange={(e) => { set("people", Math.max(1, Number(e.target.value))); setErrors(p => ({ ...p, people: undefined })); }}
-                      className={inp + (errors.people ? " border-red-400" : "")} />
+                      className={inp + (errors.people ? " border-red-400" : "")}
+                    />
                     {errors.people && <p className="text-[10px] text-red-500">{errors.people}</p>}
                   </div>
                 </div>
 
                 {/* Row 4: Hotel + Maskapai */}
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <div className="space-y-1">
-                    <p className={lbl}>Level Hotel <span className="text-red-400">*</span></p>
-                    <Select value={draft.hotelLevel ?? ""}
-                      onValueChange={(v) => { set("hotelLevel", v as HotelLevel); setErrors(p => ({ ...p, hotelLevel: undefined })); }}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Level Hotel <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Select
+                      value={draft.hotelLevel ?? ""}
+                      onValueChange={(v) => { set("hotelLevel", v as HotelLevel); setErrors(p => ({ ...p, hotelLevel: undefined })); }}
+                    >
                       <SelectTrigger className={sel + (errors.hotelLevel ? " border-red-400" : "")}>
                         <SelectValue placeholder="Pilih" />
                       </SelectTrigger>
@@ -277,10 +311,12 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     </Select>
                     {errors.hotelLevel && <p className="text-[10px] text-red-500">{errors.hotelLevel}</p>}
                   </div>
-                  <div className="space-y-1">
-                    <p className={lbl}>Maskapai <span className="text-red-400">*</span></p>
-                    <Select value={draft.airline ?? ""}
-                      onValueChange={(v) => { set("airline", v); setErrors(p => ({ ...p, airline: undefined })); }}>
+                  <div className="space-y-1.5">
+                    <p className={lbl}>Maskapai <span className="text-red-400 normal-case font-bold">*</span></p>
+                    <Select
+                      value={draft.airline ?? ""}
+                      onValueChange={(v) => { set("airline", v); setErrors(p => ({ ...p, airline: undefined })); }}
+                    >
                       <SelectTrigger className={sel + (errors.airline ? " border-red-400" : "")}>
                         <SelectValue placeholder="Pilih" />
                       </SelectTrigger>
@@ -292,69 +328,80 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                   </div>
                 </div>
 
-                {/* Fasilitas & Catatan section */}
-                <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-2.5 md:p-3 space-y-2.5 md:space-y-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-3.5 w-3.5 md:h-4 md:w-4 rounded-full bg-orange-500 flex items-center justify-center">
-                      <NotebookPen className="h-2 w-2 md:h-2.5 md:w-2.5 text-white" strokeWidth={2.5} />
-                    </div>
-                    <span className="text-[10px] md:text-[10.5px] font-bold text-orange-600 uppercase tracking-wide">Fasilitas & Catatan</span>
-                  </div>
+                {/* Divider label */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                  <span className="text-[10px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wider px-1">Fasilitas & Catatan</span>
+                  <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                </div>
 
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">Fasilitas yang Tersedia</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {FACILITIES_LIST.map((fac) => {
-                        const active = (draft.facilities ?? []).includes(fac);
-                        return (
-                          <button
-                            key={fac}
-                            type="button"
-                            onClick={() => toggleFacility(fac)}
-                            className={`text-[10px] md:text-[10.5px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
-                              active
-                                ? "bg-orange-500 text-white border-orange-500 shadow-sm"
-                                : "bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:text-orange-600"
-                            }`}
-                          >
-                            {fac}
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* Fasilitas */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <NotebookPen strokeWidth={1.8} className="h-3.5 w-3.5 text-orange-500" />
+                    <p className={lbl}>Fasilitas yang Tersedia</p>
                   </div>
-
-                  <div className="space-y-1">
-                    <p className="text-[10px] md:text-[10.5px] font-bold text-gray-500 uppercase tracking-wide">Catatan Tambahan</p>
-                    <textarea
-                      value={draft.notes ?? ""}
-                      onChange={(e) => set("notes", e.target.value)}
-                      rows={2}
-                      placeholder="Catatan khusus untuk paket ini..."
-                      className="w-full text-[12px] md:text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all resize-none"
-                    />
+                  <div className="flex flex-wrap gap-1.5">
+                    {FACILITIES_LIST.map((fac) => {
+                      const active = (draft.facilities ?? []).includes(fac);
+                      return (
+                        <button
+                          key={fac}
+                          type="button"
+                          onClick={() => toggleFacility(fac)}
+                          className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${
+                            active
+                              ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                              : "bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:text-orange-600"
+                          }`}
+                        >
+                          {fac}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
+
+                {/* Catatan */}
+                <div className="space-y-1.5">
+                  <p className={lbl}>Catatan Tambahan</p>
+                  <textarea
+                    value={draft.notes ?? ""}
+                    onChange={(e) => set("notes", e.target.value)}
+                    rows={2}
+                    placeholder="Catatan khusus untuk paket ini..."
+                    className="w-full text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white px-3.5 py-2.5 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all resize-none"
+                  />
+                </div>
+
               </div>
 
-              {/* Footer */}
-              <div className="px-3 py-2.5 md:px-5 md:py-3 border-t border-[hsl(var(--border))] flex gap-2 shrink-0 bg-white/80 backdrop-blur-sm pb-[max(10px,env(safe-area-inset-bottom))]">
-                <button onClick={() => onOpenChange(false)} disabled={saving}
-                  className="flex-1 h-8 md:h-9 rounded-xl text-[12px] md:text-[12.5px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors disabled:opacity-50">
+              {/* ── Footer ── */}
+              <div className="px-5 py-3.5 border-t border-[hsl(var(--border))] flex gap-2.5 shrink-0 bg-white pb-[max(14px,env(safe-area-inset-bottom))]">
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  disabled={saving}
+                  className="flex-1 h-10 rounded-xl text-[13px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-gray-100 transition-colors disabled:opacity-50"
+                >
                   Batal
                 </button>
-                <button onClick={handleSave} disabled={saving || !canSave}
-                  className="flex-1 h-8 md:h-9 rounded-xl text-[12px] md:text-[12.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-400 shadow-sm"
-                  style={canSave && !saving ? { background: "linear-gradient(135deg,#f97316,#ea580c)" } : undefined}>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !canSave}
+                  className="flex-1 h-10 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-400 shadow-sm"
+                  style={canSave && !saving ? { background: "linear-gradient(135deg,#f97316,#ea580c)" } : undefined}
+                >
                   {saving ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                    <>
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
                       Menyimpan...
-                    </span>
+                    </>
                   ) : (
                     <>
-                      <Check strokeWidth={2.5} className="h-3.5 w-3.5" />
-                      {initial ? "Simpan" : "Tambah Paket"}
+                      <Check strokeWidth={2.5} className="h-4 w-4" />
+                      {initial ? "Simpan Perubahan" : "Tambah Paket"}
                     </>
                   )}
                 </button>

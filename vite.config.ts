@@ -26,7 +26,12 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: "auto",
+      injectRegister: "script-defer",
+      devOptions: {
+        enabled: true,
+        type: "module",
+        navigateFallback: "index.html",
+      },
       includeAssets: ["favicon.ico", "logo-igh-tour.png", "offline.html"],
       manifest: {
         name: "IGH Tour - Manajemen Umrah & Haji",
