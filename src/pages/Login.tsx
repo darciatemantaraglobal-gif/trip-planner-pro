@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Lock, User, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, LogIn, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import splashBackground from "@assets/image_1776663921386.png";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [phase, setPhase] = useState<"loading" | "form">("loading");
+  const usernameRef = useRef<HTMLInputElement>(null);
   const { login, isLoading, error, isAuthenticated, clearError } = useAuthStore();
   const navigate = useNavigate();
 
@@ -17,102 +18,188 @@ export default function Login() {
     if (isAuthenticated) navigate("/", { replace: true });
   }, [isAuthenticated, navigate]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setPhase("form"), 900);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (phase === "form") {
+      setTimeout(() => usernameRef.current?.focus(), 250);
+    }
+  }, [phase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    if (!username || !password) return;
+    if (!username.trim() || !password.trim()) return;
     const ok = await login(username.trim(), password);
     if (ok) navigate("/", { replace: true });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center"
-      style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 60%, #fed7aa 100%)" }}>
-
+    <div
+      className="min-h-screen relative flex items-center justify-center overflow-hidden"
+      style={{
+        backgroundImage: `url(${splashBackground})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundColor: "#190d23",
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/25 to-black/65" />
       <motion.div
-        className="w-full max-w-sm mx-4"
-        initial={{ opacity: 0, y: 24 }}
+        className="relative z-10 flex w-full max-w-sm flex-col items-center px-6"
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+        transition={{ duration: 0.6, ease: [0.34, 1.2, 0.64, 1] }}
       >
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="px-8 pt-8 pb-6 text-center"
-            style={{ background: "linear-gradient(135deg, #f97316, #ea580c)" }}>
-            <img src="/logo-igh-tour.png" alt="IGH Tour" className="h-16 w-auto object-contain mx-auto mb-3" />
-            <h1 className="text-xl font-bold text-white">IGH Tour</h1>
-            <p className="text-white/80 text-sm mt-0.5">Travel Management System</p>
-          </div>
+        <img
+          src="/logo-igh-tour.png"
+          alt="IGH Tour"
+          className="h-24 w-auto object-contain brightness-0 invert drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+        />
 
-          {/* Form */}
-          <div className="px-8 py-7 space-y-5">
-            <div className="text-center">
-              <h2 className="text-lg font-bold text-gray-900">Masuk ke Dashboard</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Masukkan akun agen Anda</p>
-            </div>
-
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl bg-red-50 border border-red-200"
-              >
-                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
-                <p className="text-sm text-red-700">{error}</p>
-              </motion.div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="contoh: admin"
-                    className="pl-10 h-11 rounded-xl border-gray-200 focus-visible:ring-orange-400"
-                    disabled={isLoading}
-                    autoComplete="username"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pl-10 h-11 rounded-xl border-gray-200 focus-visible:ring-orange-400"
-                    disabled={isLoading}
-                    autoComplete="current-password"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isLoading || !username || !password}
-                className="w-full h-11 rounded-xl text-white font-semibold shadow-md"
-                style={{ background: "linear-gradient(135deg, #f97316, #ea580c)" }}
-              >
-                {isLoading ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Masuk…</>
-                ) : "Masuk"}
-              </Button>
-            </form>
-
-            <div className="pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-400 text-center">
-                Default: <span className="font-mono text-gray-600">admin</span> / <span className="font-mono text-gray-600">admin123</span>
+        <AnimatePresence mode="wait">
+          {phase === "loading" ? (
+            <motion.div
+              key="loading"
+              className="mt-8 flex flex-col items-center gap-5"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+            >
+              <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+              <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/80">
+                Memuat…
               </p>
-            </div>
-          </div>
-        </div>
+              <div className="h-[2px] w-56 overflow-hidden rounded-full bg-white/20">
+                <motion.div
+                  className="h-full rounded-full bg-white"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 0.75, delay: 0.1, ease: "easeInOut" }}
+                />
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="form"
+              className="mt-4 w-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="rounded-3xl border border-white/20 bg-white/10 p-7 shadow-[0_24px_60px_rgba(0,0,0,0.4)] backdrop-blur-md">
+                <div className="mb-6 text-center">
+                  <h1 className="text-xl font-extrabold tracking-tight text-white">
+                    Portal Admin
+                  </h1>
+                  <p className="mt-1 text-[12px] text-white/60">
+                    Masuk untuk mengakses IGH Tour Portal
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        className="flex items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/20 px-3.5 py-2.5"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-300" />
+                        <p className="text-[12px] font-medium text-red-200">{error}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="space-y-1.5">
+                    <label className="pl-1 text-[11px] font-bold uppercase tracking-widest text-white/70">
+                      Username
+                    </label>
+                    <input
+                      ref={usernameRef}
+                      type="text"
+                      autoComplete="username"
+                      placeholder="admin"
+                      value={username}
+                      onChange={(e) => {
+                        setUsername(e.target.value);
+                        clearError();
+                      }}
+                      disabled={isLoading}
+                      className="h-11 w-full rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-medium text-white placeholder-white/30 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-400/60 disabled:opacity-50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="pl-1 text-[11px] font-bold uppercase tracking-widest text-white/70">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          clearError();
+                        }}
+                        disabled={isLoading}
+                        className="h-11 w-full rounded-xl border border-white/20 bg-white/10 px-4 pr-11 text-sm font-medium text-white placeholder-white/30 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-400/60 disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white/80"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <motion.button
+                    type="submit"
+                    disabled={isLoading || !username.trim() || !password.trim()}
+                    className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-sm font-extrabold uppercase tracking-widest text-white transition-all disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%)",
+                      boxShadow: "0 8px 28px rgba(249,115,22,0.4)",
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Masuk…
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="h-4 w-4" />
+                        Masuk
+                      </>
+                    )}
+                  </motion.button>
+                </form>
+              </div>
+
+              <p className="mt-4 text-center text-[10px] tracking-wide text-white/30">
+                Default: admin / admin123
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
