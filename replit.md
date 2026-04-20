@@ -51,6 +51,11 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
    - BroadcastChannel API untuk sync antar tab browser
    - Tanpa Supabase (Supabase tidak tersedia di free tier)
 
+8. **Detail Paket Terpisah + Kalkulator + OCR Jamaah** — `src/pages/Packages.tsx`, `src/pages/PackageDetail.tsx`
+   - Setiap card paket di `/packages` membuka detail sendiri di `/packages/:id`
+   - Detail paket punya kalkulator biaya per paket yang tersimpan di localStorage dan bisa menyimpan total ke paket
+   - Detail paket punya daftar jamaah terpisah per paket dengan tambah jamaah via OCR paspor
+
 ## Project Structure
 
 ```
@@ -104,6 +109,7 @@ src/
 | `/trips/:id/jamaah/:jamaahId` | JamaahProfile — Profil + OCR + progress + dokumen |
 | `/calculator` | Kalkulator harga |
 | `/packages` | Package manager |
+| `/packages/:id` | Detail paket — kalkulator paket + jamaah OCR |
 | `/progress` | Progress tracker per jamaah & paket |
 | `/pdf-generator` | PDF generator + live preview |
 | `/settings` | Pengaturan app (kurs, agen, tampilan) |

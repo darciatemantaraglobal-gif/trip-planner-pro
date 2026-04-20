@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ const statusVariant: Record<string, string> = {
 const fmtIDR = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
 export default function Packages() {
+  const navigate = useNavigate();
   const { items, loading, create, update, remove } = usePackages();
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -112,6 +114,7 @@ export default function Packages() {
           {filtered.map((pkg) => (
             <div
               key={pkg.id}
+              onClick={() => navigate(`/packages/${pkg.id}`)}
               className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden shadow-sm hover:shadow-md transition-smooth group"
             >
               {/* Cover / Emoji banner */}
@@ -144,16 +147,16 @@ export default function Packages() {
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 -mr-1 -mt-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 -mr-1 -mt-0.5" onClick={(e) => e.stopPropagation()}>
                         <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="text-sm">
-                      <DropdownMenuItem onClick={() => openEdit(pkg)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(pkg); }}>
                         <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => setDeletingId(pkg.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeletingId(pkg.id); }}
                         className="text-destructive focus:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-2" /> Hapus
@@ -170,6 +173,7 @@ export default function Packages() {
                 <div className="pt-1.5 border-t border-[hsl(var(--border))]">
                   <div className="text-[9px] text-[hsl(var(--muted-foreground))]">Total</div>
                   <div className="text-[11px] font-bold text-[hsl(var(--primary))] leading-tight">{fmtIDR(pkg.totalIDR)}</div>
+                  <div className="mt-1 text-[9px] font-semibold text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]">Klik untuk detail</div>
                 </div>
               </div>
             </div>

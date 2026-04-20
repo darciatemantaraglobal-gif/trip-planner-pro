@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin } from "lucide-react";
+import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin, ScanLine } from "lucide-react";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { scanPassport } from "@/lib/ocrPassport";
 
 const DOC_CATEGORIES: { value: DocCategory; label: string }[] = [
   { value: "passport", label: "Paspor / KTP" },
@@ -52,15 +53,20 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [loading, setLoading] = useState(false);
   const [pendingCategory, setPendingCategory] = useState<DocCategory>("passport");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
 
   const photoRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
+  const ocrRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
     setForm({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" });
     setPhotoDataUrl(undefined);
     setUploadedDocs([]);
     setPendingCategory("passport");
+    setOcrLoading(false);
+    setOcrProgress(0);
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,6 +76,31 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
     const dataUrl = await fileToBase64(file);
     setPhotoDataUrl(dataUrl);
     e.target.value = "";
+  };
+
+  const handleOcrScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    setOcrProgress(0);
+    try {
+      const result = await scanPassport(file, setOcrProgress);
+      setForm((f) => ({
+        ...f,
+        name: result.name || f.name,
+        birthDate: result.birthDate || f.birthDate,
+        passportNumber: result.passportNumber || f.passportNumber,
+        gender: result.gender || f.gender,
+      }));
+      const fieldsFound = Object.keys(result).length;
+      if (fieldsFound > 0) toast.success(`OCR berhasil! ${fieldsFound} field terisi otomatis.`);
+      else toast.warning("Teks MRZ tidak terbaca. Pastikan foto paspor jelas dan terbuka.");
+    } catch {
+      toast.error("Gagal memproses gambar paspor.");
+    } finally {
+      setOcrLoading(false);
+      e.target.value = "";
+    }
   };
 
   const handleDocChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +186,18 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
             </div>
             <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Klik untuk upload foto (maks. 2 MB)</p>
             <input ref={photoRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handlePhotoChange} />
+          </div>
+
+          <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 p-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-orange-800">Scan paspor otomatis</p>
+              <p className="text-xs text-orange-700/80">OCR akan isi nama, paspor, tanggal lahir, dan gender jika MRZ terbaca.</p>
+            </div>
+            <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcrScan} />
+            <Button type="button" variant="outline" className="shrink-0 gap-1.5 text-xs border-orange-200 text-orange-700" onClick={() => ocrRef.current?.click()} disabled={ocrLoading}>
+              <ScanLine strokeWidth={1.5} className="h-3.5 w-3.5" />
+              {ocrLoading ? `Scan ${ocrProgress}%` : "Scan OCR"}
+            </Button>
           </div>
 
           {/* ── Basic info ── */}

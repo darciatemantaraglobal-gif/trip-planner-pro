@@ -9,6 +9,7 @@ import { SplashScreen } from "@/components/SplashScreen";
 import Index from "./pages/Index.tsx";
 import Calculator from "./pages/Calculator";
 import Packages from "./pages/Packages";
+import PackageDetail from "./pages/PackageDetail";
 import ProgressTracker from "./pages/ProgressTracker";
 import TripDetail from "./pages/TripDetail";
 import JamaahProfile from "./pages/JamaahProfile";
@@ -69,6 +70,7 @@ function AnimatedRoutes() {
       <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/calculator" element={<RequireAuth><DashboardLayout><Calculator /></DashboardLayout></RequireAuth>} />
       <Route path="/packages" element={<RequireAuth><DashboardLayout><Packages /></DashboardLayout></RequireAuth>} />
+      <Route path="/packages/:id" element={<RequireAuth><DashboardLayout><PackageDetail /></DashboardLayout></RequireAuth>} />
       <Route path="/progress" element={<RequireAuth><DashboardLayout><ProgressTracker /></DashboardLayout></RequireAuth>} />
       <Route path="/pdf-generator" element={<RequireAuth><DashboardLayout><PdfGenerator /></DashboardLayout></RequireAuth>} />
       <Route path="/trips/:id" element={<RequireAuth><DashboardLayout><TripDetail /></DashboardLayout></RequireAuth>} />
