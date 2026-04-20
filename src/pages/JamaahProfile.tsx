@@ -299,7 +299,7 @@ export default function JamaahProfile() {
               <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl border-violet-200 text-violet-700 hover:bg-violet-50"
                 onClick={() => ocrInputRef.current?.click()} disabled={ocrLoading}>
                 <ScanLine className="h-3 w-3 mr-1" />
-                {ocrLoading ? `Scan ${ocrProgress}%` : "Scan Paspor (OCR)"}
+                {ocrLoading ? (ocrProgress < 35 ? "Memuat AI…" : `OCR ${ocrProgress}%`) : "Scan Paspor (OCR)"}
               </Button>
               {editing ? (
                 <>

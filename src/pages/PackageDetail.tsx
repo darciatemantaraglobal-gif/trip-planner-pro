@@ -165,7 +165,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
             <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcr} />
             <Button type="button" variant="outline" onClick={() => ocrRef.current?.click()} disabled={ocrLoading} className="rounded-xl border-orange-200 text-orange-700">
               <ScanLine className="h-4 w-4 mr-1.5" />
-              {ocrLoading ? `Scan ${ocrProgress}%` : "Scan OCR"}
+              {ocrLoading ? (ocrProgress < 35 ? "Memuat AI…" : `OCR ${ocrProgress}%`) : "Scan OCR"}
             </Button>
           </div>
 

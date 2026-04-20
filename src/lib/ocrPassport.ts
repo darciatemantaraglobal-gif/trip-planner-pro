@@ -10,6 +10,32 @@ export interface PassportData {
 }
 
 /**
+ * Progress phases — mapped to a continuous 0-100 range:
+ *   0-10%  : loading tesseract core
+ *  10-15%  : initializing tesseract
+ *  15-30%  : loading language traineddata
+ *  30-35%  : initializing api
+ *  35-100% : recognizing text
+ */
+function mapProgress(status: string, rawProgress: number): number {
+  const p = Math.max(0, Math.min(1, rawProgress));
+  switch (status) {
+    case "loading tesseract core":
+      return Math.round(p * 10);
+    case "initializing tesseract":
+      return Math.round(10 + p * 5);
+    case "loading language traineddata":
+      return Math.round(15 + p * 15);
+    case "initializing api":
+      return Math.round(30 + p * 5);
+    case "recognizing text":
+      return Math.round(35 + p * 65);
+    default:
+      return Math.round(p * 35);
+  }
+}
+
+/**
  * Convert File/Blob to a base64 data URL.
  */
 function fileToDataUrl(file: File | Blob): Promise<string> {
@@ -57,7 +83,6 @@ function preprocessForMRZ(dataUrl: string): Promise<string> {
 
         for (let i = 0; i < d.length; i += 4) {
           const b = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          // Stretch contrast then threshold at 50%
           const stretched = ((b - minB) / range) * 255;
           const val = stretched > 127 ? 255 : 0;
           d[i] = d[i + 1] = d[i + 2] = val;
@@ -75,7 +100,7 @@ function preprocessForMRZ(dataUrl: string): Promise<string> {
 
         resolve(out.toDataURL("image/png"));
       } catch {
-        resolve(dataUrl); // fallback to original on any error
+        resolve(dataUrl);
       }
     };
     img.onerror = () => resolve(dataUrl);
@@ -84,8 +109,8 @@ function preprocessForMRZ(dataUrl: string): Promise<string> {
 }
 
 /**
- * Fix common OCR character confusions in MRZ context.
- * In numeric-only positions of the MRZ, O→0, I→1, S→5, Z→2, B→8.
+ * Fix common OCR character confusions in MRZ numeric positions.
+ * O→0, I→1, S→5, Z→2, B→8
  */
 function fixNumericZone(s: string): string {
   return s
@@ -114,15 +139,13 @@ function extractMRZLines(text: string): [string, string] | null {
   const lines = text
     .split("\n")
     .map(cleanLine)
-    .filter((l) => l.length >= 36); // allow slightly short lines
+    .filter((l) => l.length >= 36);
 
-  // Prefer lines that are exactly or close to 44 chars
   const candidates = lines
     .map((l) => (l.length < 44 ? l.padEnd(44, "<") : l.slice(0, 44)))
     .filter((l) => /^[A-Z0-9<]{44}$/.test(l));
 
   if (candidates.length >= 2) {
-    // Line 1 starts with P (passport)
     const l1idx = candidates.findIndex((l) => l.startsWith("P"));
     if (l1idx !== -1 && l1idx + 1 < candidates.length) {
       return [candidates[l1idx], candidates[l1idx + 1]];
@@ -130,7 +153,6 @@ function extractMRZLines(text: string): [string, string] | null {
     return [candidates[0], candidates[1]];
   }
 
-  // Fallback: accept lines >= 36 chars
   const fallback = lines
     .map((l) => (l.length < 44 ? l.padEnd(44, "<") : l.slice(0, 44)));
   if (fallback.length >= 2) return [fallback[0], fallback[1]];
@@ -146,7 +168,7 @@ function parseMRZ(text: string): PassportData {
   const result: PassportData = {};
 
   try {
-    // ── Passport number (line2 [0..8], check digit at [9]) ──
+    // ── Passport number (line2 [0..8]) ──
     const passportRaw = line2.slice(0, 9).replace(/</g, "");
     if (passportRaw.length >= 5) result.passportNumber = passportRaw;
 
@@ -154,7 +176,7 @@ function parseMRZ(text: string): PassportData {
     const nat = line2.slice(10, 13).replace(/</g, "");
     if (nat.length >= 2) result.nationality = nat;
 
-    // ── Date of birth (line2 [13..18]) — must be digits ──
+    // ── Date of birth (line2 [13..18]) ──
     const dobRaw = fixNumericZone(line2.slice(13, 19));
     if (/^\d{6}$/.test(dobRaw)) {
       const yy = parseInt(dobRaw.slice(0, 2));
@@ -180,14 +202,12 @@ function parseMRZ(text: string): PassportData {
     }
 
     // ── Name (line1 [5..43]) ──
-    // Format: SURNAME<<GIVEN_NAME1<GIVEN_NAME2<<<<...
     const namePart = line1.slice(5, 44);
     const sepIdx = namePart.indexOf("<<");
     let fullName = "";
     if (sepIdx !== -1) {
       const surname = namePart.slice(0, sepIdx).replace(/</g, " ").trim();
       const given = namePart.slice(sepIdx + 2).replace(/</g, " ").replace(/\s+/g, " ").trim();
-      // Indonesian passports: given names first, then surname
       fullName = given ? `${given} ${surname}`.trim() : surname;
     } else {
       fullName = namePart.replace(/</g, " ").trim();
@@ -205,44 +225,39 @@ export async function scanPassport(
   imageSource: string | File,
   onProgress?: (pct: number) => void
 ): Promise<PassportData> {
-  // Resolve to data URL so we can preprocess it
   const dataUrl =
     imageSource instanceof File || imageSource instanceof Blob
       ? await fileToDataUrl(imageSource)
       : imageSource;
 
-  // Preprocess: crop MRZ band + high-contrast binarization + 2× scale
   const processed = await preprocessForMRZ(dataUrl);
 
   const worker = await createWorker("eng", 1, {
     logger: (m) => {
-      if (m.status === "recognizing text" && onProgress) {
-        onProgress(Math.round(m.progress * 100));
+      if (onProgress && m.progress !== undefined) {
+        onProgress(mapProgress(m.status, m.progress));
       }
     },
   });
 
   try {
-    // PSM 6 = treat image as a single uniform block of text
-    // PSM 4 = single column — good for 2-line MRZ strip
     await worker.setParameters({
       tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<",
-      tessedit_pageseg_mode: "4" as never,
+      tessedit_pageseg_mode: "6" as never,
     });
 
     const { data: r1 } = await worker.recognize(processed);
     let result = parseMRZ(r1.text);
 
-    // If the preprocessed crop didn't yield good results,
-    // fall back to the original image with sparse-text mode
     if (!result.passportNumber && !result.name) {
       await worker.setParameters({
-        tessedit_pageseg_mode: "11" as never, // sparse text — finds anything
+        tessedit_pageseg_mode: "11" as never,
       });
       const { data: r2 } = await worker.recognize(dataUrl);
       result = parseMRZ(r2.text);
     }
 
+    if (onProgress) onProgress(100);
     return result;
   } finally {
     await worker.terminate();

@@ -370,7 +370,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                           row.status === "error" && "bg-red-100 text-red-600",
                         )}>
                           {row.status === "queued" && "Antri"}
-                          {row.status === "scanning" && `Scanning ${row.progress}%`}
+                          {row.status === "scanning" && (row.progress < 35 ? "Memuat AI…" : `OCR ${row.progress}%`)}
                           {row.status === "done" && "✓ Selesai"}
                           {row.status === "error" && "✗ Gagal"}
                         </span>
