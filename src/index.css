@@ -68,6 +68,12 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  .lucide {
+    color: hsl(27 91% 45%) !important;
+    stroke: currentColor !important;
+    fill: none !important;
+  }
 }
 
 /* ── Button style keyframes ── */

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon } from "lucide-react";
+import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin } from "lucide-react";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -385,9 +385,9 @@ export default function TripDetail() {
             <h1 className="text-2xl font-bold tracking-tight text-[hsl(var(--card-foreground))] truncate">{trip.name}</h1>
           </div>
           <div className="flex flex-wrap gap-3 mt-1.5 text-sm text-[hsl(var(--muted-foreground))]">
-            <span>📍 {trip.destination}</span>
-            <span>📅 {formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
-            <span>👥 {jamaah.length} jamaah</span>
+            <span className="flex items-center gap-1"><MapPin strokeWidth={1.5} className="h-3.5 w-3.5" /> {trip.destination}</span>
+            <span className="flex items-center gap-1"><CalendarDays strokeWidth={1.5} className="h-3.5 w-3.5" /> {formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
+            <span className="flex items-center gap-1"><Users strokeWidth={1.5} className="h-3.5 w-3.5" /> {jamaah.length} jamaah</span>
           </div>
         </div>
         <Button onClick={() => setAddOpen(true)}
@@ -412,7 +412,7 @@ export default function TripDetail() {
         </div>
       ) : jamaah.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="h-16 w-16 rounded-3xl bg-[hsl(var(--secondary))] flex items-center justify-center mb-4">
+          <div className="h-16 w-16 flex items-center justify-center mb-4">
             <Users strokeWidth={1.5} className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
           </div>
           <h2 className="text-base font-semibold text-[hsl(var(--card-foreground))]">Belum ada jamaah</h2>
@@ -431,7 +431,7 @@ export default function TripDetail() {
           ))}
           <button onClick={() => setAddOpen(true)}
             className="rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 py-10 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
-            <div className="h-9 w-9 rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
+            <div className="h-9 w-9 flex items-center justify-center transition-colors">
               <Plus strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
             </div>
             <span className="text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Jamaah</span>

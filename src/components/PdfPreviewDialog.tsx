@@ -120,8 +120,8 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
           <div className="bg-white border rounded-lg p-8 shadow-inner max-h-[60vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-6 border-b-2 border-primary">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg gradient-primary flex items-center justify-center">
-                  <Plane className="h-6 w-6 text-primary-foreground" />
+                <div className="h-12 w-12 flex items-center justify-center">
+                  <Plane className="h-6 w-6" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-foreground">IGH Tour</h2>

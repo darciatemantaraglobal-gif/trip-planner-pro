@@ -29,11 +29,11 @@ function formatDate(iso: string) {
 
 // ── Doc category config ────────────────────────────────────────────────────────
 const DOC_CATEGORIES: { key: DocCategory; label: string; icon: React.ElementType; color: string }[] = [
-  { key: "passport", label: "Paspor / KTP", icon: ShieldCheck, color: "text-violet-500 bg-violet-50" },
-  { key: "visa",     label: "Visa",          icon: FileText,    color: "text-sky-500 bg-sky-50" },
-  { key: "ticket",   label: "Tiket Pesawat", icon: Plane,       color: "text-rose-500 bg-rose-50" },
-  { key: "medical",  label: "Kesehatan",     icon: HeartPulse,  color: "text-emerald-500 bg-emerald-50" },
-  { key: "other",    label: "Lainnya",       icon: FolderOpen,  color: "text-amber-500 bg-amber-50" },
+  { key: "passport", label: "Paspor / KTP", icon: ShieldCheck, color: "text-[hsl(var(--primary))]" },
+  { key: "visa",     label: "Visa",          icon: FileText,    color: "text-[hsl(var(--primary))]" },
+  { key: "ticket",   label: "Tiket Pesawat", icon: Plane,       color: "text-[hsl(var(--primary))]" },
+  { key: "medical",  label: "Kesehatan",     icon: HeartPulse,  color: "text-[hsl(var(--primary))]" },
+  { key: "other",    label: "Lainnya",       icon: FolderOpen,  color: "text-[hsl(var(--primary))]" },
 ];
 
 // ── Doc item ──────────────────────────────────────────────────────────────────
@@ -55,8 +55,8 @@ function DocItem({ doc, onDelete }: { doc: JamaahDoc; onDelete: () => void }) {
       {isImage ? (
         <img src={doc.dataUrl} alt={doc.label} className="h-12 w-12 rounded-lg object-cover shrink-0 border border-[hsl(var(--border))]" />
       ) : (
-        <div className="h-12 w-12 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
-          <FileText className="h-6 w-6 text-red-400" />
+        <div className="h-12 w-12 flex items-center justify-center shrink-0">
+          <FileText className="h-6 w-6" />
         </div>
       )}
       <div className="flex-1 min-w-0">
@@ -118,7 +118,7 @@ function DocSection({
     <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))]">
         <div className="flex items-center gap-2.5">
-          <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center", color)}>
+          <div className={cn("h-7 w-7 flex items-center justify-center", color)}>
             <Icon className="h-4 w-4" />
           </div>
           <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]">{label}</span>
@@ -258,7 +258,7 @@ export default function JamaahProfile() {
               </div>
               <button
                 onClick={() => photoInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-[hsl(var(--primary))] shadow-md flex items-center justify-center hover:opacity-90 transition-opacity"
+                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center hover:bg-white transition-colors"
               >
                 <Camera className="h-3.5 w-3.5 text-white" />
               </button>

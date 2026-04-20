@@ -81,7 +81,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             <Button
               variant="outline"
               size="icon"
-              className="hidden sm:flex h-10 w-10 rounded-xl border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] shrink-0"
+              className="hidden sm:flex h-10 w-10 rounded-xl border-0 bg-transparent shadow-none text-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] hover:bg-transparent shrink-0"
             >
               <SlidersHorizontal strokeWidth={1.5} className="h-4 w-4" />
             </Button>
@@ -141,8 +141,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
               >
                 <motion.div
                   className={cn(
-                    "h-7 w-7 flex items-center justify-center rounded-lg transition-smooth",
-                    isActive ? "bg-[hsl(var(--accent))]" : ""
+                    "h-7 w-7 flex items-center justify-center transition-smooth"
                   )}
                   whileTap={{ scale: 0.85 }}
                   animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}

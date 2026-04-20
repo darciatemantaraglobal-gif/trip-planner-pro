@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Ship, Train } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
 import { toast } from "sonner";
@@ -354,14 +354,14 @@ function RightPanel({ trips }: { trips: Trip[] }) {
           <h3 className="text-[13px] font-semibold text-[hsl(var(--foreground))] mb-3">Transportasi</h3>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { icon: "✈️", label: "Pesawat" },
-              { icon: "🚌", label: "Bus" },
-              { icon: "🚢", label: "Kapal" },
-              { icon: "🚆", label: "Kereta" },
+              { icon: Plane, label: "Pesawat" },
+              { icon: Bus, label: "Bus" },
+              { icon: Ship, label: "Kapal" },
+              { icon: Train, label: "Kereta" },
             ].map((t) => (
               <button key={t.label}
                 className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-smooth group">
-                <span className="text-xl">{t.icon}</span>
+                <t.icon strokeWidth={1.5} className="h-5 w-5" />
                 <span className="text-[10px] text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]">{t.label}</span>
               </button>
             ))}
@@ -381,14 +381,14 @@ function RightPanel({ trips }: { trips: Trip[] }) {
           </div>
           <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary))] p-3.5 space-y-3">
             {[
-              { icon: Plane, label: "Total Paket Trip", value: trips.length, color: "text-violet-500", bg: "bg-violet-50" },
-              { icon: CheckCircle, label: "Trip Selesai", value: done, color: "text-emerald-500", bg: "bg-emerald-50" },
-              { icon: TrendingUp, label: "Trip Aktif", value: active, color: "text-blue-500", bg: "bg-blue-50" },
-              { icon: Users, label: "Total Jamaah", value: totalJamaah, color: "text-amber-500", bg: "bg-amber-50" },
+              { icon: Plane, label: "Total Paket Trip", value: trips.length },
+              { icon: CheckCircle, label: "Trip Selesai", value: done },
+              { icon: TrendingUp, label: "Trip Aktif", value: active },
+              { icon: Users, label: "Total Jamaah", value: totalJamaah },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3">
-                <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", item.bg)}>
-                  <item.icon strokeWidth={1.5} className={cn("h-4 w-4", item.color)} />
+                <div className="h-8 w-8 flex items-center justify-center shrink-0">
+                  <item.icon strokeWidth={1.5} className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11.5px] text-[hsl(var(--muted-foreground))]">{item.label}</p>
@@ -407,8 +407,8 @@ function RightPanel({ trips }: { trips: Trip[] }) {
             className="rounded-2xl border border-[hsl(var(--border))] bg-white p-3.5 cursor-pointer hover:border-[hsl(var(--primary))] hover:shadow-sm transition-all group"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 rounded-xl gradient-primary shadow-glow flex items-center justify-center shrink-0">
-                <Calculator strokeWidth={1.5} className="h-4.5 w-4.5 text-white" />
+              <div className="h-9 w-9 flex items-center justify-center shrink-0">
+                <Calculator strokeWidth={1.5} className="h-4.5 w-4.5" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">Kalkulator Paket</p>
@@ -487,10 +487,10 @@ export default function Dashboard() {
           animate="visible"
         >
           {[
-            { icon: Plane, label: "Total Paket", value: trips.length, color: "text-violet-500", bg: "bg-violet-50", onClick: () => {} },
-            { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, color: "text-blue-500", bg: "bg-blue-50", onClick: () => setTab("upcoming") },
-            { icon: CheckCircle, label: "Selesai", value: doneTrips, color: "text-emerald-500", bg: "bg-emerald-50", onClick: () => setTab("done") },
-            { icon: Users, label: "Total Jamaah", value: totalJamaah, color: "text-amber-500", bg: "bg-amber-50", onClick: () => {} },
+            { icon: Plane, label: "Total Paket", value: trips.length, onClick: () => {} },
+            { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, onClick: () => setTab("upcoming") },
+            { icon: CheckCircle, label: "Selesai", value: doneTrips, onClick: () => setTab("done") },
+            { icon: Users, label: "Total Jamaah", value: totalJamaah, onClick: () => {} },
           ].map((stat) => (
             <motion.button
               key={stat.label}
@@ -498,8 +498,8 @@ export default function Dashboard() {
               className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-[border-color,box-shadow] duration-200 text-left active:scale-[0.98]"
               variants={fadeUp}
             >
-              <div className={cn("h-7 w-7 md:h-9 md:w-9 rounded-lg md:rounded-xl flex items-center justify-center shrink-0", stat.bg)}>
-                <stat.icon strokeWidth={1.5} className={cn("h-3.5 w-3.5 md:h-4 md:w-4", stat.color)} />
+              <div className="h-7 w-7 md:h-9 md:w-9 flex items-center justify-center shrink-0">
+                <stat.icon strokeWidth={1.5} className="h-3.5 w-3.5 md:h-4 md:w-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-[16px] md:text-[20px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
@@ -573,8 +573,8 @@ export default function Dashboard() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="h-20 w-20 rounded-3xl gradient-primary shadow-glow flex items-center justify-center mb-5">
-              <Plane strokeWidth={1.5} className="h-9 w-9 text-white" />
+            <div className="h-20 w-20 flex items-center justify-center mb-5">
+              <Plane strokeWidth={1.5} className="h-9 w-9" />
             </div>
             <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">Belum ada paket trip</h2>
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 max-w-xs">
@@ -593,7 +593,7 @@ export default function Dashboard() {
             {/* Add card */}
             <button onClick={() => setAddOpen(true)}
               className="rounded-xl md:rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 md:gap-3 min-h-[120px] sm:min-h-[220px] hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-all group">
-              <div className="h-9 w-9 md:h-11 md:w-11 rounded-lg md:rounded-xl border-2 border-dashed border-[hsl(var(--border))] group-hover:border-[hsl(var(--primary))] flex items-center justify-center transition-colors">
+              <div className="h-9 w-9 md:h-11 md:w-11 flex items-center justify-center transition-colors">
                 <Plus strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
               </div>
               <span className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Paket</span>

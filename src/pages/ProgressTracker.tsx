@@ -159,11 +159,11 @@ export default function ProgressTracker() {
                           >
                             <div
                               className={cn(
-                                "h-8 w-8 rounded-full flex items-center justify-center border-2 bg-white transition-smooth z-10 cursor-pointer",
+                                "h-8 w-8 flex items-center justify-center border-0 bg-white transition-smooth z-10 cursor-pointer",
                                 "group-hover/step:scale-110",
-                                isComplete && "gradient-primary border-transparent shadow-sm",
-                                isCurrent  && "border-[hsl(var(--primary))] text-[hsl(var(--primary))] shadow-glow scale-110",
-                                !isComplete && !isCurrent && "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]",
+                                isComplete && "shadow-none",
+                                isCurrent  && "text-[hsl(var(--primary))] scale-110",
+                                !isComplete && !isCurrent && "text-[hsl(var(--muted-foreground))]",
                               )}
                             >
                               {isComplete ? (
