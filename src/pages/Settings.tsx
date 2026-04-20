@@ -18,6 +18,7 @@ import {
 } from "@/lib/appearance";
 import { useRatesStore } from "@/store/ratesStore";
 import { useAuthStore, type Credential } from "@/store/authStore";
+import { useRegionalStore } from "@/store/regionalStore";
 
 const TABS = [
   { key: "profile",       label: "Profil",     icon: User },
@@ -127,12 +128,8 @@ export default function Settings() {
     toast.success("Agen dihapus.");
   };
 
-  const [regional, setRegional] = useState({
-    language: "id",
-    timezone: "Asia/Jakarta",
-    currency: "IDR",
-    dateFormat: "dd/mm/yyyy",
-  });
+  const { language, timezone, currency, dateFormat, setRegional } = useRegionalStore();
+  const regional = { language, timezone, currency, dateFormat };
 
   useEffect(() => {
     applyAppearanceSettings(appearance);
@@ -352,7 +349,7 @@ export default function Settings() {
 
         {tab === "regional" && (
           <div className="space-y-3 max-w-xl">
-            <SectionHeader title="Regional" desc="Pengaturan bahasa, zona waktu, dan format" />
+            <SectionHeader title="Regional" desc="Pengaturan bahasa, zona waktu, mata uang, dan format tanggal — diterapkan otomatis ke seluruh aplikasi" />
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { key: "language",   label: "Bahasa",            opts: [{ v: "id", l: "Bahasa Indonesia" }, { v: "en", l: "English" }, { v: "ar", l: "العربية" }] },
@@ -364,7 +361,10 @@ export default function Settings() {
                   <Label className="text-[11px] text-[hsl(var(--muted-foreground))]">{field.label}</Label>
                   <Select
                     value={(regional as Record<string, string>)[field.key]}
-                    onValueChange={(v) => setRegional((r) => ({ ...r, [field.key]: v }))}
+                    onValueChange={(v) => {
+                      setRegional({ [field.key]: v } as Parameters<typeof setRegional>[0]);
+                      toast.success("Pengaturan regional diperbarui", { description: "Perubahan langsung diterapkan ke seluruh aplikasi." });
+                    }}
                   >
                     <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent style={{ background: "#fff" }}>
@@ -374,6 +374,65 @@ export default function Settings() {
                 </div>
               ))}
             </div>
+
+            {/* Live preview */}
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-4 space-y-3">
+              <p className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Preview Format Aktif</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Angka / Mata Uang</p>
+                  <p className="text-sm font-bold text-[hsl(var(--foreground))]">
+                    {currency === "IDR"
+                      ? `Rp ${(25000000).toLocaleString(language === "id" ? "id-ID" : "en-US")}`
+                      : currency === "USD"
+                        ? `$ ${(25000000 / (rates.USD || 16000)).toLocaleString(language === "id" ? "id-ID" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : `SAR ${(25000000 / (rates.SAR || 4250)).toLocaleString(language === "id" ? "id-ID" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Tanggal</p>
+                  <p className="text-sm font-bold text-[hsl(var(--foreground))]">
+                    {(() => {
+                      const d = new Date("2025-07-15T00:00:00");
+                      if (dateFormat === "dd/mm/yyyy") {
+                        const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: timezone }).formatToParts(d);
+                        const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "??";
+                        return `${get("day")}/${get("month")}/${get("year")}`;
+                      }
+                      if (dateFormat === "mm/dd/yyyy") {
+                        const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: timezone }).formatToParts(d);
+                        const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "??";
+                        return `${get("month")}/${get("day")}/${get("year")}`;
+                      }
+                      const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: timezone }).formatToParts(d);
+                      const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "??";
+                      return `${get("year")}-${get("month")}-${get("day")}`;
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Tanggal Panjang</p>
+                  <p className="text-sm font-bold text-[hsl(var(--foreground))]">
+                    {new Intl.DateTimeFormat(language === "id" ? "id-ID" : language === "ar" ? "ar-SA" : "en-US", {
+                      day: "numeric", month: "long", year: "numeric", timeZone: timezone,
+                    }).format(new Date("2025-07-15T00:00:00"))}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Zona Waktu</p>
+                  <p className="text-sm font-bold text-[hsl(var(--foreground))]">
+                    {new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-US", {
+                      hour: "2-digit", minute: "2-digit", timeZone: timezone, timeZoneName: "short",
+                    }).format(new Date())}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-[hsl(var(--muted-foreground))] flex items-center gap-1.5">
+              <Globe className="h-3 w-3 inline" />
+              Perubahan disimpan otomatis dan langsung berlaku di seluruh halaman.
+            </p>
           </div>
         )}
 

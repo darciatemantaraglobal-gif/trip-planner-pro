@@ -12,6 +12,7 @@ import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type JamaahDo
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { scanPassport } from "@/lib/ocrPassport";
+import { useRegional } from "@/lib/regional";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fileToBase64(file: File): Promise<string> {
@@ -23,10 +24,6 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-function formatDate(iso: string) {
-  if (!iso) return "—";
-  return new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-}
 
 // ── Doc category config ────────────────────────────────────────────────────────
 const DOC_CATEGORIES: { key: DocCategory; label: string; icon: React.ElementType; color: string }[] = [
@@ -174,6 +171,7 @@ export default function JamaahProfile() {
   const { id: tripId, jamaahId } = useParams<{ id: string; jamaahId: string }>();
   const navigate = useNavigate();
   const trips = useTripsStore((s) => s.trips);
+  const { formatDate } = useRegional();
   const { jamaah, fetchJamaah, patchJamaah } = useJamaahStore();
   const { docs, fetchDocs } = useDocsStore();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -363,7 +361,7 @@ export default function JamaahProfile() {
               <div className="mt-3 grid gap-y-2 gap-x-6 sm:grid-cols-2 text-sm">
                 {[
                   { label: "No. HP", value: person.phone },
-                  { label: "Tanggal Lahir", value: person.birthDate ? formatDate(person.birthDate) : "" },
+                  { label: "Tanggal Lahir", value: person.birthDate ? formatDate(person.birthDate, "full") : "" },
                   { label: "No. Paspor", value: person.passportNumber },
                 ].map(({ label, value }) => value ? (
                   <div key={label}>

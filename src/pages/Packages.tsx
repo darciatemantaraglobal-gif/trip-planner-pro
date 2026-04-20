@@ -21,6 +21,7 @@ import type { Package } from "@/features/packages/packagesRepo";
 import { computeQuote, type CostInput } from "@/features/calculator/pricing";
 import type { Currency } from "@/lib/exchangeRates";
 import { useRatesStore } from "@/store/ratesStore";
+import { useRegional } from "@/lib/regional";
 
 const statusVariant: Record<string, string> = {
   Draft: "bg-muted text-muted-foreground",
@@ -30,7 +31,6 @@ const statusVariant: Record<string, string> = {
   Completed: "bg-emerald-500/10 text-emerald-600",
 };
 
-const fmtIDR = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
 interface StoredJamaah {
   id: string;
@@ -107,6 +107,7 @@ export default function Packages() {
   const navigate = useNavigate();
   const { items, loading, create, update, remove } = usePackages();
   const rates = useRatesStore((s) => s.rates);
+  const { formatCurrency } = useRegional();
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Package | null>(null);
@@ -312,14 +313,14 @@ export default function Packages() {
                         <WalletCards className="h-3 w-3" />
                         Revenue
                       </p>
-                      <p className="mt-1 text-[13px] font-extrabold text-slate-950">{fmtIDR(Math.round(financial.revenue))}</p>
+                      <p className="mt-1 text-[13px] font-extrabold text-slate-950">{formatCurrency(Math.round(financial.revenue))}</p>
                     </div>
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
                       <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                         <TrendingUp className="h-3 w-3" />
                         Margin
                       </p>
-                      <p className="mt-1 text-[13px] font-extrabold text-emerald-700">{fmtIDR(Math.round(financial.margin))}</p>
+                      <p className="mt-1 text-[13px] font-extrabold text-emerald-700">{formatCurrency(Math.round(financial.margin))}</p>
                     </div>
                   </div>
 

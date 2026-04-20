@@ -11,6 +11,7 @@ import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCateg
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { scanPassport } from "@/lib/ocrPassport";
+import { useRegional } from "@/lib/regional";
 
 const DOC_CATEGORIES: { value: DocCategory; label: string }[] = [
   { value: "passport", label: "Paspor / KTP" },
@@ -38,10 +39,6 @@ interface UploadedDoc {
   dataUrl: string;
 }
 
-function formatDate(iso: string) {
-  if (!iso) return "—";
-  return new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-}
 
 // ── ADD JAMAAH DIALOG ──────────────────────────────────────────────────────────
 function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: string; onClose: () => void }) {
@@ -356,7 +353,7 @@ function JamaahCard({ jamaah, tripId, onDelete }: { jamaah: Jamaah; tripId: stri
         {jamaah.birthDate && (
           <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
             <CalendarDays strokeWidth={1.5} className="h-3 w-3" />
-            <span>{formatDate(jamaah.birthDate)}</span>
+            <span>{jamaah.birthDate ? formatDate(jamaah.birthDate) : "—"}</span>
           </div>
         )}
       </div>
@@ -388,6 +385,7 @@ export default function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const trips = useTripsStore((s) => s.trips);
+  const { formatDate } = useRegional();
   const { jamaah, loadingJamaah, fetchJamaah, removeJamaah } = useJamaahStore();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
@@ -429,7 +427,7 @@ export default function TripDetail() {
           </div>
           <div className="flex flex-wrap gap-3 mt-1.5 text-sm text-[hsl(var(--muted-foreground))]">
             <span className="flex items-center gap-1"><MapPin strokeWidth={1.5} className="h-3.5 w-3.5" /> {trip.destination}</span>
-            <span className="flex items-center gap-1"><CalendarDays strokeWidth={1.5} className="h-3.5 w-3.5" /> {formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span>
+            <span className="flex items-center gap-1"><CalendarDays strokeWidth={1.5} className="h-3.5 w-3.5" /> {trip.startDate ? formatDate(trip.startDate) : "—"} – {trip.endDate ? formatDate(trip.endDate) : "—"}</span>
             <span className="flex items-center gap-1"><Users strokeWidth={1.5} className="h-3.5 w-3.5" /> {jamaah.length} jamaah</span>
           </div>
         </div>

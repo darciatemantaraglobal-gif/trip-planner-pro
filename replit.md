@@ -95,12 +95,14 @@ src/
     ratesStore.ts             # Exchange rates + markup
     packagesStore.ts          # Packages list
     tripsStore.ts             # Trips + jamaah + documents
+    regionalStore.ts          # Regional settings: language, timezone, currency, dateFormat (persisted localStorage)
   lib/
     exchangeRates.ts          # Fetch Frankfurter API + cache + fallback
     generatePdf.ts            # PDF generation (jsPDF)
     ocrPassport.ts            # OCR MRZ passport parsing (tesseract.js)
     syncBus.ts                # BroadcastChannel sync antar tab
     appearance.ts             # Persistent appearance settings
+    regional.ts               # useRegional() hook + formatCurrency / formatDate helpers (regional-aware)
     utils.ts                  # cn helper
 ```
 

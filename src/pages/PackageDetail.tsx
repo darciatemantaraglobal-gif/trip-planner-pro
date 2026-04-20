@@ -18,6 +18,7 @@ import type { Currency } from "@/lib/exchangeRates";
 import { cn } from "@/lib/utils";
 import { useRatesStore } from "@/store/ratesStore";
 import { useJamaahStore, type Jamaah } from "@/store/tripsStore";
+import { useRegional } from "@/lib/regional";
 
 interface PackageCalculatorState {
   packageName: string;
@@ -47,14 +48,6 @@ const statusVariant: Record<string, string> = {
   Completed: "bg-emerald-500/10 text-emerald-600",
 };
 
-function fmtIDR(n: number) {
-  return "Rp " + Math.round(n).toLocaleString("id-ID");
-}
-
-function formatDate(iso?: string) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-}
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -255,6 +248,7 @@ export default function PackageDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { items, loading, update } = usePackages();
   const rates = useRatesStore((s) => s.rates);
+  const { formatCurrency, formatDate } = useRegional();
   const { jamaah, loadingJamaah, fetchJamaah, removeJamaah } = useJamaahStore();
   const [addOpen, setAddOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "jamaah" ? "jamaah" : "calculator");
@@ -368,7 +362,7 @@ export default function PackageDetail() {
           <div className="mt-1 flex flex-wrap gap-3 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{pkg.destination}</span>
             <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{jamaah.length} jamaah / {pkg.people} pax</span>
-            <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Update {formatDate(pkg.updatedAt)}</span>
+            <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Update {formatDate(pkg.updatedAt ?? "")}</span>
           </div>
         </div>
         <Button onClick={() => setAddOpen(true)} className="gradient-primary text-white rounded-xl shrink-0">
@@ -379,11 +373,11 @@ export default function PackageDetail() {
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border bg-white p-4">
           <p className="text-xs text-muted-foreground">Total paket</p>
-          <p className="mt-1 text-xl font-bold text-orange-600">{fmtIDR(pkg.totalIDR)}</p>
+          <p className="mt-1 text-xl font-bold text-orange-600">{formatCurrency(pkg.totalIDR)}</p>
         </div>
         <div className="rounded-2xl border bg-white p-4">
           <p className="text-xs text-muted-foreground">Harga per jamaah</p>
-          <p className="mt-1 text-xl font-bold">{fmtIDR(pkg.people > 0 ? pkg.totalIDR / pkg.people : 0)}</p>
+          <p className="mt-1 text-xl font-bold">{formatCurrency(pkg.people > 0 ? pkg.totalIDR / pkg.people : 0)}</p>
         </div>
         <div className="rounded-2xl border bg-white p-4">
           <p className="text-xs text-muted-foreground">Kelengkapan jamaah</p>
@@ -478,17 +472,17 @@ export default function PackageDetail() {
                 ) : quote.breakdown.filter((item) => item.amountIDR > 0).map((item) => (
                   <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-secondary px-3 py-2 text-sm">
                     <span className="truncate">{item.label}</span>
-                    <span className="font-semibold">{fmtIDR(item.amountIDR)}</span>
+                    <span className="font-semibold">{formatCurrency(item.amountIDR)}</span>
                   </div>
                 ))}
               </div>
               <div className="rounded-2xl bg-orange-50 border border-orange-100 p-4 space-y-3">
-                <div className="flex justify-between text-sm"><span>Subtotal</span><strong>{fmtIDR(quote.totalIDR)}</strong></div>
-                <div className="flex justify-between text-sm"><span>Margin</span><strong>{fmtIDR(quote.marginIDR)}</strong></div>
+                <div className="flex justify-between text-sm"><span>Subtotal</span><strong>{formatCurrency(quote.totalIDR)}</strong></div>
+                <div className="flex justify-between text-sm"><span>Margin</span><strong>{formatCurrency(quote.marginIDR)}</strong></div>
                 <div className="pt-3 border-t border-orange-200">
                   <p className="text-xs text-orange-700">Total final</p>
-                  <p className="text-2xl font-extrabold text-orange-600">{fmtIDR(quote.finalPriceIDR)}</p>
-                  <p className="text-xs text-orange-700 mt-1">Per jamaah: {fmtIDR(quote.finalPerPersonIDR)}</p>
+                  <p className="text-2xl font-extrabold text-orange-600">{formatCurrency(quote.finalPriceIDR)}</p>
+                  <p className="text-xs text-orange-700 mt-1">Per jamaah: {formatCurrency(quote.finalPerPersonIDR)}</p>
                 </div>
                 <Button onClick={syncToPackage} className="w-full gradient-primary text-white rounded-xl">
                   <Save className="h-4 w-4 mr-1.5" /> Simpan ke Paket

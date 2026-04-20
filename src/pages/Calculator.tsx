@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
+import { useRegional } from "@/lib/regional";
 
 const TRANSPORT_OPTIONS = [
   { value: "pesawat", label: "Pesawat", icon: Plane },
@@ -25,9 +26,6 @@ function daysBetween(start: string, end: string): number {
   return Math.max(0, Math.round(d));
 }
 
-function fmtIDR(n: number) {
-  return "Rp " + Math.round(n).toLocaleString("id-ID");
-}
 
 interface Transport {
   jenis: string;
@@ -153,6 +151,7 @@ function SectionLabel({
 
 export default function Calculator() {
   const rates = useRatesStore((s) => s.rates);
+  const { formatCurrency } = useRegional();
   const [form, setForm] = useState<FormState>(initForm);
   const [pdfOpen, setPdfOpen] = useState(false);
 
@@ -424,7 +423,7 @@ export default function Calculator() {
                   {nightsMakkah} malam
                   {form.hargaMakkah > 0 && (
                     <span className="ml-1.5 text-orange-500 font-normal">
-                      · Total {fmtIDR(summary.hotelMakkahIDR)}
+                      · Total {formatCurrency(summary.hotelMakkahIDR)}
                     </span>
                   )}
                 </p>
@@ -476,7 +475,7 @@ export default function Calculator() {
                   {nightsMadinah} malam
                   {form.hargaMadinah > 0 && (
                     <span className="ml-1.5 text-orange-500 font-normal">
-                      · Total {fmtIDR(summary.hotelMadinahIDR)}
+                      · Total {formatCurrency(summary.hotelMadinahIDR)}
                     </span>
                   )}
                 </p>
@@ -607,7 +606,7 @@ export default function Calculator() {
                   className="flex justify-between items-center py-1.5 border-b border-dashed border-orange-100"
                 >
                   <span className="text-[12px] text-[hsl(var(--muted-foreground))]">{r.label}</span>
-                  <span className="text-[12px] font-semibold text-[hsl(var(--foreground))]">{fmtIDR(r.value)}</span>
+                  <span className="text-[12px] font-semibold text-[hsl(var(--foreground))]">{formatCurrency(r.value)}</span>
                 </div>
               ))}
 
@@ -623,14 +622,14 @@ export default function Calculator() {
               <>
                 <div className="flex justify-between items-center py-1.5">
                   <span className="text-[12px] text-[hsl(var(--muted-foreground))]">Subtotal</span>
-                  <span className="text-[12px] font-semibold">{fmtIDR(summary.subtotal)}</span>
+                  <span className="text-[12px] font-semibold">{formatCurrency(summary.subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b-2 border-orange-200">
                   <span className="text-[12px] text-orange-600 font-semibold">
                     Margin ({form.margin}%)
                   </span>
                   <span className="text-[12px] font-bold text-orange-600">
-                    + {fmtIDR(summary.marginAmt)}
+                    + {formatCurrency(summary.marginAmt)}
                   </span>
                 </div>
               </>
@@ -654,11 +653,11 @@ export default function Calculator() {
                   Total Paket
                 </p>
                 <p className="text-2xl font-extrabold mt-1 tracking-tight">
-                  {fmtIDR(summary.total)}
+                  {formatCurrency(summary.total)}
                 </p>
                 <div className="mt-3 pt-3 border-t border-white/20">
                   <p className="text-[11px] opacity-75">Per orang ({form.pax} pax)</p>
-                  <p className="text-lg font-bold mt-0.5">{fmtIDR(summary.perPerson)}</p>
+                  <p className="text-lg font-bold mt-0.5">{formatCurrency(summary.perPerson)}</p>
                 </div>
               </div>
             </div>

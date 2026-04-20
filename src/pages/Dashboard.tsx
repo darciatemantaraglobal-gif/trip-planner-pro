@@ -9,6 +9,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
+import { formatDateStr, getLocale } from "@/lib/regional";
+import { useRegionalStore } from "@/store/regionalStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { motion, type Variants } from "framer-motion";
@@ -57,12 +59,17 @@ function cardGradient(id: string): [string, string] {
 
 function formatDate(iso: string) {
   if (!iso) return "—";
-  return new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  const { timezone, language, dateFormat } = useRegionalStore.getState();
+  return formatDateStr(iso, dateFormat, timezone, getLocale(language), "short");
 }
 
 function formatShortDate(iso: string) {
   if (!iso) return "—";
-  return new Date(iso + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  const { timezone, language } = useRegionalStore.getState();
+  const locale = getLocale(language);
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: timezone }).format(
+    new Date(iso + "T00:00:00")
+  );
 }
 
 function nightCount(start: string, end: string) {
