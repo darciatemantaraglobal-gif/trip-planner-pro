@@ -25,13 +25,18 @@ export default function Auth() {
     let active = true;
     (async () => {
       if (!supabase) { setChecking(false); return; }
-      // Cek apakah udah ada agency
       try {
-        const { count, error: e } = await supabase
+        const query = supabase
           .from("agencies").select("*", { count: "exact", head: true });
+        const result = await Promise.race([
+          query,
+          new Promise<{ count: null; error: { message: string } }>((res) =>
+            setTimeout(() => res({ count: null, error: { message: "timeout" } }), 4000),
+          ),
+        ]);
         if (!active) return;
+        const { count, error: e } = result as { count: number | null; error: any };
         if (e) {
-          // Bisa karena RLS — kalo unauth, error → asumsi belum bootstrap
           setAlreadyBootstrapped(false);
         } else {
           setAlreadyBootstrapped((count ?? 0) > 0);

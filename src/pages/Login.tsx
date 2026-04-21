@@ -177,7 +177,7 @@ export default function Login() {
 
                   <motion.button
                     type="submit"
-                    disabled={isLoading || !username.trim() || !password.trim()}
+                    disabled={isLoading || !email.trim() || !password.trim()}
                     className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-sm font-extrabold uppercase tracking-widest text-white transition-all disabled:opacity-50"
                     style={{
                       background: "linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%)",
