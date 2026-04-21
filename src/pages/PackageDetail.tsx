@@ -521,6 +521,8 @@ export default function PackageDetail() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "jamaah" ? "jamaah" : "calculator");
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
   const [showSummary, setShowSummary] = useState(true);
+  const [localRateSAR, setLocalRateSAR] = useState(0);
+  const [localRateUSD, setLocalRateUSD] = useState(0);
   const pkg = items.find((item) => item.id === id);
   const [calc, setCalc] = useState<ProfessionalCalcState | null>(null);
 
@@ -549,10 +551,16 @@ export default function PackageDetail() {
     savePackageCalc(id, calc);
   }, [id, calc]);
 
+  const effectiveRates = useMemo(() => ({
+    ...rates,
+    SAR: localRateSAR > 0 ? localRateSAR : (rates.SAR ?? 1),
+    USD: localRateUSD > 0 ? localRateUSD : (rates.USD ?? 1),
+  }), [localRateSAR, localRateUSD, rates]);
+
   const quote = useMemo(() => {
     if (!calc) return null;
     if (calc.mode === "umum") {
-      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates });
+      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates: effectiveRates });
     }
     return computeProfessionalQuote({
       pax: calc.pax,
@@ -566,9 +574,9 @@ export default function PackageDetail() {
       commissionFee: calc.commissionFee,
       marginPercent: calc.marginPercent,
       discount: calc.discount,
-      rates,
+      rates: effectiveRates,
     });
-  }, [calc, rates]);
+  }, [calc, effectiveRates]);
 
   // ── State updaters ──────────────────────────────────────────────────────────
 
@@ -683,8 +691,8 @@ export default function PackageDetail() {
   );
   if (!calc) return <div className="py-12 text-center text-sm text-muted-foreground">Menyiapkan kalkulator paket…</div>;
 
-  const sarRate = rates.SAR ?? 1;
-  const usdRate = rates.USD ?? 1;
+  const sarRate = localRateSAR > 0 ? localRateSAR : (rates.SAR ?? 1);
+  const usdRate = localRateUSD > 0 ? localRateUSD : (rates.USD ?? 1);
   const safePax = Math.max(1, calc.pax);
 
   return (
@@ -763,16 +771,43 @@ export default function PackageDetail() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(["SAR", "USD"] as const).map((cur) => {
+                const storeVal = rates[cur] ?? 0;
+                const localVal = cur === "SAR" ? localRateSAR : localRateUSD;
+                const setLocal = cur === "SAR" ? setLocalRateSAR : setLocalRateUSD;
+                const active = localVal > 0;
+                return (
+                  <div
+                    key={cur}
+                    className={`flex items-center gap-1 rounded-lg border px-2 py-1 transition-colors ${active ? "bg-orange-50 border-orange-200" : "bg-slate-50 border-slate-200"}`}
+                  >
+                    <span style={M} className="text-[10px] font-bold text-slate-600 uppercase shrink-0">{cur}</span>
+                    <span style={M} className="text-[10px] text-muted-foreground">=</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder={storeVal.toLocaleString("id-ID")}
+                      value={localVal || ""}
+                      onChange={(e) => setLocal(Number(e.target.value))}
+                      style={M}
+                      className="h-5 w-20 text-[10px] font-bold border-0 bg-transparent shadow-none p-0 focus:outline-none text-slate-800"
+                    />
+                    {active && (
+                      <button
+                        type="button"
+                        onClick={() => setLocal(0)}
+                        style={M}
+                        className="text-[9px] text-orange-400 hover:text-orange-600 font-medium shrink-0 ml-0.5"
+                      >↩</button>
+                    )}
+                  </div>
+                );
+              })}
               <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
-                <span className="text-[10px] font-bold text-slate-600 uppercase">SAR</span>
-                <span className="text-[10px] text-muted-foreground">=</span>
-                <span className="text-[10px] font-bold text-slate-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
-              </div>
-              <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
-                <span className="text-[10px] font-bold text-slate-600 uppercase">USD</span>
-                <span className="text-[10px] text-muted-foreground">=</span>
-                <span className="text-[10px] font-bold text-slate-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
+                <span style={M} className="text-[10px] font-bold text-slate-600 uppercase shrink-0">IDR</span>
+                <span style={M} className="text-[10px] text-muted-foreground">=</span>
+                <span style={M} className="text-[10px] font-bold text-slate-800 font-mono">1</span>
               </div>
             </div>
           </div>
@@ -1257,9 +1292,7 @@ export default function PackageDetail() {
                   <tbody>
                     {calc.generalCosts.map((c) => {
                       const qty = c.unit === "pax" ? safePax : 1;
-                      const sarRate2 = rates.SAR ?? 1;
-                      const usdRate2 = rates.USD ?? 1;
-                      const groupIDR = c.currency === "IDR" ? c.amount * qty : c.currency === "SAR" ? c.amount * qty * sarRate2 : c.amount * qty * usdRate2;
+                      const groupIDR = c.currency === "IDR" ? c.amount * qty : c.currency === "SAR" ? c.amount * qty * sarRate : c.amount * qty * usdRate;
                       return (
                         <tr key={c.id} className="hover:bg-orange-50/30 transition-colors">
                           <Td><TextCell value={c.label} onChange={(v) => updateGeneralCost(c.id, { label: v })} placeholder="cth: Penginapan" /></Td>

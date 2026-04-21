@@ -40,6 +40,8 @@ interface CalcState {
   commissionFee: number;
   marginPercent: number;
   discount: number;
+  localRateSAR: number;
+  localRateUSD: number;
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -104,6 +106,8 @@ function makeDefault(): CalcState {
     commissionFee: 0,
     marginPercent: 10,
     discount: 0,
+    localRateSAR: 0,
+    localRateUSD: 0,
   };
 }
 
@@ -304,13 +308,19 @@ export default function Calculator() {
     update(next);
   };
 
-  const sarRate = rates.SAR ?? 1;
-  const usdRate = rates.USD ?? 1;
+  const sarRate = calc.localRateSAR > 0 ? calc.localRateSAR : (rates.SAR ?? 1);
+  const usdRate = calc.localRateUSD > 0 ? calc.localRateUSD : (rates.USD ?? 1);
   const safePax = Math.max(1, calc.pax);
+
+  const effectiveRates = useMemo(() => ({
+    ...rates,
+    SAR: calc.localRateSAR > 0 ? calc.localRateSAR : (rates.SAR ?? 1),
+    USD: calc.localRateUSD > 0 ? calc.localRateUSD : (rates.USD ?? 1),
+  }), [calc.localRateSAR, calc.localRateUSD, rates]);
 
   const quote = useMemo(() => {
     if (calc.mode === "umum") {
-      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates });
+      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates: effectiveRates });
     }
     return computeProfessionalQuote({
       pax: calc.pax,
@@ -324,9 +334,9 @@ export default function Calculator() {
       commissionFee: calc.commissionFee,
       marginPercent: calc.marginPercent,
       discount: calc.discount,
-      rates,
+      rates: effectiveRates,
     });
-  }, [calc, rates]);
+  }, [calc, effectiveRates]);
 
   // ── Row updaters ─────────────────────────────────────────────────────────────
 
@@ -453,35 +463,67 @@ export default function Calculator() {
         </div>
       </div>
 
-      {/* ── Mode switcher + kurs strip ── */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200 bg-orange-50/50">
-          {(["umroh", "umum"] as CalcMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setField("mode", m)}
-              style={M}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all",
-                calc.mode === m
-                  ? "bg-orange-500 text-white shadow-sm"
-                  : "text-orange-600 hover:bg-orange-100"
-              )}
-            >
-              {m === "umroh" ? "🕌 Umroh" : "🗺️ Umum"}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
-            <span className="text-[10px] font-bold text-slate-600 uppercase">SAR</span>
-            <span className="text-[10px] text-muted-foreground">=</span>
-            <span className="text-[10px] font-bold text-slate-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
-            <span className="text-[10px] font-bold text-slate-600 uppercase">USD</span>
-            <span className="text-[10px] text-muted-foreground">=</span>
-            <span className="text-[10px] font-bold text-slate-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
+      {/* ── Mode switcher ── */}
+      <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200 bg-orange-50/50 self-start">
+        {(["umroh", "umum"] as CalcMode[]).map((m) => (
+          <button
+            key={m}
+            onClick={() => setField("mode", m)}
+            style={M}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all",
+              calc.mode === m
+                ? "bg-orange-500 text-white shadow-sm"
+                : "text-orange-600 hover:bg-orange-100"
+            )}
+          >
+            {m === "umroh" ? "🕌 Umroh" : "🗺️ Umum"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Editable rates strip ── */}
+      <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2">
+        <p style={M} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Override Kurs (khusus halaman ini)</p>
+        <div className="flex flex-wrap gap-2">
+          {(["SAR", "USD"] as const).map((cur) => {
+            const storeVal = rates[cur] ?? 0;
+            const localVal = cur === "SAR" ? calc.localRateSAR : calc.localRateUSD;
+            const active = localVal > 0;
+            return (
+              <div
+                key={cur}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${active ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"}`}
+              >
+                <span style={M} className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 shrink-0">{cur}</span>
+                <span style={M} className="text-[11px] text-muted-foreground">= Rp</span>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder={storeVal.toLocaleString("id-ID")}
+                  value={localVal || ""}
+                  onChange={(e) => setField(cur === "SAR" ? "localRateSAR" : "localRateUSD", Number(e.target.value))}
+                  style={M}
+                  className="h-6 w-28 text-[11px] font-bold border-0 bg-transparent shadow-none p-0 focus:outline-none"
+                />
+                {active ? (
+                  <button
+                    type="button"
+                    onClick={() => setField(cur === "SAR" ? "localRateSAR" : "localRateUSD", 0)}
+                    style={M}
+                    className="text-[10px] text-orange-400 hover:text-orange-600 font-medium shrink-0"
+                  >↩ Reset</button>
+                ) : (
+                  <span style={M} className="text-[10px] text-slate-400 italic shrink-0">(dari Pengaturan)</span>
+                )}
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
+            <span style={M} className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 shrink-0">IDR</span>
+            <span style={M} className="text-[11px] text-muted-foreground">= Rp</span>
+            <span style={M} className="text-[11px] font-bold text-slate-800 font-mono">1</span>
+            <span style={M} className="text-[10px] text-slate-400 italic shrink-0">(basis)</span>
           </div>
         </div>
       </div>
