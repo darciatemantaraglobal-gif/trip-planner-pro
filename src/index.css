@@ -61,7 +61,13 @@
     --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-bg: 0 0% 100%;
-    --sidebar-width: 228px;
+    --sidebar-width: 220px;
+  }
+
+  @media (min-width: 1280px) {
+    :root {
+      --sidebar-width: 240px;
+    }
   }
 
   :root[data-theme="dark"] {
@@ -824,6 +830,20 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
   /* Status bar respected in header */
   .pwa-header {
     padding-top: max(0.5rem, env(safe-area-inset-top)) !important;
+  }
+
+  /* Edge safe-areas (landscape iPad / iPhone) — keep content inside notch zone */
+  .pwa-main-content {
+    padding-left: max(var(--main-pl, 0px), env(safe-area-inset-left)) !important;
+    padding-right: max(var(--main-pr, 0px), env(safe-area-inset-right)) !important;
+  }
+}
+
+/* Comfortable max content width on very wide screens */
+@media (min-width: 1600px) {
+  .pwa-main-content > div {
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 

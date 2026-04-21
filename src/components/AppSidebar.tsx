@@ -98,7 +98,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
 
   const sidebarContent = (
     <aside
-      className="flex h-full flex-col border border-[hsl(var(--border))] bg-white/95 shadow-[0_18px_45px_hsl(27_91%_54%_/_0.10)] backdrop-blur md:m-3 md:h-[calc(100%-1.5rem)] md:rounded-[2rem] max-md:rounded-r-[2rem]"
+      className="flex h-full flex-col border-r border-[hsl(var(--border))] bg-white/95 backdrop-blur shadow-[0_8px_28px_hsl(27_91%_54%_/_0.06)] max-md:rounded-r-[2rem] max-md:border"
       style={{ width: "var(--sidebar-width)" }}
     >
       {/* ── Logo ── */}

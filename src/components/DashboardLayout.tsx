@@ -354,92 +354,89 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
         </AnimatePresence>
       </div>
 
-      {/* ── Desktop layout ── */}
+      {/* ── Desktop / Tablet layout — full-bleed edge-to-edge ── */}
       <div
-        className="mobile-compact hidden md:block min-h-screen md:p-3 lg:p-5"
+        className="mobile-compact hidden md:flex h-screen w-screen overflow-hidden"
         style={{ background: "hsl(var(--background))" }}
       >
-        <div
-          className="min-h-[calc(100vh-24px)] lg:min-h-[calc(100vh-40px)] rounded-3xl flex overflow-hidden"
-          style={{ background: "hsl(var(--card))", boxShadow: "0 4px 32px hsl(27 91% 54% / 0.15)" }}
-        >
-          <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <motion.header
-              className="pwa-header flex items-center gap-3 px-6 py-4 border-b border-[hsl(var(--border))] shrink-0"
-              style={{ background: "hsl(var(--card))" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              {/* Live rates — minimal style */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <div
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{
-                    background: rateMode === "manual" ? "#f97316" : "#10b981",
-                    boxShadow: rateMode === "manual" ? "0 0 5px #f97316" : "0 0 5px #10b981",
-                  }}
-                />
-                <div className="flex items-center gap-3 text-[11px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
-                  <span className={cn(
-                    "text-[9px] uppercase tracking-wide font-bold",
-                    rateMode === "manual" ? "text-orange-500" : "text-emerald-500"
-                  )}>
-                    {rateMode === "manual" ? "Manual" : "Live"}
-                  </span>
-                  <span className="text-[hsl(var(--muted-foreground))]">
-                    USD <span className="text-orange-500 font-bold">Rp{rates.USD?.toLocaleString("id-ID") ?? "—"}</span>
-                  </span>
-                  <span className="text-[hsl(var(--border))]">·</span>
-                  <span className="text-[hsl(var(--muted-foreground))]">
-                    SAR <span className="text-orange-500 font-bold">Rp{rates.SAR?.toLocaleString("id-ID") ?? "—"}</span>
-                  </span>
-                </div>
-                <button
-                  onClick={() => refreshRates()}
-                  className="transition-colors text-[hsl(var(--muted-foreground))] hover:text-orange-500"
-                  title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Belum diperbarui"}
-                >
-                  <RefreshCw className={cn("h-3 w-3", ratesLoading && "animate-spin")} />
-                </button>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <motion.header
+            className="pwa-header flex items-center gap-3 px-4 md:px-5 lg:px-6 py-2.5 md:py-3 border-b border-[hsl(var(--border))] shrink-0"
+            style={{ background: "hsl(var(--card))" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {/* Live rates — minimal style */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div
+                className="h-1.5 w-1.5 rounded-full"
+                style={{
+                  background: rateMode === "manual" ? "#f97316" : "#10b981",
+                  boxShadow: rateMode === "manual" ? "0 0 5px #f97316" : "0 0 5px #10b981",
+                }}
+              />
+              <div className="flex items-center gap-2 lg:gap-3 text-[11px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                <span className={cn(
+                  "text-[9px] uppercase tracking-wide font-bold",
+                  rateMode === "manual" ? "text-orange-500" : "text-emerald-500"
+                )}>
+                  {rateMode === "manual" ? "Manual" : "Live"}
+                </span>
+                <span className="text-[hsl(var(--muted-foreground))]">
+                  USD <span className="text-orange-500 font-bold">Rp{rates.USD?.toLocaleString("id-ID") ?? "—"}</span>
+                </span>
+                <span className="text-[hsl(var(--border))]">·</span>
+                <span className="text-[hsl(var(--muted-foreground))]">
+                  SAR <span className="text-orange-500 font-bold">Rp{rates.SAR?.toLocaleString("id-ID") ?? "—"}</span>
+                </span>
               </div>
-
-              <div className="flex-1" />
-
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="hidden lg:flex flex-col items-end">
-                  <div className="text-[13px] font-bold text-[hsl(var(--foreground))] leading-tight">{displayName}</div>
-                  <div className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] capitalize tracking-wide">{currentUser?.role ?? "agent"}</div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="h-8 w-8 flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-red-500 transition-colors"
-                  title="Keluar"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.header>
-
-            <div className="flex-1 overflow-hidden relative">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.main
-                  key={location.pathname}
-                  className={`pwa-main-content absolute inset-0 overflow-auto ${noPadding
-                    ? "pb-0"
-                    : "p-6 md:pb-6 lg:p-8 lg:pb-8"
-                  }`}
-                  initial={{ x: 56, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -56, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  {children}
-                </motion.main>
-              </AnimatePresence>
+              <button
+                onClick={() => refreshRates()}
+                className="transition-colors text-[hsl(var(--muted-foreground))] hover:text-orange-500"
+                title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Belum diperbarui"}
+              >
+                <RefreshCw className={cn("h-3 w-3", ratesLoading && "animate-spin")} />
+              </button>
             </div>
+
+            <div className="flex-1" />
+
+            <div className="flex items-center gap-3 lg:gap-4 shrink-0">
+              <div className="hidden lg:flex flex-col items-end">
+                <div className="text-[13px] font-bold text-[hsl(var(--foreground))] leading-tight">{displayName}</div>
+                <div className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] capitalize tracking-wide">{currentUser?.role ?? "agent"}</div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="h-8 w-8 flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-red-500 transition-colors"
+                title="Keluar"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.header>
+
+          <div className="flex-1 overflow-hidden relative">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.main
+                key={location.pathname}
+                className={`pwa-main-content absolute inset-0 overflow-auto ${noPadding
+                  ? "pb-0"
+                  : "p-4 md:p-5 lg:p-7 xl:p-8"
+                }`}
+                initial={{ x: 56, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -56, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              >
+                <div className="mx-auto w-full max-w-[1400px]">
+                  {children}
+                </div>
+              </motion.main>
+            </AnimatePresence>
           </div>
         </div>
       </div>
