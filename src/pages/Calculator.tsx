@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw } from "lucide-react";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
@@ -498,13 +498,16 @@ export default function Calculator() {
             onClick={() => setField("mode", m)}
             style={M}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all",
+              "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all inline-flex items-center gap-1.5",
               calc.mode === m
                 ? "bg-orange-500 text-white shadow-sm"
                 : "text-orange-600 hover:bg-orange-100"
             )}
           >
-            {m === "umroh" ? "🕌 Umroh" : "🗺️ Umum"}
+            {m === "umroh"
+              ? <Moon className="h-3.5 w-3.5" strokeWidth={2} />
+              : <Compass className="h-3.5 w-3.5" strokeWidth={2} />}
+            {m === "umroh" ? "Umroh" : "Umum"}
           </button>
         ))}
       </div>

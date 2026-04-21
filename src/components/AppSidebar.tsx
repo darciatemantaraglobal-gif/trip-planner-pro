@@ -105,9 +105,9 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
       <div className="flex items-center justify-between px-5 pt-6 pb-5 shrink-0">
         <div className="flex items-center gap-3">
           <img
-            src="/logo-igh-tour.png"
+            src="/logo-igh-tour-text.png"
             alt="IGH Tour"
-            className="h-10 w-auto object-contain shrink-0"
+            className="h-12 w-auto object-contain shrink-0"
           />
           <div className="leading-tight">
             <div className="font-bold text-[14.5px] text-[hsl(var(--foreground))]">IGH Tour</div>

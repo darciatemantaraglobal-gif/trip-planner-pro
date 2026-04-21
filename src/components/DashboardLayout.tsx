@@ -71,7 +71,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
 
           {/* Brand lockup */}
           <div className="flex items-center gap-2 ml-3 shrink-0">
-            <img src="/logo-igh-tour.png" alt="IGH Tour" className="h-6 w-auto object-contain" />
+            <img src="/logo-igh-tour-text.png" alt="IGH Tour" className="h-7 w-auto object-contain" />
             <div className="flex flex-col leading-none">
               <span
                 className="text-[11px] font-black tracking-[0.05em] uppercase"
