@@ -457,7 +457,7 @@ export default function Calculator() {
   const pdfCosts = quote.breakdown.map((b) => ({ id: b.id, label: b.label, amount: b.groupIDR }));
 
   return (
-    <div className="space-y-3 md:space-y-5 max-w-5xl mx-auto" style={M}>
+    <div className="pwa-compact-form space-y-3 md:space-y-5 max-w-5xl mx-auto" style={M}>
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">

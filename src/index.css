@@ -837,6 +837,163 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
      level (.app-shell-mobile padding-top/left/right) so we don't double-pad. */
 }
 
+/* ── PWA / Mobile compact form pages (Calculator, PDF Generator) ─────── */
+@media (max-width: 767px) {
+  .pwa-compact-form {
+    font-size: 13px;
+  }
+
+  /* Headings */
+  .pwa-compact-form h1 {
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+  }
+  .pwa-compact-form h2 {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+  }
+  .pwa-compact-form h3 {
+    font-size: 12.5px !important;
+    line-height: 1.3 !important;
+  }
+  .pwa-compact-form p {
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+
+  /* Labels — smaller, tighter */
+  .pwa-compact-form label {
+    font-size: 10.5px !important;
+    line-height: 1.2 !important;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  /* Inputs / selects / comboboxes — keep 16px font (no iOS zoom) but reduce height */
+  .pwa-compact-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .pwa-compact-form select,
+  .pwa-compact-form textarea,
+  .pwa-compact-form [role="combobox"],
+  .pwa-compact-form [cmdk-input] {
+    font-size: 13px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 4px 10px !important;
+    border-radius: 9px !important;
+    line-height: 1.2 !important;
+  }
+
+  .pwa-compact-form textarea {
+    height: auto !important;
+    min-height: 70px !important;
+    padding: 8px 10px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Buttons — compact but still ≥40px tap target */
+  .pwa-compact-form button:not([data-radix-collection-item]):not([cmdk-item]) {
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+  }
+  /* Big primary CTA buttons keep larger size if explicitly tagged */
+  .pwa-compact-form button.pwa-cta {
+    min-height: 44px !important;
+    font-size: 13.5px !important;
+    padding: 8px 16px !important;
+    border-radius: 12px !important;
+  }
+  /* Icon-only buttons (h-8 w-8 etc) keep aspect ratio */
+  .pwa-compact-form button.pwa-icon-btn {
+    min-width: 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+  }
+
+  /* Card paddings */
+  .pwa-compact-form .p-5,
+  .pwa-compact-form .p-6,
+  .pwa-compact-form .p-7,
+  .pwa-compact-form .p-8 {
+    padding: 0.75rem !important;
+  }
+  .pwa-compact-form .p-4 {
+    padding: 0.625rem !important;
+  }
+  .pwa-compact-form .px-5,
+  .pwa-compact-form .px-6 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .pwa-compact-form .py-5,
+  .pwa-compact-form .py-6 {
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+  }
+  .pwa-compact-form .py-4 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  /* Gaps */
+  .pwa-compact-form .gap-5,
+  .pwa-compact-form .gap-6 { gap: 0.625rem !important; }
+  .pwa-compact-form .gap-4 { gap: 0.5rem !important; }
+  .pwa-compact-form .gap-x-5,
+  .pwa-compact-form .gap-x-6 { column-gap: 0.625rem !important; }
+  .pwa-compact-form .gap-y-3,
+  .pwa-compact-form .gap-y-4,
+  .pwa-compact-form .gap-y-5 { row-gap: 0.5rem !important; }
+
+  /* Vertical spacing */
+  .pwa-compact-form .space-y-5 > :not([hidden]) ~ :not([hidden]),
+  .pwa-compact-form .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.625rem !important;
+  }
+  .pwa-compact-form .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.5rem !important;
+  }
+  .pwa-compact-form .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.375rem !important;
+  }
+
+  /* Margins */
+  .pwa-compact-form .mb-5,
+  .pwa-compact-form .mb-6 { margin-bottom: 0.625rem !important; }
+  .pwa-compact-form .mt-5,
+  .pwa-compact-form .mt-6 { margin-top: 0.625rem !important; }
+
+  /* Card border radius — softer compact */
+  .pwa-compact-form .rounded-2xl,
+  .pwa-compact-form .rounded-3xl { border-radius: 0.875rem !important; }
+  .pwa-compact-form .rounded-xl { border-radius: 0.75rem !important; }
+
+  /* Section title bars — compact pill */
+  .pwa-compact-form [class*="rounded-t-xl"] {
+    padding: 0.4rem 0.625rem !important;
+    font-size: 11.5px !important;
+  }
+
+  /* Slider thumb stays tappable */
+  .pwa-compact-form [role="slider"] {
+    height: 18px !important;
+    width: 18px !important;
+  }
+
+  /* Force horizontal grids that wrap to 1 col on mobile (override sm:grid-cols-2) */
+  .pwa-compact-form .grid.grid-cols-1 { grid-template-columns: 1fr !important; }
+
+  /* SVG icons in form rows — slightly smaller */
+  .pwa-compact-form svg.h-5,
+  .pwa-compact-form svg.h-6 {
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+}
+
 /* Hide scrollbars for horizontal scroll chip rows */
 .scrollbar-none {
   scrollbar-width: none;

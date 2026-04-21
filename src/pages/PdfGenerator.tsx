@@ -192,7 +192,7 @@ export default function PdfGenerator() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="pwa-compact-form max-w-3xl mx-auto space-y-5">
       {/* Page title */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
