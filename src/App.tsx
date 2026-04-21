@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound.tsx";
 import PdfGenerator from "./pages/PdfGenerator";
+import Notes from "./pages/Notes";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
@@ -97,6 +98,7 @@ function AnimatedRoutes() {
       <Route path="/pdf-generator" element={<RequireAuth><DashboardLayout><PdfGenerator /></DashboardLayout></RequireAuth>} />
       <Route path="/trips/:id" element={<RequireAuth><DashboardLayout><TripDetail /></DashboardLayout></RequireAuth>} />
       <Route path="/trips/:id/jamaah/:jamaahId" element={<RequireAuth><DashboardLayout><JamaahProfile /></DashboardLayout></RequireAuth>} />
+      <Route path="/notes" element={<RequireAuth><DashboardLayout><Notes /></DashboardLayout></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><DashboardLayout><Settings /></DashboardLayout></RequireAuth>} />
       <Route path="/auth" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<NotFound />} />

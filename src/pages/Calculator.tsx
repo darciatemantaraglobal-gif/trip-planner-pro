@@ -54,11 +54,19 @@ function CurrencyToggle({
 }
 
 const TRANSPORT_OPTIONS = [
-  { value: "pesawat", label: "Pesawat", icon: Plane },
+  { value: "saudia", label: "Saudia Airlines", icon: Plane },
+  { value: "emirates", label: "Emirates", icon: Plane },
+  { value: "etihad", label: "Etihad Airways", icon: Plane },
+  { value: "qatar", label: "Qatar Airways", icon: Plane },
+  { value: "garuda", label: "Garuda Indonesia", icon: Plane },
+  { value: "lionair", label: "Lion Air", icon: Plane },
+  { value: "batik", label: "Batik Air", icon: Plane },
+  { value: "citilink", label: "Citilink", icon: Plane },
+  { value: "airasia", label: "AirAsia", icon: Plane },
   { value: "bus", label: "Bus", icon: Bus },
   { value: "kereta", label: "Kereta", icon: Train },
   { value: "van", label: "Van / Hiace", icon: Car },
-  { value: "lainnya", label: "Lainnya", icon: Car },
+  { value: "custom", label: "Lainnya (ketik sendiri)", icon: Car },
 ];
 
 function daysBetween(start: string, end: string): number {
@@ -69,6 +77,7 @@ function daysBetween(start: string, end: string): number {
 
 interface Transport {
   jenis: string;
+  customJenis: string;
   harga: number;
   currency: Currency;
 }
@@ -80,16 +89,20 @@ interface FormState {
   hargaMakkah: number;
   hargaMakkahCurrency: Currency;
   tipeKamarMakkah: RoomType;
+  fbMakkah: boolean;
   startMakkah: string;
   endMakkah: string;
   hotelMadinah: string;
   hargaMadinah: number;
   hargaMadinahCurrency: Currency;
   tipeKamarMadinah: RoomType;
+  fbMadinah: boolean;
   startMadinah: string;
   endMadinah: string;
   visaUmroh: number;
   visaUmrohCurrency: Currency;
+  komisiFee: number;
+  komisiFeeurrency: Currency;
   muthowif: number;
   muthowifCurrency: Currency;
   siskopatuh: number;
@@ -100,6 +113,8 @@ interface FormState {
   handlingBandaraCurrency: Currency;
   transports: Transport[];
   margin: number;
+  localRateSAR: number;
+  localRateUSD: number;
 }
 
 const initForm: FormState = {
@@ -109,16 +124,20 @@ const initForm: FormState = {
   hargaMakkah: 0,
   hargaMakkahCurrency: "SAR",
   tipeKamarMakkah: "double",
+  fbMakkah: false,
   startMakkah: "",
   endMakkah: "",
   hotelMadinah: "",
   hargaMadinah: 0,
   hargaMadinahCurrency: "SAR",
   tipeKamarMadinah: "double",
+  fbMadinah: false,
   startMadinah: "",
   endMadinah: "",
   visaUmroh: 0,
   visaUmrohCurrency: "IDR",
+  komisiFee: 0,
+  komisiFeeurrency: "IDR",
   muthowif: 0,
   muthowifCurrency: "IDR",
   siskopatuh: 0,
@@ -127,8 +146,10 @@ const initForm: FormState = {
   zamZamCurrency: "IDR",
   handlingBandara: 0,
   handlingBandaraCurrency: "IDR",
-  transports: Array.from({ length: 6 }, () => ({ jenis: "", harga: 0, currency: "IDR" as Currency })),
+  transports: Array.from({ length: 6 }, () => ({ jenis: "", customJenis: "", harga: 0, currency: "IDR" as Currency })),
   margin: 10,
+  localRateSAR: 0,
+  localRateUSD: 0,
 };
 
 function FieldRow({ children }: { children: React.ReactNode }) {
@@ -261,9 +282,15 @@ export default function Calculator() {
       return { ...f, transports: t };
     });
 
+  const effectiveRates = useMemo(() => ({
+    SAR: form.localRateSAR > 0 ? form.localRateSAR : (rates["SAR"] ?? 1),
+    USD: form.localRateUSD > 0 ? form.localRateUSD : (rates["USD"] ?? 1),
+    IDR: 1,
+  }), [form.localRateSAR, form.localRateUSD, rates]);
+
   const toIDR = (amount: number, currency: Currency): number => {
     if (currency === "IDR") return amount;
-    return amount * (rates[currency] ?? 1);
+    return amount * (effectiveRates[currency as "SAR" | "USD"] ?? 1);
   };
 
   const nightsMakkah = daysBetween(form.startMakkah, form.endMakkah);
@@ -283,11 +310,12 @@ export default function Calculator() {
       form.pax *
       nightsMadinah;
 
-    // Per-pax costs (visa, siskopatuh, zamzam) → dikali jumlah pax
+    // Per-pax costs (visa, siskopatuh, zamzam, komisi) → dikali jumlah pax
     const perPaxItemsIDR =
       (toIDR(form.visaUmroh, form.visaUmrohCurrency) +
         toIDR(form.siskopatuh, form.siskopatuhCurrency) +
-        toIDR(form.zamZam, form.zamZamCurrency)) *
+        toIDR(form.zamZam, form.zamZamCurrency) +
+        toIDR(form.komisiFee, form.komisiFeeurrency)) *
       form.pax;
 
     // Group costs (muthowif, handling bandara) → biaya total grup, TIDAK dikali pax
@@ -323,10 +351,10 @@ export default function Calculator() {
 
   const pdfCosts = [
     ...(summary.hotelMakkahIDR > 0
-      ? [{ id: "hotel-makkah", label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} malam × ${form.pax} pax)`, amount: summary.hotelMakkahIDR }]
+      ? [{ id: "hotel-makkah", label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} malam × ${form.pax} pax)${form.fbMakkah ? " · incl. F&B" : ""}`, amount: summary.hotelMakkahIDR }]
       : []),
     ...(summary.hotelMadinahIDR > 0
-      ? [{ id: "hotel-madinah", label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} malam × ${form.pax} pax)`, amount: summary.hotelMadinahIDR }]
+      ? [{ id: "hotel-madinah", label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} malam × ${form.pax} pax)${form.fbMadinah ? " · incl. F&B" : ""}`, amount: summary.hotelMadinahIDR }]
       : []),
     ...(toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax > 0
       ? [{ id: "visa", label: `${labels.visa} (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
@@ -336,6 +364,9 @@ export default function Calculator() {
       : []),
     ...(toIDR(form.zamZam, form.zamZamCurrency) * form.pax > 0
       ? [{ id: "zamzam", label: `${labels.zamzam} (${form.pax} pax)`, amount: toIDR(form.zamZam, form.zamZamCurrency) * form.pax }]
+      : []),
+    ...(toIDR(form.komisiFee, form.komisiFeeurrency) * form.pax > 0
+      ? [{ id: "komisi", label: `Komisi Fee (${form.pax} pax)`, amount: toIDR(form.komisiFee, form.komisiFeeurrency) * form.pax }]
       : []),
     ...(toIDR(form.muthowif, form.muthowifCurrency) > 0
       ? [{ id: "muthowif", label: `${labels.muthowif} (biaya grup)`, amount: toIDR(form.muthowif, form.muthowifCurrency) }]
@@ -349,7 +380,7 @@ export default function Calculator() {
       .map((t) => ({
         id: `transport-${t.i}`,
         label: t.jenis
-          ? `Transport ${t.i + 1} — ${TRANSPORT_OPTIONS.find((o) => o.value === t.jenis)?.label ?? t.jenis}`
+          ? `Transport ${t.i + 1} — ${t.jenis === "custom" && t.customJenis ? t.customJenis : (TRANSPORT_OPTIONS.find((o) => o.value === t.jenis)?.label ?? t.jenis)}`
           : `Transport ${t.i + 1}`,
         amount: toIDR(t.harga, t.currency),
       })),
@@ -476,20 +507,35 @@ export default function Calculator() {
             </div>
           </div>
 
-          {/* Rates info strip */}
-          <div className="flex flex-wrap gap-2">
-            {(["SAR", "USD"] as const).map((cur) => (
-              <div key={cur} className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
-                <span className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100">{cur}</span>
-                <span className="text-[11px] text-[hsl(var(--muted-foreground))]">= Rp</span>
-                <span className="text-[11px] font-bold text-[hsl(var(--foreground))]">
-                  {(rates[cur] ?? 0).toLocaleString("id-ID")}
-                </span>
-              </div>
-            ))}
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))] self-center">
-              Ubah kurs di <span className="font-semibold">Pengaturan</span>
-            </p>
+          {/* Rates strip — editable inline */}
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Kurs (Override khusus form ini)</p>
+            <div className="flex flex-wrap gap-3">
+              {(["SAR", "USD"] as const).map((cur) => {
+                const storeVal = rates[cur] ?? 0;
+                const localVal = cur === "SAR" ? form.localRateSAR : form.localRateUSD;
+                const active = localVal > 0;
+                return (
+                  <div key={cur} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${active ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"}`}>
+                    <span className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 shrink-0">{cur}</span>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">= Rp</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder={storeVal.toLocaleString("id-ID")}
+                      value={localVal || ""}
+                      onChange={(e) => set(cur === "SAR" ? "localRateSAR" : "localRateUSD", Number(e.target.value))}
+                      className="h-6 w-24 text-[11px] font-bold border-0 bg-transparent shadow-none p-0 focus-visible:ring-0"
+                    />
+                    {active && (
+                      <button type="button" onClick={() => set(cur === "SAR" ? "localRateSAR" : "localRateUSD", 0)}
+                        className="text-[10px] text-orange-400 hover:text-orange-600 font-medium shrink-0">↩</button>
+                    )}
+                    {!active && <span className="text-[10px] text-slate-400 italic">(dari Pengaturan)</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* ── Penginapan 1 ── */}
@@ -515,12 +561,23 @@ export default function Calculator() {
               </FormField>
             </FieldRow>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Label className="text-[11px] md:text-[12px] font-semibold shrink-0">Tipe Kamar</Label>
               <RoomTypeSelector value={form.tipeKamarMakkah} onChange={(v) => set("tipeKamarMakkah", v)} />
-              <span className="text-[10px] text-orange-500 font-medium">
-                {roomPaxMakkah} orang/kamar
-              </span>
+              <span className="text-[10px] text-orange-500 font-medium">{roomPaxMakkah} orang/kamar</span>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => set("fbMakkah", !form.fbMakkah)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                    form.fbMakkah
+                      ? "bg-green-500 text-white border-green-500"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-green-300"
+                  }`}
+                >
+                  {form.fbMakkah ? "✓ Include F&B" : "Exclude F&B"}
+                </button>
+              </div>
             </div>
 
             <FieldRow>
@@ -580,12 +637,23 @@ export default function Calculator() {
               </FormField>
             </FieldRow>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Label className="text-[11px] md:text-[12px] font-semibold shrink-0">Tipe Kamar</Label>
               <RoomTypeSelector value={form.tipeKamarMadinah} onChange={(v) => set("tipeKamarMadinah", v)} />
-              <span className="text-[10px] text-orange-500 font-medium">
-                {roomPaxMadinah} orang/kamar
-              </span>
+              <span className="text-[10px] text-orange-500 font-medium">{roomPaxMadinah} orang/kamar</span>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => set("fbMadinah", !form.fbMadinah)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                    form.fbMadinah
+                      ? "bg-green-500 text-white border-green-500"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-green-300"
+                  }`}
+                >
+                  {form.fbMadinah ? "✓ Include F&B" : "Exclude F&B"}
+                </button>
+              </div>
             </div>
 
             <FieldRow>
@@ -658,6 +726,14 @@ export default function Calculator() {
                   onCurrencyChange={(c) => set("zamZamCurrency", c)}
                 />
               </FormField>
+              <FormField label="Komisi Fee" suffix="/ jamaah">
+                <NumInputWithCurrency
+                  value={form.komisiFee}
+                  onChange={(v) => set("komisiFee", v)}
+                  currency={form.komisiFeeurrency}
+                  onCurrencyChange={(c) => set("komisiFeeurrency", c)}
+                />
+              </FormField>
             </FieldRow>
           </div>
 
@@ -713,7 +789,7 @@ export default function Calculator() {
                       onValueChange={(v) => setTransport(i, "jenis", v)}
                     >
                       <SelectTrigger className="h-8 md:h-9 text-[13px] md:text-sm flex-1 min-w-0 bg-white">
-                        <SelectValue placeholder="Jenis" />
+                        <SelectValue placeholder="Pilih maskapai / jenis" />
                       </SelectTrigger>
                       <SelectContent>
                         {TRANSPORT_OPTIONS.map((o) => (
@@ -736,6 +812,14 @@ export default function Calculator() {
                       onChange={(c) => setTransport(i, "currency", c)}
                     />
                   </div>
+                  {t.jenis === "custom" && (
+                    <Input
+                      placeholder="Ketik nama maskapai / kendaraan…"
+                      value={t.customJenis}
+                      onChange={(e) => setTransport(i, "customJenis", e.target.value)}
+                      className="h-8 text-[12px] bg-white"
+                    />
+                  )}
                 </div>
               ))}
             </div>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck, StickyNote } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -23,6 +23,7 @@ const navGroups = [
     label: "Tools",
     items: [
       { title: "Generator PDF", url: "/pdf-generator", icon: FileText, end: false },
+      { title: "Catatan", url: "/notes", icon: StickyNote, end: false },
     ],
   },
 ];

@@ -2,6 +2,23 @@
 
 Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn/ui.
 
+## Calculator — Batch Update (Completed)
+- `effectiveRates` — kurs override per-form (localRateSAR/localRateUSD), fallback ke rates store
+- `toIDR` menggunakan effectiveRates
+- `komisiFee` ditambahkan ke perPaxItemsIDR (×pax) dan pdfCosts
+- Rates strip jadi editable inline: input per currency, tombol ↩ reset ke Pengaturan
+- F&B toggle di setiap hotel section ("Include/Exclude F&B") — state fbMakkah/fbMadinah
+- Hotel label di pdfCosts diannot dengan "· incl. F&B" jika aktif
+- Komisi Fee field di Biaya Per Pax (NumInputWithCurrency)
+- Transport: custom airline text input muncul saat jenis === "custom"
+- pdfCosts transport label gunakan customJenis jika custom
+
+## Halaman Catatan (Completed)
+- `src/pages/Notes.tsx` — CRUD notes, warna card picker, search, salin, Rapihkan AI
+- Storage: `localStorage` key `travelhub.notes.v1`
+- "Rapihkan AI" — coba `window.ai.generateText` jika tersedia, fallback ke `smartFormat()` (regex: bullet normalization, kapitalisasi, tanda baca)
+- Route `/notes` di App.tsx, nav item "Catatan" (StickyNote icon) di Tools group AppSidebar + bottomNavItems DashboardLayout
+
 ## Dialog Redesign (Completed)
 Semua popup dialog telah didesain ulang dengan sistem desain yang konsisten:
 - `src/components/ui/alert-dialog.tsx` — base compact (max-w-sm, rounded-2xl)
