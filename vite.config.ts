@@ -90,7 +90,7 @@ export default defineConfig(({ mode }) => ({
             type: "image/png",
           },
           {
-            src: "/logo-igh-tour.png",
+            src: "/logo-igh-tour-maskable.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
