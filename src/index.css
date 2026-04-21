@@ -837,6 +837,15 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
      level (.app-shell-mobile padding-top/left/right) so we don't double-pad. */
 }
 
+/* Hide scrollbars for horizontal scroll chip rows */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Splash screen full-bleed across all devices ─────────────────────── */
 .splash-root {
   /* Force true viewport coverage. position:fixed + viewport-fit=cover (in

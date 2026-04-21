@@ -62,11 +62,11 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       >
         <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {/* ── Mobile Header — compact, single row, no overflow ── */}
+        {/* ── Mobile Header — clean, compact, single brand ── */}
         <motion.header
-          className="pwa-header flex items-center gap-2 px-3 shrink-0"
+          className="pwa-header flex items-center gap-2 px-3.5 shrink-0"
           style={{
-            height: "48px",
+            minHeight: "52px",
             background: "hsl(var(--card))",
             borderBottom: "1px solid hsl(var(--border))",
           }}
@@ -77,56 +77,68 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           {/* Hamburger */}
           <button
             aria-label="Buka menu"
-            className="flex items-center justify-center shrink-0 h-9 w-9 -ml-1 rounded-xl transition-opacity active:opacity-60"
+            className="flex items-center justify-center shrink-0 h-9 w-9 -ml-1.5 rounded-xl transition-opacity active:opacity-60"
             onClick={() => setSidebarOpen(true)}
           >
-            <Menu strokeWidth={1.8} className="h-5 w-5 text-[hsl(var(--foreground))]" />
+            <Menu strokeWidth={2} className="h-[20px] w-[20px] text-[hsl(var(--foreground))]" />
           </button>
 
-          {/* Brand — minimal: just wordmark */}
+          {/* Brand — single wordmark logo only */}
           <button
             onClick={() => navigate("/")}
-            className="flex items-center gap-1.5 shrink-0 -ml-0.5 transition-opacity active:opacity-60"
+            className="flex items-center shrink-0 transition-opacity active:opacity-60"
+            aria-label="Beranda IGH Tour"
           >
-            <img src="/logo-igh-tour-text.png" alt="IGH Tour" className="h-6 w-auto object-contain" />
-            <span
-              className="text-[12px] font-black tracking-[0.04em] uppercase leading-none"
-              style={{
-                fontFamily: "'Manrope', sans-serif",
-                background: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
+            <img
+              src="/logo-igh-tour-text.png"
+              alt="IGH Tour"
+              className="h-[26px] w-auto object-contain"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = "none";
+                const fb = document.createElement("span");
+                fb.textContent = "IGH Tour";
+                fb.className = "text-[14px] font-black tracking-tight text-orange-600";
+                img.parentElement!.appendChild(fb);
               }}
-            >
-              IGH
-            </span>
+            />
           </button>
 
           <div className="flex-1" />
 
-          {/* Rates chip — single pill, tap to refresh */}
+          {/* Compact rate indicator — tap to refresh */}
           <button
             onClick={() => refreshRates()}
-            className="flex items-center gap-1.5 shrink-0 h-7 px-2.5 rounded-full bg-orange-50 border border-orange-100 transition-opacity active:opacity-60"
+            className="flex items-center gap-1.5 shrink-0 h-8 pl-2 pr-2.5 rounded-full bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100/80 transition-all active:scale-95"
             style={{ fontVariantNumeric: "tabular-nums" }}
             title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Tap untuk perbarui"}
           >
-            <span
-              className="h-1.5 w-1.5 rounded-full shrink-0"
-              style={{
-                background: rateMode === "manual" ? "#f97316" : "#10b981",
-                boxShadow: rateMode === "manual" ? "0 0 4px #f97316aa" : "0 0 4px #10b981aa",
-              }}
+            <span className="relative flex h-1.5 w-1.5">
+              <span
+                className={cn(
+                  "absolute inline-flex h-full w-full rounded-full opacity-75",
+                  rateMode === "manual" ? "bg-orange-400" : "bg-emerald-400 animate-ping"
+                )}
+              />
+              <span
+                className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                style={{ background: rateMode === "manual" ? "#f97316" : "#10b981" }}
+              />
+            </span>
+            <span className="text-[10.5px] font-extrabold text-orange-700 leading-none">
+              {rates.USD ? Math.round(rates.USD / 1000) + "K" : "—"}
+            </span>
+            <span className="text-[10px] text-orange-300 leading-none -mx-0.5">·</span>
+            <span className="text-[10.5px] font-extrabold text-orange-700 leading-none">
+              {rates.SAR ? Math.round(rates.SAR / 100) / 10 + "K" : "—"}
+            </span>
+            <RefreshCw
+              strokeWidth={2.2}
+              className={cn(
+                "h-3 w-3 text-orange-500 ml-0.5",
+                ratesLoading && "animate-spin"
+              )}
             />
-            <span className="text-[10.5px] font-bold text-orange-600 leading-none">
-              {rates.USD ? `$${(rates.USD / 1000).toFixed(1)}k` : "—"}
-            </span>
-            <span className="text-[10px] text-orange-200 leading-none">·</span>
-            <span className="text-[10.5px] font-bold text-orange-600 leading-none">
-              {rates.SAR ? `﷼${(rates.SAR / 1000).toFixed(1)}k` : "—"}
-            </span>
-            <RefreshCw className={cn("h-3 w-3 text-orange-400 ml-0.5", ratesLoading && "animate-spin")} />
           </button>
         </motion.header>
 

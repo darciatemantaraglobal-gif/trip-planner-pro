@@ -745,74 +745,98 @@ export default function Dashboard() {
   return (
     <div className="flex h-full min-h-0">
       {/* ── Main content ── */}
-      <div className="flex-1 overflow-auto min-w-0 p-3 md:p-6 lg:p-8">
+      <div className="flex-1 overflow-auto min-w-0 p-3 md:p-6 lg:p-8 pb-6">
 
-        {/* ── Greeting ── */}
+        {/* ── Greeting hero ── */}
         <motion.div
-          className="mb-4 md:mb-6"
+          className="mb-3 md:mb-6"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="rounded-2xl border border-[hsl(var(--border))] bg-gradient-to-br from-orange-50 to-white p-4 md:p-5">
-            <div className="flex items-start justify-between gap-3">
+          <div
+            className="relative overflow-hidden rounded-3xl border border-orange-100 p-4 md:p-5"
+            style={{
+              background:
+                "linear-gradient(135deg, #fff7ed 0%, #ffedd5 45%, #fed7aa 100%)",
+            }}
+          >
+            {/* Decorative glow */}
+            <div
+              className="absolute -top-12 -right-10 h-32 w-32 rounded-full pointer-events-none opacity-60"
+              style={{ background: "radial-gradient(circle, #fb923c33, transparent 70%)" }}
+            />
+            <div
+              className="absolute -bottom-8 -left-6 h-24 w-24 rounded-full pointer-events-none opacity-50"
+              style={{ background: "radial-gradient(circle, #f9731633, transparent 70%)" }}
+            />
+
+            <div className="relative flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h1 className="text-[18px] md:text-[22px] font-bold text-[hsl(var(--foreground))] leading-tight">
-                  {getGreeting(user?.displayName ?? "Admin", t)} 👋
+                <h1 className="text-[20px] md:text-[22px] font-extrabold text-orange-950 leading-tight tracking-tight">
+                  {getGreeting(user?.displayName ?? "Admin", t)} <span className="inline-block">👋</span>
                 </h1>
-                <p className="text-[11.5px] md:text-[12.5px] text-[hsl(var(--muted-foreground))] mt-1 capitalize">
+                <p className="text-[11.5px] md:text-[12.5px] text-orange-700/80 mt-1 capitalize font-medium">
                   {formatTodayFull(locale)}
                 </p>
                 {nearestDeparture ? (
-                  <div className="flex items-center gap-2 mt-2.5">
-                    <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 rounded-full px-3 py-1 text-[11px] font-semibold">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                    <div className="inline-flex items-center gap-1.5 bg-white/80 backdrop-blur text-orange-700 rounded-full pl-2 pr-3 py-1 text-[11px] font-semibold border border-orange-200/60 shadow-sm">
                       <Plane strokeWidth={2} className="h-3 w-3 shrink-0" />
-                      <span>{t.dash_nearest_departure}</span>
-                      <strong>{nearestDeparture.name}</strong>
-                      <span className="text-orange-500">({daysUntil(nearestDeparture.departureDate!)})</span>
+                      <span className="opacity-80">{t.dash_nearest_departure}</span>
+                      <strong className="truncate max-w-[120px]">{nearestDeparture.name}</strong>
+                      <span className="text-orange-500 shrink-0">· {daysUntil(nearestDeparture.departureDate!)}</span>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-2 italic">
+                  <p className="text-[11.5px] text-orange-800/70 mt-2.5 italic leading-snug">
                     {t.dash_no_schedule}
                   </p>
                 )}
+              </div>
+              <div className="hidden sm:flex h-12 w-12 rounded-2xl bg-white/70 backdrop-blur shrink-0 items-center justify-center shadow-sm border border-orange-100">
+                <Plane strokeWidth={1.5} className="h-6 w-6 text-orange-500" />
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* ── Stat cards ── */}
+        {/* ── Primary stat cards (4 main metrics) ── */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3 md:gap-2.5 md:mb-5"
           variants={stagger}
           initial="hidden"
           animate="visible"
         >
           {[
-            { icon: Plane, label: t.dash_total_trip, value: trips.length, color: "text-blue-500", onClick: () => {} },
-            { icon: TrendingUp, label: t.dash_active_trip, value: activeTrips, color: "text-emerald-500", onClick: () => setTab("upcoming") },
-            { icon: CheckCircle, label: t.dash_done_trip, value: doneTrips, color: "text-purple-500", onClick: () => setTab("done") },
-            { icon: Users, label: t.dash_total_jamaah, value: totalJamaah, color: "text-orange-500", onClick: () => navigate("/progress") },
+            { icon: Plane, label: t.dash_total_trip, value: trips.length, tint: "from-blue-50 to-sky-50", iconBg: "bg-blue-500/10 text-blue-600", onClick: () => {} },
+            { icon: TrendingUp, label: t.dash_active_trip, value: activeTrips, tint: "from-emerald-50 to-teal-50", iconBg: "bg-emerald-500/10 text-emerald-600", onClick: () => setTab("upcoming") },
+            { icon: CheckCircle, label: t.dash_done_trip, value: doneTrips, tint: "from-purple-50 to-fuchsia-50", iconBg: "bg-purple-500/10 text-purple-600", onClick: () => setTab("done") },
+            { icon: Users, label: t.dash_total_jamaah, value: totalJamaah, tint: "from-orange-50 to-amber-50", iconBg: "bg-orange-500/10 text-orange-600", onClick: () => navigate("/progress") },
           ].map((stat) => (
             <motion.button
               key={stat.label}
               onClick={stat.onClick}
-              className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-[border-color,box-shadow] duration-200 text-left active:scale-[0.98]"
+              className={cn(
+                "relative overflow-hidden flex items-center gap-2.5 rounded-2xl border border-[hsl(var(--border))] p-3 md:p-3.5 hover:shadow-md hover:border-[hsl(var(--primary))]/40 transition-all duration-200 text-left active:scale-[0.97]",
+                "bg-gradient-to-br", stat.tint
+              )}
               variants={fadeUp}
             >
-              <stat.icon strokeWidth={1.5} className="h-5 w-5 md:h-6 md:w-6 text-orange-500 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[18px] md:text-[22px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
-                <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{stat.label}</p>
+              <div className={cn("h-9 w-9 md:h-10 md:w-10 rounded-xl flex items-center justify-center shrink-0", stat.iconBg)}>
+                <stat.icon strokeWidth={2} className="h-[18px] w-[18px] md:h-5 md:w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[20px] md:text-[22px] font-extrabold text-[hsl(var(--foreground))] leading-none tracking-tight tabular-nums">{stat.value}</p>
+                <p className="text-[10.5px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-1 truncate font-medium">{stat.label}</p>
               </div>
             </motion.button>
           ))}
         </motion.div>
 
-        {/* ── Akumulasi jamaah per trip & ringkasan paket ── */}
+        {/* ── Secondary package stats (desktop only — too dense on mobile) ── */}
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3.5 md:gap-2.5 md:mb-5"
+          className="hidden md:grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-5"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
@@ -826,13 +850,40 @@ export default function Dashboard() {
             <button
               key={item.label}
               onClick={item.onClick}
-              className="flex items-center gap-2 md:gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left active:scale-[0.98]"
+              className="flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-white p-3 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left active:scale-[0.98]"
             >
-              <item.icon strokeWidth={1.5} className="h-4 w-4 md:h-5 md:w-5 text-orange-500 shrink-0" />
+              <item.icon strokeWidth={1.5} className="h-5 w-5 text-orange-500 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[15px] md:text-[18px] font-bold text-[hsl(var(--foreground))] leading-none">{item.value}</p>
-                <p className="text-[10px] md:text-[10.5px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{item.label}</p>
+                <p className="text-[18px] font-bold text-[hsl(var(--foreground))] leading-none">{item.value}</p>
+                <p className="text-[10.5px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{item.label}</p>
               </div>
+            </button>
+          ))}
+        </motion.div>
+
+        {/* ── Mobile: compact package summary chips ── */}
+        <motion.div
+          className="md:hidden flex items-center gap-2 mb-3.5 -mx-3 px-3 overflow-x-auto scrollbar-none"
+          style={{ scrollSnapType: "x proximity" }}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
+        >
+          {[
+            { icon: Star, label: t.dash_total_packages, value: packages.length, color: "text-amber-600 bg-amber-50 border-amber-100" },
+            { icon: AlertCircle, label: t.dash_need_action, value: pendingPackages.length, color: pendingPackages.length > 0 ? "text-red-600 bg-red-50 border-red-100" : "text-gray-400 bg-gray-50 border-gray-100" },
+            { icon: Clock, label: t.dash_paid_packages, value: packages.filter(p => p.status === "Paid").length, color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
+            { icon: CheckCircle, label: t.dash_completed_packages, value: packages.filter(p => p.status === "Completed").length, color: "text-purple-600 bg-purple-50 border-purple-100" },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={() => navigate("/packages")}
+              className={cn("shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full border text-[11.5px] font-semibold active:scale-95 transition-transform", item.color)}
+              style={{ scrollSnapAlign: "start" }}
+            >
+              <item.icon strokeWidth={2} className="h-3.5 w-3.5" />
+              <span className="tabular-nums font-extrabold">{item.value}</span>
+              <span className="opacity-80">{item.label}</span>
             </button>
           ))}
         </motion.div>
@@ -962,19 +1013,39 @@ export default function Dashboard() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="h-20 w-20 flex items-center justify-center mb-5">
-              <Plane strokeWidth={1.5} className="h-9 w-9" />
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="relative overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-amber-50/60 p-6 md:p-10 text-center"
+          >
+            {/* Decorative blob */}
+            <div
+              className="absolute -top-16 -right-12 h-40 w-40 rounded-full pointer-events-none opacity-50"
+              style={{ background: "radial-gradient(circle, #fb923c44, transparent 70%)" }}
+            />
+            <div
+              className="absolute -bottom-12 -left-10 h-32 w-32 rounded-full pointer-events-none opacity-40"
+              style={{ background: "radial-gradient(circle, #f9731644, transparent 70%)" }}
+            />
+
+            <div className="relative">
+              <div className="inline-flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-2xl bg-white shadow-sm border border-orange-100 mb-4">
+                <Plane strokeWidth={1.5} className="h-8 w-8 md:h-10 md:w-10 text-orange-500" />
+              </div>
+              <h2 className="text-[16px] md:text-lg font-bold text-[hsl(var(--foreground))]">{t.dash_no_packages}</h2>
+              <p className="text-[12.5px] md:text-sm text-[hsl(var(--muted-foreground))] mt-1.5 max-w-xs mx-auto leading-relaxed">
+                {t.dash_no_packages_desc}
+              </p>
+              <Button
+                onClick={() => navigate("/packages")}
+                className="mt-5 rounded-2xl px-5 h-11 text-[13px] font-bold shadow-md"
+                style={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "white" }}
+              >
+                <Plus strokeWidth={2} className="h-4 w-4 mr-1.5" /> {t.dash_create_first}
+              </Button>
             </div>
-            <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">{t.dash_no_packages}</h2>
-            <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 max-w-xs">
-              {t.dash_no_packages_desc}
-            </p>
-            <Button onClick={() => navigate("/packages")}
-              className="btn-glow mt-6 rounded-xl px-6 h-10">
-              <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> {t.dash_create_first}
-            </Button>
-          </div>
+          </motion.div>
         ) : (
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((trip) => (
