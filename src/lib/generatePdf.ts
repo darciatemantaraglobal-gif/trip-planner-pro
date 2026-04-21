@@ -32,6 +32,13 @@ export interface LandArrangementOfferData {
   contactName: string;
 }
 
+export interface RateMeta {
+  mode: "live" | "manual";
+  ratesUSD: number;
+  ratesSAR: number;
+  asOf: string; // ISO date
+}
+
 export interface QuotationData {
   packageName: string;
   destination: string;
@@ -42,6 +49,22 @@ export interface QuotationData {
   perPerson: number;
   offer?: LandArrangementOfferData;
   template?: PdfTemplate;
+  rateMeta?: RateMeta;
+}
+
+function formatRateNote(meta?: RateMeta): string {
+  if (!meta) return "";
+  const dateStr = (() => {
+    try {
+      return new Date(meta.asOf).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+    } catch {
+      return meta.asOf;
+    }
+  })();
+  const label = meta.mode === "manual" ? "Manual Lapangan" : "Live Otomatis";
+  const usd = Math.round(meta.ratesUSD).toLocaleString("id-ID");
+  const sar = Math.round(meta.ratesSAR).toLocaleString("id-ID");
+  return `Estimasi berdasarkan Kurs ${label} (${dateStr}) — USD = Rp ${usd} · SAR = Rp ${sar}`;
 }
 
 const symbols: Record<string, string> = { USD: "$", SAR: "SAR", IDR: "Rp" };
@@ -107,6 +130,7 @@ function getImgFormat(dataUrl: string): string {
 function generateTemplateOverlayPdf(data: QuotationData, template: PdfTemplate) {
   const offer = data.offer;
   if (!offer) return;
+  const rateNote = formatRateNote(data.rateMeta);
   // If the template has no background image, fall back to the default IGH Tour layout
   if (!template.backgroundImage) {
     generateLandArrangementPdf(data);
@@ -178,6 +202,13 @@ function generateTemplateOverlayPdf(data: QuotationData, template: PdfTemplate) 
     doc.setFont("helvetica", field.bold ? "bold" : "normal");
     doc.setTextColor(field.color);
     doc.text(value, x, y);
+  }
+
+  if (rateNote) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(110, 100, 90);
+    doc.text(rateNote, 24, pageHeight - 14);
   }
 
   const safeName = (offer.title || data.packageName || "penawaran_template")
@@ -293,6 +324,14 @@ function generateLandArrangementPdf(data: QuotationData) {
     margin + 175,
     tableEndY + 22
   );
+
+  const rateNote = formatRateNote(data.rateMeta);
+  if (rateNote) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...muted);
+    doc.text(rateNote, margin, tableEndY + 36);
+  }
 
   const sectionY = tableEndY + 58;
   const halfW = (pageWidth - margin * 2 - 24) / 2;
@@ -444,6 +483,14 @@ export function generateQuotationPdf(data: QuotationData) {
     margin,
     doc.internal.pageSize.getHeight() - 24
   );
+
+  const rateNote = formatRateNote(data.rateMeta);
+  if (rateNote) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(120, 113, 108);
+    doc.text(rateNote, margin, doc.internal.pageSize.getHeight() - 12, { maxWidth: pageWidth - margin * 2 });
+  }
 
   const safeName = (data.packageName || "quotation").replace(/[^a-z0-9-_]+/gi, "_");
   doc.save(`${safeName}_${quoteId}.pdf`);

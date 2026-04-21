@@ -2,6 +2,18 @@
 
 Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn/ui.
 
+## Supabase (Cloud Sync) — v1
+- **Client**: `src/lib/supabase.ts` — pakai `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Helper `isSupabaseConfigured()` jadi feature flag.
+- **Schema**: `supabase/schema.sql` — tables (trips, jamaah, jamaah_docs, packages, package_calculations, notes, pdf_templates) + storage buckets (jamaah-photos, jamaah-docs, pdf-templates). Jalankan sekali di SQL Editor Supabase.
+- **Pola**: local-first cache. Reads narik dari Supabase + simpen ke localStorage; writes push ke localStorage **dan** Supabase. Kalau Supabase belum dikonfigurasi, app jalan offline-only pakai localStorage.
+- **Repos cloud-aware**:
+  - `src/features/trips/tripsRepo.ts` — trips, jamaah, jamaah_docs (full CRUD ke Supabase)
+  - `src/features/packages/packagesRepo.ts` — packages
+  - `src/lib/cloudSync.ts` — notes (`pullNotes/syncNotesFull`) & package calculations (`pullPackageCalc/pushPackageCalc`)
+- **One-shot migration**: `src/lib/migrateLocalToSupabase.ts` — dipanggil dari `StoreBootstrap` di `App.tsx` setelah login. Bulk upsert semua data localStorage → Supabase, set flag `travelhub.supabase.migrated.v1`.
+- **Photos/docs**: masih disimpen base64 di kolom TEXT (`photo_data_url`, `data_url`). Bucket Storage udah dibuat tapi belum dipakai — TODO migrasi base64 → bucket di iterasi berikutnya.
+- **Security TODO (v2)**: schema sekarang pake open RLS policy (anon key full access). Sebelum production wajib: (a) ganti login authStore ke Supabase Auth, (b) tightening RLS pakai `auth.uid()`.
+
 ## Calculator — Batch Update (Completed)
 - `effectiveRates` — kurs override per-form (localRateSAR/localRateUSD), fallback ke rates store
 - `toIDR` menggunakan effectiveRates

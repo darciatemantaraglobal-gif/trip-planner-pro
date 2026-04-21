@@ -221,7 +221,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 1: Nama + Tanggal Berangkat */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Nama Paket <span className="text-red-400 normal-case font-bold">*</span></p>
                     <Input
@@ -246,7 +246,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 2: Destinasi + Durasi */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Destinasi <span className="text-red-400 normal-case font-bold">*</span></p>
                     <Input
@@ -271,7 +271,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 3: Status + Kuota */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Status</p>
                     <Select value={draft.status} onValueChange={(v) => set("status", v as PackageStatus)}>
@@ -295,7 +295,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 4: Hotel + Maskapai */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Level Hotel <span className="text-red-400 normal-case font-bold">*</span></p>
                     <Select

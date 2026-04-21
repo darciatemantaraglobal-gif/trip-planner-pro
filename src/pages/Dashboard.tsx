@@ -168,7 +168,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
 
           {/* Name + Destination */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Nama Paket *</Label>
               <Input
@@ -191,7 +191,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Berangkat *</Label>
               <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />

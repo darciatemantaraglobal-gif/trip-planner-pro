@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useT } from "@/lib/regional";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { pullNotes, syncNotesFull, type NoteCloud } from "@/lib/cloudSync";
 
 const STORAGE_KEY = "travelhub.notes.v2";
 
@@ -117,7 +119,25 @@ export default function Notes() {
 
   useEffect(() => {
     saveNotes(notes);
+    if (isSupabaseConfigured()) {
+      void syncNotesFull(notes as NoteCloud[]).catch(() => undefined);
+    }
   }, [notes]);
+
+  // Pull from cloud on mount
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    let cancelled = false;
+    void pullNotes().then((cloud) => {
+      if (cancelled || !cloud) return;
+      // Only overwrite if cloud has data; otherwise local wins (will be pushed by migration)
+      if (cloud.length > 0) {
+        setNotes(cloud as Note[]);
+        saveNotes(cloud as Note[]);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();

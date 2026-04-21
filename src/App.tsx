@@ -25,6 +25,8 @@ import { useTripsStore } from "@/store/tripsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useRegionalStore } from "@/store/regionalStore";
 import { applyAppearanceSettings, loadAppearanceSettings } from "@/lib/appearance";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { migrateLocalToSupabase } from "@/lib/migrateLocalToSupabase";
 import { toast } from "sonner";
 
 const queryClient = new QueryClient();
@@ -33,11 +35,25 @@ function StoreBootstrap() {
   const refreshRates = useRatesStore((s) => s.refresh);
   const refreshPackages = usePackagesStore((s) => s.refresh);
   const fetchTrips = useTripsStore((s) => s.fetchTrips);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   useEffect(() => {
     refreshRates();
-    refreshPackages();
-    fetchTrips();
-  }, [refreshRates, refreshPackages, fetchTrips]);
+    if (!isAuthenticated) return;
+    (async () => {
+      if (isSupabaseConfigured()) {
+        const result = await migrateLocalToSupabase();
+        if (result.ok && result.counts) {
+          const total = Object.values(result.counts).reduce((a, b) => a + b, 0);
+          if (total > 0 && result.skipped !== "already-migrated") {
+            toast.success(`Migrasi ke Supabase selesai (${total} item).`);
+          }
+        } else if (!result.ok && result.error) {
+          toast.error(`Migrasi Supabase gagal: ${result.error}`);
+        }
+      }
+      await Promise.all([refreshPackages(), fetchTrips()]);
+    })();
+  }, [refreshRates, refreshPackages, fetchTrips, isAuthenticated]);
   return null;
 }
 

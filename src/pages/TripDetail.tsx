@@ -10,7 +10,7 @@ import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { scanPassport } from "@/lib/ocrPassport";
+import { scanPassport, countPassportDataFields, failedChecksumLabels } from "@/lib/ocrPassport";
 import { useRegional } from "@/lib/regional";
 
 const DOC_CATEGORIES: { value: DocCategory; label: string }[] = [
@@ -82,6 +82,9 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
     setOcrProgress(0);
     try {
       const result = await scanPassport(file, setOcrProgress);
+      if (result.checksums && !result.mrzValid) {
+        toast.warning(`MRZ checksum gagal: ${failedChecksumLabels(result).join(", ")}. Cek ulang manual sebelum simpan.`, { duration: 6000 });
+      }
       setForm((f) => ({
         ...f,
         name: result.name || f.name,
@@ -89,7 +92,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
         passportNumber: result.passportNumber || f.passportNumber,
         gender: result.gender || f.gender,
       }));
-      const fieldsFound = Object.keys(result).length;
+      const fieldsFound = countPassportDataFields(result);
       if (fieldsFound > 0) toast.success(`OCR berhasil! ${fieldsFound} field terisi otomatis.`);
       else toast.warning("Teks MRZ tidak terbaca. Pastikan foto paspor jelas dan terbuka.");
     } catch {
@@ -197,9 +200,9 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
                 <button type="button"
                   onClick={() => ocrRef.current?.click()}
                   disabled={ocrLoading}
-                  className="h-7 px-2.5 rounded-lg text-[11px] font-semibold border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0"
+                  className="h-10 sm:h-8 min-w-[64px] px-3 rounded-lg text-[12px] sm:text-[11px] font-semibold border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 active:bg-orange-100 transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0 touch-manipulation"
                 >
-                  <ScanLine strokeWidth={1.5} className="h-3 w-3" />
+                  <ScanLine strokeWidth={1.5} className="h-4 w-4 sm:h-3 sm:w-3" />
                   {ocrLoading ? (ocrProgress < 35 ? "Memuat…" : `${ocrProgress}%`) : "Scan"}
                 </button>
               </div>
@@ -213,7 +216,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
             </div>
 
             {/* Gender + No HP */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Kelamin</Label>
                 <Select value={form.gender} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
@@ -232,7 +235,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
             </div>
 
             {/* Birth + Passport */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Tgl. Lahir</Label>
                 <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.birthDate}
@@ -465,7 +468,7 @@ function JamaahPreviewDialog({
                 <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Nama Lengkap *</Label>
                 <Input className="h-8 text-[12.5px] rounded-xl" value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Kelamin</Label>
                   <Select value={form.gender ?? ""} onValueChange={(v) => setForm((f) => ({ ...f, gender: v as "L" | "P" }))}>
@@ -481,7 +484,7 @@ function JamaahPreviewDialog({
                   <Input className="h-8 text-[12.5px] rounded-xl" placeholder="08xx" value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Tgl. Lahir</Label>
                   <Input type="date" className="h-8 text-[12.5px] rounded-xl" value={form.birthDate ?? ""} onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))} />

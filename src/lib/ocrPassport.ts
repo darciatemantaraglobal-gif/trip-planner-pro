@@ -7,6 +7,70 @@ export interface PassportData {
   birthDate?: string;
   expiryDate?: string;
   gender?: "L" | "P";
+  /**
+   * MRZ checksum validation results (ICAO 9303).
+   * Each flag is `true` when the corresponding check digit matches.
+   * `composite` is the overall composite check covering passport#, DOB, expiry, and personal#.
+   * Missing when the MRZ couldn't be read at all.
+   */
+  checksums?: {
+    passportNumber: boolean;
+    birthDate: boolean;
+    expiryDate: boolean;
+    composite: boolean;
+  };
+  /** True when every checksum above passed. */
+  mrzValid?: boolean;
+}
+
+/**
+ * ICAO 9303 MRZ check-digit calculator.
+ * Weights cycle 7,3,1. Letters A–Z = 10–35, '<' = 0, digits = themselves.
+ */
+function mrzCheckDigit(field: string): number {
+  const weights = [7, 3, 1];
+  let sum = 0;
+  for (let i = 0; i < field.length; i++) {
+    const ch = field[i];
+    let v = 0;
+    if (ch >= "0" && ch <= "9") v = ch.charCodeAt(0) - 48;
+    else if (ch >= "A" && ch <= "Z") v = ch.charCodeAt(0) - 55;
+    else v = 0; // '<' and anything unexpected
+    sum += v * weights[i % 3];
+  }
+  return sum % 10;
+}
+
+function checkField(field: string, expectedChar: string): boolean {
+  if (!/^\d$/.test(expectedChar)) return false;
+  return mrzCheckDigit(field) === Number(expectedChar);
+}
+
+/** Count only data fields (excludes checksum metadata). */
+export function countPassportDataFields(p: PassportData): number {
+  const dataKeys: (keyof PassportData)[] = [
+    "name",
+    "passportNumber",
+    "nationality",
+    "birthDate",
+    "expiryDate",
+    "gender",
+  ];
+  return dataKeys.filter((k) => p[k] != null && p[k] !== "").length;
+}
+
+/** Human-readable list of failed checksum field names (Indonesian). */
+export function failedChecksumLabels(p: PassportData): string[] {
+  if (!p.checksums) return [];
+  const labels: Record<keyof NonNullable<PassportData["checksums"]>, string> = {
+    passportNumber: "No. Paspor",
+    birthDate: "Tgl Lahir",
+    expiryDate: "Tgl Expired",
+    composite: "Komposit",
+  };
+  return (Object.keys(p.checksums) as (keyof typeof labels)[])
+    .filter((k) => !p.checksums![k])
+    .map((k) => labels[k]);
 }
 
 /**
@@ -214,6 +278,35 @@ function parseMRZ(text: string): PassportData {
     }
 
     if (fullName.length > 2) result.name = fullName;
+
+    // ── ICAO 9303 checksum validation ──
+    const passportField = line2.slice(0, 9);
+    const passportCheckChar = line2[9];
+    const dobField = fixNumericZone(line2.slice(13, 19));
+    const dobCheckChar = line2[19];
+    const expField = fixNumericZone(line2.slice(21, 27));
+    const expCheckChar = line2[27];
+    // Composite covers passport# + cd, DOB + cd, expiry + cd, personal# + cd
+    const compositeField =
+      line2.slice(0, 10) +
+      line2.slice(13, 20) +
+      line2.slice(21, 28) +
+      line2.slice(28, 42) +
+      line2[42];
+    const compositeCheckChar = line2[43];
+
+    const checksums = {
+      passportNumber: checkField(passportField, passportCheckChar),
+      birthDate: checkField(dobField, dobCheckChar),
+      expiryDate: checkField(expField, expCheckChar),
+      composite: checkField(compositeField, compositeCheckChar),
+    };
+    result.checksums = checksums;
+    result.mrzValid =
+      checksums.passportNumber &&
+      checksums.birthDate &&
+      checksums.expiryDate &&
+      checksums.composite;
   } catch {
     // ignore parse errors
   }

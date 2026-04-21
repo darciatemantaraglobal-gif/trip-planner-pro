@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from "react";
-import { CheckCircle2, FileImage, Loader2, ScanLine, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileImage, Loader2, ScanLine, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { scanPassport } from "@/lib/ocrPassport";
+import { scanPassport, failedChecksumLabels } from "@/lib/ocrPassport";
 import { useJamaahStore } from "@/store/tripsStore";
 
 interface ScanRow {
@@ -15,6 +15,8 @@ interface ScanRow {
   status: "queued" | "scanning" | "done" | "error";
   progress: number;
   errorMsg?: string;
+  mrzValid?: boolean;
+  failedChecks?: string[];
   data: {
     name: string;
     passportNumber: string;
@@ -110,7 +112,14 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
             setRows((prev) =>
               prev.map((r) =>
                 r.id === nextId
-                  ? { ...r, status: "done", progress: 100, data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", phone: "" } }
+                  ? {
+                      ...r,
+                      status: "done",
+                      progress: 100,
+                      mrzValid: result.mrzValid,
+                      failedChecks: failedChecksumLabels(result),
+                      data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", phone: "" },
+                    }
                   : r
               )
             );
@@ -318,6 +327,12 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                       {row.status === "done" && row.data.name && (
                         <p className="text-[9.5px] text-green-700 mt-0.5 truncate">{row.data.name} · {row.data.passportNumber || "No. paspor belum terbaca"}</p>
                       )}
+                      {row.status === "done" && row.mrzValid === false && row.failedChecks && row.failedChecks.length > 0 && (
+                        <p className="text-[9.5px] text-red-600 mt-0.5 flex items-center gap-1">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          MRZ checksum gagal: {row.failedChecks.join(", ")} — cek manual
+                        </p>
+                      )}
                       {row.status === "error" && (
                         <p className="text-[9.5px] text-red-600 mt-0.5">Gagal baca MRZ — bisa diisi manual di review</p>
                       )}
@@ -369,7 +384,15 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                             <td className="px-2.5 py-1.5">
                               <div className="relative">
                                 <img src={row.previewUrl} alt="" className="h-10 w-8 object-cover rounded-lg border border-[hsl(var(--border))]" />
-                                {valid && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 bg-white rounded-full absolute -top-1 -right-1 shadow-sm" />}
+                                {valid && row.mrzValid !== false && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 bg-white rounded-full absolute -top-1 -right-1 shadow-sm" />}
+                                {row.mrzValid === false && (
+                                  <span
+                                    className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-white shadow-sm flex items-center justify-center"
+                                    title={`MRZ checksum gagal: ${row.failedChecks?.join(", ")}`}
+                                  >
+                                    <AlertTriangle className="h-3 w-3 text-red-500" />
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-1.5 py-1.5">

@@ -11,7 +11,7 @@ import {
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type JamaahDoc, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { scanPassport } from "@/lib/ocrPassport";
+import { scanPassport, countPassportDataFields, failedChecksumLabels } from "@/lib/ocrPassport";
 import { useRegional } from "@/lib/regional";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -202,13 +202,18 @@ export default function JamaahProfile() {
     setEditing(true);
     try {
       const result = await scanPassport(file, setOcrProgress);
+      if (result.checksums && !result.mrzValid) {
+        toast.warning(`MRZ checksum gagal: ${failedChecksumLabels(result).join(", ")}. Cek ulang manual sebelum simpan.`, { duration: 6000 });
+      } else if (result.mrzValid) {
+        toast.success("MRZ checksum valid.");
+      }
       const filled: Partial<Jamaah> = { ...form };
       if (result.name) filled.name = result.name;
       if (result.passportNumber) filled.passportNumber = result.passportNumber;
       if (result.birthDate) filled.birthDate = result.birthDate;
       if (result.gender) filled.gender = result.gender;
       setForm(filled);
-      const fieldsFound = Object.keys(result).length;
+      const fieldsFound = countPassportDataFields(result);
       if (fieldsFound > 0) {
         toast.success(`OCR berhasil! ${fieldsFound} field terisi otomatis.`);
       } else {

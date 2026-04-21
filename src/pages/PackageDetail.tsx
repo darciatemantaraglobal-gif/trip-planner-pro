@@ -23,11 +23,13 @@ import {
   type GeneralCostRow, type CalcCurrency, type CalcMode, type CostUnit,
 } from "@/features/calculator/pricing";
 import { usePackages } from "@/features/packages/usePackages";
-import { scanPassport } from "@/lib/ocrPassport";
+import { scanPassport, countPassportDataFields, failedChecksumLabels } from "@/lib/ocrPassport";
 import { cn } from "@/lib/utils";
 import { useRatesStore } from "@/store/ratesStore";
 import { useJamaahStore, type Jamaah } from "@/store/tripsStore";
 import { useRegional } from "@/lib/regional";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { pushPackageCalc, pullPackageCalc } from "@/lib/cloudSync";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,8 @@ function savePackageCalc(packageId: string, value: ProfessionalCalcState) {
   const all = readCalcStore();
   all[packageId] = value;
   localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(all));
+  // Push to cloud (best-effort, no-op when Supabase not configured)
+  void pushPackageCalc(packageId, value).catch(() => undefined);
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -389,6 +393,9 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
     setOcrProgress(0);
     try {
       const result = await scanPassport(file, setOcrProgress);
+      if (result.checksums && !result.mrzValid) {
+        toast.warning(`MRZ checksum gagal: ${failedChecksumLabels(result).join(", ")}. Cek ulang manual sebelum simpan.`, { duration: 6000 });
+      }
       setForm((prev) => ({
         ...prev,
         name: result.name || prev.name,
@@ -396,7 +403,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
         passportNumber: result.passportNumber || prev.passportNumber,
         gender: result.gender || prev.gender,
       }));
-      const found = Object.keys(result).length;
+      const found = countPassportDataFields(result);
       if (found > 0) toast.success(`OCR berhasil, ${found} field terisi.`);
       else toast.warning("MRZ paspor belum kebaca. Coba foto yang lebih jelas.");
     } catch {
@@ -448,8 +455,8 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
               </div>
               <input ref={ocrRef} type="file" accept="image/*" className="hidden" onChange={handleOcr} />
               <button type="button" onClick={() => ocrRef.current?.click()} disabled={ocrLoading}
-                className="h-7 px-2.5 rounded-lg text-[11px] font-semibold border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0">
-                <ScanLine className="h-3 w-3" />
+                className="h-10 sm:h-7 min-w-[64px] px-3 rounded-lg text-[12px] sm:text-[11px] font-semibold border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 active:bg-orange-100 transition-colors disabled:opacity-60 flex items-center gap-1.5 shrink-0 touch-manipulation">
+                <ScanLine className="h-4 w-4 sm:h-3 sm:w-3" />
                 {ocrLoading ? (ocrProgress < 35 ? "Memuat…" : `${ocrProgress}%`) : "Scan"}
               </button>
             </div>
@@ -462,7 +469,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
           </div>
 
           {/* Gender + HP */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Kelamin</label>
               <Select value={form.gender} onValueChange={(value) => setForm((prev) => ({ ...prev, gender: value as "L" | "P" }))}>
@@ -480,7 +487,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
           </div>
 
           {/* Lahir + Paspor */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tgl. Lahir</label>
               <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.birthDate} onChange={(e) => setForm((prev) => ({ ...prev, birthDate: e.target.value }))} />
@@ -566,7 +573,13 @@ export default function PackageDetail() {
 
   useEffect(() => {
     if (!id || !pkg) return;
-    setCalc(loadPackageCalc(id, makeDefault(Math.max(1, pkg.people), pkg.name, pkg.destination)));
+    const fallback = makeDefault(Math.max(1, pkg.people), pkg.name, pkg.destination);
+    setCalc(loadPackageCalc(id, fallback));
+    if (isSupabaseConfigured()) {
+      void pullPackageCalc(id).then((cloud) => {
+        if (cloud) setCalc({ ...fallback, ...(cloud as Partial<ProfessionalCalcState>) });
+      });
+    }
   }, [id, pkg?.id]);
 
   useEffect(() => {

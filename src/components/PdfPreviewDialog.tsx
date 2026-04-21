@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Download, Plane, LayoutTemplate, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { generateQuotationPdf, type LandArrangementOfferData } from "@/lib/generatePdf";
+import { useRatesStore } from "@/store/ratesStore";
 import type { PdfTemplate, TemplateFieldConfig } from "@/features/pdfTemplate/types";
 
 const symbols: Record<string, string> = { USD: "$", SAR: "﷼", IDR: "Rp" };
@@ -172,7 +173,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 py-3 border-b">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-3 border-b">
                 <div>
                   <p className="text-[10px] text-muted-foreground font-semibold">Hotel Makkah</p>
                   <p className="font-bold text-[12.5px] mt-0.5">{offer.hotelMakkah}</p>
@@ -295,7 +296,16 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
             style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
             onClick={() => {
               try {
-                generateQuotationPdf(data);
+                const { mode, rates } = useRatesStore.getState();
+                generateQuotationPdf({
+                  ...data,
+                  rateMeta: {
+                    mode,
+                    ratesUSD: rates.USD,
+                    ratesSAR: rates.SAR,
+                    asOf: new Date().toISOString(),
+                  },
+                });
                 toast.success("PDF berhasil diunduh");
               } catch (err) {
                 console.error(err);

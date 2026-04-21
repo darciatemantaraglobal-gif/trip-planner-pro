@@ -1,3 +1,5 @@
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+
 export interface Trip {
   id: string;
   name: string;
@@ -34,112 +36,216 @@ export interface JamaahDoc {
   createdAt: string;
 }
 
-const TRIPS_KEY = "travelhub.trips.v2";
-const JAMAAH_KEY = "travelhub.jamaah.v2";
-const DOCS_KEY = "travelhub.docs.v2";
-
-const tick = <T,>(v: T, ms = 60): Promise<T> =>
-  new Promise((r) => setTimeout(() => r(v), ms));
+export const TRIPS_KEY = "travelhub.trips.v2";
+export const JAMAAH_KEY = "travelhub.jamaah.v2";
+export const DOCS_KEY = "travelhub.docs.v2";
 
 function load<T>(key: string, def: T[]): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : def;
-  } catch {
-    return def;
-  }
+  try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T[]) : def; }
+  catch { return def; }
 }
+function save<T>(key: string, data: T[]) { localStorage.setItem(key, JSON.stringify(data)); }
 
-function save<T>(key: string, data: T[]) {
-  localStorage.setItem(key, JSON.stringify(data));
-}
+// ── Mappers (snake_case ↔ camelCase) ────────────────────────────────────────
 
-const seedTrips: Trip[] = [];
+const tripFromRow = (r: Record<string, unknown>): Trip => ({
+  id: String(r.id),
+  name: String(r.name ?? ""),
+  destination: String(r.destination ?? ""),
+  startDate: String(r.start_date ?? ""),
+  endDate: String(r.end_date ?? ""),
+  emoji: String(r.emoji ?? "✈️"),
+  coverImage: (r.cover_image as string) ?? undefined,
+  createdAt: String(r.created_at ?? new Date().toISOString()),
+});
+const tripToRow = (t: Trip) => ({
+  id: t.id, name: t.name, destination: t.destination,
+  start_date: t.startDate, end_date: t.endDate, emoji: t.emoji,
+  cover_image: t.coverImage ?? null, created_at: t.createdAt,
+});
 
-// ── TRIPS ─────────────────────────────────────────────────────────────────────
+const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
+  id: String(r.id),
+  tripId: String(r.trip_id),
+  name: String(r.name ?? ""),
+  phone: String(r.phone ?? ""),
+  birthDate: String(r.birth_date ?? ""),
+  passportNumber: String(r.passport_number ?? ""),
+  gender: ((r.gender as string) ?? "") as "L" | "P" | "",
+  photoDataUrl: (r.photo_data_url as string) ?? undefined,
+  createdAt: String(r.created_at ?? new Date().toISOString()),
+});
+const jamaahToRow = (j: Jamaah) => ({
+  id: j.id, trip_id: j.tripId, name: j.name, phone: j.phone,
+  birth_date: j.birthDate, passport_number: j.passportNumber, gender: j.gender,
+  photo_data_url: j.photoDataUrl ?? null, created_at: j.createdAt,
+});
+
+const docFromRow = (r: Record<string, unknown>): JamaahDoc => ({
+  id: String(r.id),
+  jamaahId: String(r.jamaah_id),
+  category: (r.category as DocCategory) ?? "other",
+  label: String(r.label ?? ""),
+  fileName: String(r.file_name ?? ""),
+  fileType: (r.file_type as "image" | "pdf") ?? "image",
+  dataUrl: String(r.data_url ?? ""),
+  createdAt: String(r.created_at ?? new Date().toISOString()),
+});
+const docToRow = (d: JamaahDoc) => ({
+  id: d.id, jamaah_id: d.jamaahId, category: d.category, label: d.label,
+  file_name: d.fileName, file_type: d.fileType, data_url: d.dataUrl,
+  created_at: d.createdAt,
+});
+
+// ── TRIPS ───────────────────────────────────────────────────────────────────
 
 export async function listTrips(): Promise<Trip[]> {
-  const stored = localStorage.getItem(TRIPS_KEY);
-  if (!stored) {
-    localStorage.setItem(TRIPS_KEY, JSON.stringify(seedTrips));
-    return tick([...seedTrips]);
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("trips").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    const trips = (data ?? []).map(tripFromRow);
+    save(TRIPS_KEY, trips);
+    return trips;
   }
-  try {
-    return tick(JSON.parse(stored) as Trip[]);
-  } catch {
-    localStorage.removeItem(TRIPS_KEY);
-    return tick([...seedTrips]);
-  }
+  return load<Trip>(TRIPS_KEY, []);
 }
 
 export async function createTrip(draft: Omit<Trip, "id" | "createdAt">): Promise<Trip> {
-  const trips = load<Trip>(TRIPS_KEY, seedTrips);
   const t: Trip = { ...draft, id: `t-${Date.now()}`, createdAt: new Date().toISOString() };
-  save(TRIPS_KEY, [t, ...trips]);
-  return tick(t);
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("trips").insert(tripToRow(t));
+    if (error) throw error;
+  }
+  save(TRIPS_KEY, [t, ...load<Trip>(TRIPS_KEY, [])]);
+  return t;
 }
 
 export async function updateTrip(id: string, patch: Partial<Trip>): Promise<Trip> {
-  const trips = load<Trip>(TRIPS_KEY, seedTrips);
+  const trips = load<Trip>(TRIPS_KEY, []);
   const idx = trips.findIndex((t) => t.id === id);
   if (idx === -1) throw new Error("Trip not found");
-  trips[idx] = { ...trips[idx], ...patch };
+  const updated = { ...trips[idx], ...patch };
+  trips[idx] = updated;
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("trips").update(tripToRow(updated)).eq("id", id);
+    if (error) throw error;
+  }
   save(TRIPS_KEY, trips);
-  return tick(trips[idx]);
+  return updated;
 }
 
 export async function deleteTrip(id: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("trips").delete().eq("id", id);
+    if (error) throw error;
+  }
   save(TRIPS_KEY, load<Trip>(TRIPS_KEY, []).filter((t) => t.id !== id));
   save(JAMAAH_KEY, load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.tripId !== id));
-  return tick(undefined);
 }
 
-// ── JAMAAH ────────────────────────────────────────────────────────────────────
+// ── JAMAAH ──────────────────────────────────────────────────────────────────
 
 export async function listJamaah(tripId: string): Promise<Jamaah[]> {
-  return tick(load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.tripId === tripId));
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("jamaah").select("*").eq("trip_id", tripId);
+    if (error) throw error;
+    const list = (data ?? []).map(jamaahFromRow);
+    // Merge into local cache (keep other trips' jamaah)
+    const others = load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.tripId !== tripId);
+    save(JAMAAH_KEY, [...others, ...list]);
+    return list;
+  }
+  return load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.tripId === tripId);
 }
 
 export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Promise<Jamaah> {
-  const all = load<Jamaah>(JAMAAH_KEY, []);
   const j: Jamaah = { ...draft, id: `j-${Date.now()}`, createdAt: new Date().toISOString() };
-  save(JAMAAH_KEY, [...all, j]);
-  return tick(j);
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("jamaah").insert(jamaahToRow(j));
+    if (error) throw error;
+  }
+  save(JAMAAH_KEY, [...load<Jamaah>(JAMAAH_KEY, []), j]);
+  return j;
 }
 
 export async function updateJamaah(id: string, patch: Partial<Jamaah>): Promise<Jamaah> {
   const all = load<Jamaah>(JAMAAH_KEY, []);
   const idx = all.findIndex((j) => j.id === id);
   if (idx === -1) throw new Error("Jamaah not found");
-  all[idx] = { ...all[idx], ...patch };
+  const updated = { ...all[idx], ...patch };
+  all[idx] = updated;
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("jamaah").update(jamaahToRow(updated)).eq("id", id);
+    if (error) throw error;
+  }
   save(JAMAAH_KEY, all);
-  return tick(all[idx]);
+  return updated;
 }
 
 export async function deleteJamaah(id: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("jamaah").delete().eq("id", id);
+    if (error) throw error;
+  }
   save(JAMAAH_KEY, load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.id !== id));
   save(DOCS_KEY, load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.jamaahId !== id));
-  return tick(undefined);
 }
 
 export async function getJamaah(id: string): Promise<Jamaah | null> {
-  return tick(load<Jamaah>(JAMAAH_KEY, []).find((j) => j.id === id) ?? null);
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("jamaah").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    return data ? jamaahFromRow(data) : null;
+  }
+  return load<Jamaah>(JAMAAH_KEY, []).find((j) => j.id === id) ?? null;
 }
 
-// ── DOCUMENTS ─────────────────────────────────────────────────────────────────
+// ── DOCUMENTS ───────────────────────────────────────────────────────────────
 
 export async function listDocs(jamaahId: string): Promise<JamaahDoc[]> {
-  return tick(load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.jamaahId === jamaahId));
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("jamaah_docs").select("*").eq("jamaah_id", jamaahId);
+    if (error) throw error;
+    const list = (data ?? []).map(docFromRow);
+    const others = load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.jamaahId !== jamaahId);
+    save(DOCS_KEY, [...others, ...list]);
+    return list;
+  }
+  return load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.jamaahId === jamaahId);
 }
 
 export async function addDoc(draft: Omit<JamaahDoc, "id" | "createdAt">): Promise<JamaahDoc> {
-  const all = load<JamaahDoc>(DOCS_KEY, []);
   const d: JamaahDoc = { ...draft, id: `d-${Date.now()}`, createdAt: new Date().toISOString() };
-  save(DOCS_KEY, [...all, d]);
-  return tick(d);
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("jamaah_docs").insert(docToRow(d));
+    if (error) throw error;
+  }
+  save(DOCS_KEY, [...load<JamaahDoc>(DOCS_KEY, []), d]);
+  return d;
 }
 
 export async function deleteDoc(id: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("jamaah_docs").delete().eq("id", id);
+    if (error) throw error;
+  }
   save(DOCS_KEY, load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.id !== id));
-  return tick(undefined);
+}
+
+// ── Bulk push helpers (used by migration) ───────────────────────────────────
+
+export async function bulkUpsertTrips(trips: Trip[]) {
+  if (!isSupabaseConfigured() || trips.length === 0) return;
+  const { error } = await supabase!.from("trips").upsert(trips.map(tripToRow));
+  if (error) throw error;
+}
+export async function bulkUpsertJamaah(jamaah: Jamaah[]) {
+  if (!isSupabaseConfigured() || jamaah.length === 0) return;
+  const { error } = await supabase!.from("jamaah").upsert(jamaah.map(jamaahToRow));
+  if (error) throw error;
+}
+export async function bulkUpsertDocs(docs: JamaahDoc[]) {
+  if (!isSupabaseConfigured() || docs.length === 0) return;
+  const { error } = await supabase!.from("jamaah_docs").upsert(docs.map(docToRow));
+  if (error) throw error;
 }

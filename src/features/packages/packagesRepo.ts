@@ -1,11 +1,4 @@
-/**
- * Package repository — mock implementation.
- *
- * This module is structured as if it were talking to a real database:
- * every function is async, returns plain data, and uses a stable shape
- * (`Package`). Swap the in-memory store for a real DB call later
- * (e.g. supabase.from("packages")) without touching the UI.
- */
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type PackageStatus = "Draft" | "Calculated" | "Confirmed" | "Paid" | "Completed";
 export type HotelLevel = "Bintang 3" | "Bintang 4" | "Bintang 5";
@@ -16,70 +9,94 @@ export interface Package {
   destination: string;
   people: number;
   days: number;
-  /** HPP / Modal (biaya pokok) */
   hpp: number;
-  /** Harga Jual (selling price) */
   totalIDR: number;
   status: PackageStatus;
   emoji: string;
-  coverImage?: string; // base64 data URL
-  departureDate?: string; // ISO date string YYYY-MM-DD
+  coverImage?: string;
+  departureDate?: string;
   airline?: string;
   hotelLevel?: HotelLevel;
   notes?: string;
   facilities?: string[];
-  createdAt: string; // ISO
-  updatedAt: string; // ISO
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type PackageDraft = Omit<Package, "id" | "createdAt" | "updatedAt">;
 
-const STORAGE_KEY = "travelhub.packages.v2";
-
-const seed: Package[] = [];
+export const PACKAGES_KEY = "travelhub.packages.v2";
 
 function loadStore(): Package[] {
-  if (typeof window === "undefined") return seed;
+  if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-      return [...seed];
-    }
-    return JSON.parse(raw) as Package[];
-  } catch {
-    return [...seed];
-  }
+    const raw = localStorage.getItem(PACKAGES_KEY);
+    return raw ? (JSON.parse(raw) as Package[]) : [];
+  } catch { return []; }
 }
-
 function saveStore(items: Package[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  localStorage.setItem(PACKAGES_KEY, JSON.stringify(items));
 }
 
-// Simulate small network latency so the UI behaves realistically.
-const tick = <T,>(value: T, ms = 150): Promise<T> =>
-  new Promise((resolve) => setTimeout(() => resolve(value), ms));
+const fromRow = (r: Record<string, unknown>): Package => ({
+  id: String(r.id),
+  name: String(r.name ?? ""),
+  destination: String(r.destination ?? ""),
+  people: Number(r.people ?? 1),
+  days: Number(r.days ?? 1),
+  hpp: Number(r.hpp ?? 0),
+  totalIDR: Number(r.total_idr ?? 0),
+  status: (r.status as PackageStatus) ?? "Draft",
+  emoji: String(r.emoji ?? "📦"),
+  coverImage: (r.cover_image as string) ?? undefined,
+  departureDate: (r.departure_date as string) ?? undefined,
+  airline: (r.airline as string) ?? undefined,
+  hotelLevel: (r.hotel_level as HotelLevel) ?? undefined,
+  notes: (r.notes as string) ?? undefined,
+  facilities: (r.facilities as string[]) ?? undefined,
+  createdAt: String(r.created_at ?? new Date().toISOString()),
+  updatedAt: String(r.updated_at ?? new Date().toISOString()),
+});
+const toRow = (p: Package) => ({
+  id: p.id, name: p.name, destination: p.destination,
+  people: p.people, days: p.days, hpp: p.hpp, total_idr: p.totalIDR,
+  status: p.status, emoji: p.emoji, cover_image: p.coverImage ?? null,
+  departure_date: p.departureDate ?? null, airline: p.airline ?? null,
+  hotel_level: p.hotelLevel ?? null, notes: p.notes ?? null,
+  facilities: p.facilities ?? null,
+  created_at: p.createdAt, updated_at: p.updatedAt,
+});
 
 export async function listPackages(): Promise<Package[]> {
-  return tick(loadStore());
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("packages").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    const items = (data ?? []).map(fromRow);
+    saveStore(items);
+    return items;
+  }
+  return loadStore();
 }
 
 export async function getPackage(id: string): Promise<Package | null> {
-  return tick(loadStore().find((p) => p.id === id) ?? null);
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("packages").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    return data ? fromRow(data) : null;
+  }
+  return loadStore().find((p) => p.id === id) ?? null;
 }
 
 export async function createPackage(draft: PackageDraft): Promise<Package> {
   const now = new Date().toISOString();
-  const pkg: Package = {
-    ...draft,
-    id: `p-${Date.now()}`,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const next = [pkg, ...loadStore()];
-  saveStore(next);
-  return tick(pkg);
+  const pkg: Package = { ...draft, id: `p-${Date.now()}`, createdAt: now, updatedAt: now };
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("packages").insert(toRow(pkg));
+    if (error) throw error;
+  }
+  saveStore([pkg, ...loadStore()]);
+  return pkg;
 }
 
 export async function updatePackage(id: string, patch: Partial<PackageDraft>): Promise<Package> {
@@ -88,12 +105,24 @@ export async function updatePackage(id: string, patch: Partial<PackageDraft>): P
   if (idx === -1) throw new Error(`Package ${id} not found`);
   const updated: Package = { ...items[idx], ...patch, updatedAt: new Date().toISOString() };
   items[idx] = updated;
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("packages").update(toRow(updated)).eq("id", id);
+    if (error) throw error;
+  }
   saveStore(items);
-  return tick(updated);
+  return updated;
 }
 
 export async function deletePackage(id: string): Promise<void> {
-  const next = loadStore().filter((p) => p.id !== id);
-  saveStore(next);
-  return tick(undefined);
+  if (isSupabaseConfigured()) {
+    const { error } = await supabase!.from("packages").delete().eq("id", id);
+    if (error) throw error;
+  }
+  saveStore(loadStore().filter((p) => p.id !== id));
+}
+
+export async function bulkUpsertPackages(items: Package[]) {
+  if (!isSupabaseConfigured() || items.length === 0) return;
+  const { error } = await supabase!.from("packages").upsert(items.map(toRow));
+  if (error) throw error;
 }
