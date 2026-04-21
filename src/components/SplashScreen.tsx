@@ -48,7 +48,7 @@ export function SplashScreen() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
+          className="splash-root fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
           style={{
             backgroundImage: `url(${splashBackground})`,
             backgroundSize: "cover",
@@ -62,29 +62,118 @@ export function SplashScreen() {
           {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/25 to-black/60" />
 
+          {/* Animated radial glow behind logo — slowly breathes */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 42%, rgba(249,115,22,0.55) 0%, rgba(249,115,22,0.18) 22%, transparent 55%)",
+            }}
+            animate={{ opacity: [0.55, 0.95, 0.55], scale: [1, 1.08, 1] }}
+            transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+          />
+
+          {/* Floating particles */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {Array.from({ length: 14 }).map((_, i) => {
+              const left = (i * 53) % 100;
+              const size = 2 + (i % 3);
+              const dur = 6 + (i % 5);
+              const delay = (i * 0.4) % 5;
+              return (
+                <motion.span
+                  key={i}
+                  className="absolute rounded-full bg-white/40"
+                  style={{
+                    left: `${left}%`,
+                    bottom: "-10px",
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    boxShadow: "0 0 6px rgba(255,255,255,0.6)",
+                  }}
+                  animate={{
+                    y: ["0vh", "-110vh"],
+                    opacity: [0, 0.9, 0.9, 0],
+                  }}
+                  transition={{
+                    duration: dur,
+                    delay,
+                    repeat: Infinity,
+                    ease: "linear",
+                    times: [0, 0.1, 0.85, 1],
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Sweeping shine bar */}
+          <motion.div
+            className="absolute inset-y-0 w-1/3 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)",
+              filter: "blur(8px)",
+            }}
+            initial={{ x: "-50%" }}
+            animate={{ x: ["-50%", "350%"] }}
+            transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.2 }}
+          />
+
           {/* Content */}
-          <div className="relative z-10 flex flex-col items-center w-full max-w-sm px-6">
+          <div
+            className="relative z-10 flex flex-col items-center w-full max-w-sm px-6"
+            style={{
+              paddingTop: "env(safe-area-inset-top, 0px)",
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            }}
+          >
             {/* Logo */}
             <motion.div
-              initial={{ opacity: 0, y: -16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.34, 1.2, 0.64, 1] }}
+              initial={{ opacity: 0, y: -16, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.7, ease: [0.34, 1.4, 0.64, 1] }}
               className="flex flex-col items-center mb-2"
             >
-              <img
-                src="/logo-igh-tour-white.png"
-                alt="IGH Tour"
-                className="h-24 w-auto object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.style.display = "none";
-                  const fallback = document.createElement("span");
-                  fallback.textContent = "IGH";
-                  fallback.className =
-                    "text-5xl font-black tracking-[-0.06em] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]";
-                  img.parentElement!.appendChild(fallback);
-                }}
-              />
+              <motion.div
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <img
+                  src="/logo-igh-tour-white.png"
+                  alt="IGH Tour"
+                  className="h-24 w-auto object-contain drop-shadow-[0_12px_32px_rgba(249,115,22,0.45)]"
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.style.display = "none";
+                    const fallback = document.createElement("span");
+                    fallback.textContent = "IGH";
+                    fallback.className =
+                      "text-5xl font-black tracking-[-0.06em] text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]";
+                    img.parentElement!.appendChild(fallback);
+                  }}
+                />
+              </motion.div>
+
+              {/* Tagline letters reveal */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.4 }}
+                className="flex gap-[3px] mt-3"
+              >
+                {"UMRAH · HAJI · TOURS".split("").map((ch, i) => (
+                  <motion.span
+                    key={i}
+                    className="text-[10px] font-black tracking-[0.25em] text-white/90"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 + i * 0.025, duration: 0.3, ease: "easeOut" }}
+                  >
+                    {ch === " " ? "\u00A0" : ch}
+                  </motion.span>
+                ))}
+              </motion.div>
             </motion.div>
 
             <AnimatePresence mode="wait">
@@ -92,23 +181,65 @@ export function SplashScreen() {
               {phase === "loading" && (
                 <motion.div
                   key="loading"
-                  className="flex flex-col items-center gap-5 mt-6"
+                  className="flex flex-col items-center gap-5 mt-8"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.35, ease: "easeOut" }}
                 >
-                  <div className="h-9 w-9 rounded-full border-2 border-white/25 border-t-white animate-spin" />
-                  <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/80">
-                    Memuat…
-                  </p>
-                  {/* Progress bar */}
-                  <div className="w-56 h-[2px] rounded-full bg-white/20 overflow-hidden">
+                  {/* Dual-ring spinner */}
+                  <div className="relative h-12 w-12">
                     <motion.div
-                      className="h-full rounded-full bg-white"
-                      initial={{ width: "0%" }}
-                      animate={{ width: "100%" }}
-                      transition={{ duration: 1.5, delay: 0.2, ease: "easeInOut" }}
+                      className="absolute inset-0 rounded-full border-2 border-white/15"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                    />
+                    <motion.div
+                      className="absolute inset-0 rounded-full border-2 border-transparent border-t-orange-400 border-r-orange-300"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      style={{ filter: "drop-shadow(0 0 6px rgba(251,146,60,0.8))" }}
+                    />
+                    <motion.div
+                      className="absolute inset-1.5 rounded-full bg-white/10 backdrop-blur"
+                      animate={{ scale: [1, 1.1, 1], opacity: [0.4, 0.8, 0.4] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  </div>
+
+                  {/* Memuat with bouncing dots */}
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/85">
+                      Memuat
+                    </p>
+                    <div className="flex gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <motion.span
+                          key={i}
+                          className="h-1 w-1 rounded-full bg-white/85"
+                          animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                          transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Progress bar with shimmer */}
+                  <div className="relative w-60 h-[3px] rounded-full bg-white/15 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, #fb923c, #f97316, #fdba74, #f97316, #fb923c)",
+                        backgroundSize: "200% 100%",
+                        boxShadow: "0 0 12px rgba(249,115,22,0.7)",
+                      }}
+                      initial={{ width: "0%", backgroundPosition: "0% 0%" }}
+                      animate={{ width: "100%", backgroundPosition: "200% 0%" }}
+                      transition={{
+                        width: { duration: 1.5, delay: 0.2, ease: "easeInOut" },
+                        backgroundPosition: { duration: 1.6, repeat: Infinity, ease: "linear" },
+                      }}
                     />
                   </div>
                 </motion.div>

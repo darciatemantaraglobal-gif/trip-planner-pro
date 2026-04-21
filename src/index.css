@@ -839,6 +839,25 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
   }
 }
 
+/* ── Splash screen full-bleed across all devices ─────────────────────── */
+.splash-root {
+  /* Force true viewport coverage. position:fixed + viewport-fit=cover (in
+     index.html) extends behind notch/home indicator. dvh handles iOS Safari
+     dynamic URL bar so there's no gap when bar shows/hides. */
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: -webkit-fill-available;
+  height: 100dvh;
+  min-height: 100dvh;
+  /* Background extends to the very edge of the screen */
+  background-attachment: fixed;
+}
+
 /* Comfortable max content width on very wide screens */
 @media (min-width: 1600px) {
   .pwa-main-content > div {
