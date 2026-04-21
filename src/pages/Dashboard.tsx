@@ -601,10 +601,6 @@ export default function Dashboard() {
                   </p>
                 )}
               </div>
-              <div className="h-12 w-12 md:h-14 md:w-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl md:text-3xl"
-                style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
-                🕌
-              </div>
             </div>
           </div>
         </motion.div>
@@ -628,9 +624,7 @@ export default function Dashboard() {
               className="flex items-center gap-2 md:gap-3 rounded-xl md:rounded-2xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3.5 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-[border-color,box-shadow] duration-200 text-left active:scale-[0.98]"
               variants={fadeUp}
             >
-              <div className="h-8 w-8 md:h-10 md:w-10 flex items-center justify-center shrink-0 rounded-xl bg-[hsl(var(--secondary))]">
-                <stat.icon strokeWidth={1.5} className={cn("h-4 w-4 md:h-4.5 md:w-4.5", stat.color)} />
-              </div>
+              <stat.icon strokeWidth={1.5} className="h-5 w-5 md:h-6 md:w-6 text-orange-500 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[18px] md:text-[22px] font-bold text-[hsl(var(--foreground))] leading-none">{stat.value}</p>
                 <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{stat.label}</p>
@@ -657,9 +651,7 @@ export default function Dashboard() {
               onClick={item.onClick}
               className="flex items-center gap-2 md:gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-white p-2.5 md:p-3 hover:shadow-sm hover:border-[hsl(var(--primary))]/40 transition-all text-left active:scale-[0.98]"
             >
-              <div className={cn("h-7 w-7 md:h-9 md:w-9 flex items-center justify-center rounded-xl shrink-0", item.color)}>
-                <item.icon strokeWidth={1.5} className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              </div>
+              <item.icon strokeWidth={1.5} className="h-4 w-4 md:h-5 md:w-5 text-orange-500 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[15px] md:text-[18px] font-bold text-[hsl(var(--foreground))] leading-none">{item.value}</p>
                 <p className="text-[10px] md:text-[10.5px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">{item.label}</p>

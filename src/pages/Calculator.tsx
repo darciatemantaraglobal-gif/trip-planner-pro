@@ -210,9 +210,7 @@ function SectionHeader({
   return (
     <div className="flex items-center justify-between px-3 py-2.5 rounded-t-xl border border-b-0 border-orange-200" style={{ background: "linear-gradient(135deg,#fff7ed,#ffedd5)" }}>
       <div className="flex items-center gap-2">
-        <div className={`h-6 w-6 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-        </div>
+        <Icon className="h-4 w-4 text-orange-500 shrink-0" strokeWidth={2} />
         <span style={M} className="text-[12px] font-bold text-orange-800">{title}</span>
         <span style={M} className="text-[10px] font-semibold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded">
           {currency}
@@ -464,9 +462,7 @@ export default function Calculator() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-orange-500 flex items-center justify-center shrink-0 shadow-sm">
-            <CalcIcon strokeWidth={2} className="h-4 w-4 text-white" />
-          </div>
+          <CalcIcon strokeWidth={2} className="h-5 w-5 text-orange-500 shrink-0" />
           <div>
             <h1 className="text-base md:text-lg font-bold text-[hsl(var(--foreground))] leading-tight" style={M}>
               Kalkulator Profesional
@@ -1004,9 +1000,7 @@ export default function Calculator() {
         <div className="overflow-hidden rounded-xl border border-orange-200">
           <div className="flex items-center justify-between px-3 py-2.5 rounded-t-xl border border-b-0 border-orange-200" style={{ background: "linear-gradient(135deg,#fff7ed,#ffedd5)" }}>
             <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-lg flex items-center justify-center bg-orange-500">
-                <TrendingUp className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-              </div>
+              <TrendingUp className="h-4 w-4 text-orange-500" strokeWidth={2} />
               <span style={M} className="text-[12px] font-bold text-orange-800">Rincian Biaya</span>
               <span style={M} className="text-[10px] font-semibold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded">IDR / SAR / USD</span>
             </div>
