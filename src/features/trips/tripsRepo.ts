@@ -64,7 +64,12 @@ export async function listTrips(): Promise<Trip[]> {
     localStorage.setItem(TRIPS_KEY, JSON.stringify(seedTrips));
     return tick([...seedTrips]);
   }
-  return tick(JSON.parse(stored) as Trip[]);
+  try {
+    return tick(JSON.parse(stored) as Trip[]);
+  } catch {
+    localStorage.removeItem(TRIPS_KEY);
+    return tick([...seedTrips]);
+  }
 }
 
 export async function createTrip(draft: Omit<Trip, "id" | "createdAt">): Promise<Trip> {

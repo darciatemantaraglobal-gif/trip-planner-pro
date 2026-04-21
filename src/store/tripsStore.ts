@@ -22,8 +22,12 @@ export const useTripsStore = create<TripsState>((set) => ({
 
   fetchTrips: async () => {
     set({ loadingTrips: true });
-    const data = await listTrips();
-    set({ trips: data, loadingTrips: false });
+    try {
+      const data = await listTrips();
+      set({ trips: data, loadingTrips: false });
+    } catch {
+      set({ trips: [], loadingTrips: false });
+    }
   },
 
   addTrip: async (draft) => {
