@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import {
   FileText, Calculator as CalcIcon, Plane, Bus, Train, Car,
-  BedDouble, Users, Wallet, TrendingUp, Moon, Globe,
+  BedDouble, Users, Wallet, TrendingUp, Moon, Globe, Plus, Trash2,
 } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { useRatesStore } from "@/store/ratesStore";
@@ -82,23 +82,25 @@ interface Transport {
   currency: Currency;
 }
 
+interface HotelEntry {
+  id: string;
+  label: string;
+  price: number;
+  currency: Currency;
+  roomType: RoomType;
+  fbIncluded: boolean;
+  startDate: string;
+  endDate: string;
+}
+
+function makeHotel(id: string, label: string): HotelEntry {
+  return { id, label, price: 0, currency: "SAR", roomType: "double", fbIncluded: false, startDate: "", endDate: "" };
+}
+
 interface FormState {
   namaPaket: string;
   pax: number;
-  hotelMakkah: string;
-  hargaMakkah: number;
-  hargaMakkahCurrency: Currency;
-  tipeKamarMakkah: RoomType;
-  fbMakkah: boolean;
-  startMakkah: string;
-  endMakkah: string;
-  hotelMadinah: string;
-  hargaMadinah: number;
-  hargaMadinahCurrency: Currency;
-  tipeKamarMadinah: RoomType;
-  fbMadinah: boolean;
-  startMadinah: string;
-  endMadinah: string;
+  hotels: HotelEntry[];
   visaUmroh: number;
   visaUmrohCurrency: Currency;
   komisiFee: number;
@@ -120,20 +122,7 @@ interface FormState {
 const initForm: FormState = {
   namaPaket: "",
   pax: 1,
-  hotelMakkah: "",
-  hargaMakkah: 0,
-  hargaMakkahCurrency: "SAR",
-  tipeKamarMakkah: "double",
-  fbMakkah: false,
-  startMakkah: "",
-  endMakkah: "",
-  hotelMadinah: "",
-  hargaMadinah: 0,
-  hargaMadinahCurrency: "SAR",
-  tipeKamarMadinah: "double",
-  fbMadinah: false,
-  startMadinah: "",
-  endMadinah: "",
+  hotels: [makeHotel("h1", "Makkah"), makeHotel("h2", "Madinah")],
   visaUmroh: 0,
   visaUmrohCurrency: "IDR",
   komisiFee: 0,
@@ -293,22 +282,14 @@ export default function Calculator() {
     return amount * (effectiveRates[currency as "SAR" | "USD"] ?? 1);
   };
 
-  const nightsMakkah = daysBetween(form.startMakkah, form.endMakkah);
-  const nightsMadinah = daysBetween(form.startMadinah, form.endMadinah);
-
-  const roomPaxMakkah = ROOM_TYPES.find((r) => r.value === form.tipeKamarMakkah)?.pax ?? 2;
-  const roomPaxMadinah = ROOM_TYPES.find((r) => r.value === form.tipeKamarMadinah)?.pax ?? 2;
+  const hotelNights = (h: HotelEntry) => daysBetween(h.startDate, h.endDate);
+  const hotelRoomPax = (h: HotelEntry) => ROOM_TYPES.find((r) => r.value === h.roomType)?.pax ?? 2;
+  const hotelIDRFor = (h: HotelEntry) =>
+    (toIDR(h.price, h.currency) / hotelRoomPax(h)) * form.pax * hotelNights(h);
 
   const summary = useMemo(() => {
-    // Hotel: harga/kamar ÷ occupancy × total pax × malam
-    const hotelMakkahIDR =
-      (toIDR(form.hargaMakkah, form.hargaMakkahCurrency) / roomPaxMakkah) *
-      form.pax *
-      nightsMakkah;
-    const hotelMadinahIDR =
-      (toIDR(form.hargaMadinah, form.hargaMadinahCurrency) / roomPaxMadinah) *
-      form.pax *
-      nightsMadinah;
+    // Hotel: harga/kamar ÷ occupancy × total pax × malam (per row)
+    const hotelsIDR = form.hotels.reduce((s, h) => s + hotelIDRFor(h), 0);
 
     // Per-pax costs (visa, siskopatuh, zamzam, komisi) → dikali jumlah pax
     const perPaxItemsIDR =
@@ -327,14 +308,13 @@ export default function Calculator() {
       (s, t) => s + toIDR(t.harga, t.currency),
       0
     );
-    const subtotal = hotelMakkahIDR + hotelMadinahIDR + perPaxItemsIDR + grupCostIDR + transportIDR;
+    const subtotal = hotelsIDR + perPaxItemsIDR + grupCostIDR + transportIDR;
     const marginAmt = (subtotal * form.margin) / 100;
     const total = subtotal + marginAmt;
     const perPerson = form.pax > 0 ? total / form.pax : 0;
 
     return {
-      hotelMakkahIDR,
-      hotelMadinahIDR,
+      hotelsIDR,
       perPaxItemsIDR,
       grupCostIDR,
       transportIDR,
@@ -344,18 +324,23 @@ export default function Calculator() {
       perPerson,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, rates, nightsMakkah, nightsMadinah, roomPaxMakkah, roomPaxMadinah]);
+  }, [form, rates]);
 
-  const makkahRoomLabel = ROOM_TYPES.find((r) => r.value === form.tipeKamarMakkah)?.label ?? "";
-  const madinahRoomLabel = ROOM_TYPES.find((r) => r.value === form.tipeKamarMadinah)?.label ?? "";
+  const updateHotel = (id: string, patch: Partial<HotelEntry>) =>
+    setForm((f) => ({ ...f, hotels: f.hotels.map((h) => h.id === id ? { ...h, ...patch } : h) }));
+  const addHotel = () =>
+    setForm((f) => ({ ...f, hotels: [...f.hotels, makeHotel(`h${Date.now()}`, `Penginapan ${f.hotels.length + 1}`)] }));
+  const removeHotel = (id: string) =>
+    setForm((f) => ({ ...f, hotels: f.hotels.filter((h) => h.id !== id) }));
 
   const pdfCosts = [
-    ...(summary.hotelMakkahIDR > 0
-      ? [{ id: "hotel-makkah", label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} malam × ${form.pax} pax)${form.fbMakkah ? " · incl. F&B" : ""}`, amount: summary.hotelMakkahIDR }]
-      : []),
-    ...(summary.hotelMadinahIDR > 0
-      ? [{ id: "hotel-madinah", label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} malam × ${form.pax} pax)${form.fbMadinah ? " · incl. F&B" : ""}`, amount: summary.hotelMadinahIDR }]
-      : []),
+    ...form.hotels
+      .filter((h) => hotelIDRFor(h) > 0)
+      .map((h) => ({
+        id: `hotel-${h.id}`,
+        label: `${h.label || "Penginapan"} — ${ROOM_TYPES.find(r => r.value === h.roomType)?.label ?? ""} (${hotelNights(h)} malam × ${form.pax} pax)${h.fbIncluded ? " · incl. F&B" : ""}`,
+        amount: hotelIDRFor(h),
+      })),
     ...(toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax > 0
       ? [{ id: "visa", label: `${labels.visa} (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
       : []),
@@ -493,157 +478,117 @@ export default function Calculator() {
             </div>
           </div>
 
-          {/* ── Penginapan 1 ── */}
-          <SectionLabel icon={BedDouble} label={labels.hotel1} />
-
-          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
-            <FieldRow>
-              <FormField label="Nama Penginapan">
-                <Input
-                  placeholder="Nama hotel / penginapan"
-                  value={form.hotelMakkah}
-                  onChange={(e) => set("hotelMakkah", e.target.value)}
-                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                />
-              </FormField>
-              <FormField label="Harga / Kamar / Malam" suffix="/ kamar / mlm">
-                <NumInputWithCurrency
-                  value={form.hargaMakkah}
-                  onChange={(v) => set("hargaMakkah", v)}
-                  currency={form.hargaMakkahCurrency}
-                  onCurrencyChange={(c) => set("hargaMakkahCurrency", c)}
-                />
-              </FormField>
-            </FieldRow>
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <Label className="text-[11px] md:text-[12px] font-semibold shrink-0">Tipe Kamar</Label>
-              <RoomTypeSelector value={form.tipeKamarMakkah} onChange={(v) => set("tipeKamarMakkah", v)} />
-              <span className="text-[10px] text-orange-500 font-medium">{roomPaxMakkah} orang/kamar</span>
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => set("fbMakkah", !form.fbMakkah)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
-                    form.fbMakkah
-                      ? "bg-green-500 text-white border-green-500"
-                      : "bg-white text-slate-500 border-slate-200 hover:border-green-300"
-                  }`}
-                >
-                  {form.fbMakkah ? "✓ Include F&B" : "Exclude F&B"}
-                </button>
+          {/* ── Penginapan (dynamic) ── */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-1 pb-0.5 flex-1 min-w-0">
+              <div className="h-5 w-5 rounded-md bg-orange-100 flex items-center justify-center shrink-0">
+                <BedDouble className="h-3 w-3 text-orange-600" strokeWidth={2.5} />
               </div>
+              <span className="text-[11px] font-extrabold text-orange-600 uppercase tracking-wide shrink-0">Penginapan</span>
+              <div className="h-px flex-1 bg-orange-100" />
             </div>
-
-            <FieldRow>
-              <FormField label="Tgl. Masuk">
-                <Input
-                  type="date"
-                  value={form.startMakkah}
-                  onChange={(e) => set("startMakkah", e.target.value)}
-                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                />
-              </FormField>
-              <FormField label="Tgl. Keluar">
-                <Input
-                  type="date"
-                  value={form.endMakkah}
-                  onChange={(e) => set("endMakkah", e.target.value)}
-                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                />
-              </FormField>
-            </FieldRow>
-
-            {nightsMakkah > 0 && (
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                <p className="text-[11px] text-orange-700 font-semibold">
-                  {nightsMakkah} malam
-                  {form.hargaMakkah > 0 && (
-                    <span className="ml-1.5 text-orange-500 font-normal">
-                      · {form.hargaMakkah.toLocaleString("id-ID")} {form.hargaMakkahCurrency} ÷ {roomPaxMakkah} × {form.pax} pax × {nightsMakkah} mlm = {formatCurrency(summary.hotelMakkahIDR)}
-                    </span>
-                  )}
-                </p>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={addHotel}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500 text-white text-[11px] font-bold hover:bg-orange-600 transition-colors shrink-0"
+            >
+              <Plus className="h-3 w-3" />
+              Tambah
+            </button>
           </div>
 
-          {/* ── Penginapan 2 ── */}
-          <SectionLabel icon={BedDouble} label={labels.hotel2} />
-
-          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
-            <FieldRow>
-              <FormField label="Nama Penginapan">
-                <Input
-                  placeholder="Nama hotel / penginapan (opsional)"
-                  value={form.hotelMadinah}
-                  onChange={(e) => set("hotelMadinah", e.target.value)}
-                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                />
-              </FormField>
-              <FormField label="Harga / Kamar / Malam" suffix="/ kamar / mlm">
-                <NumInputWithCurrency
-                  value={form.hargaMadinah}
-                  onChange={(v) => set("hargaMadinah", v)}
-                  currency={form.hargaMadinahCurrency}
-                  onCurrencyChange={(c) => set("hargaMadinahCurrency", c)}
-                />
-              </FormField>
-            </FieldRow>
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <Label className="text-[11px] md:text-[12px] font-semibold shrink-0">Tipe Kamar</Label>
-              <RoomTypeSelector value={form.tipeKamarMadinah} onChange={(v) => set("tipeKamarMadinah", v)} />
-              <span className="text-[10px] text-orange-500 font-medium">{roomPaxMadinah} orang/kamar</span>
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => set("fbMadinah", !form.fbMadinah)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
-                    form.fbMadinah
-                      ? "bg-green-500 text-white border-green-500"
-                      : "bg-white text-slate-500 border-slate-200 hover:border-green-300"
-                  }`}
-                >
-                  {form.fbMadinah ? "✓ Include F&B" : "Exclude F&B"}
-                </button>
-              </div>
-            </div>
-
-            <FieldRow>
-              <FormField label="Tgl. Masuk">
-                <Input
-                  type="date"
-                  value={form.startMadinah}
-                  onChange={(e) => set("startMadinah", e.target.value)}
-                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                />
-              </FormField>
-              <FormField label="Tgl. Keluar">
-                <Input
-                  type="date"
-                  value={form.endMadinah}
-                  onChange={(e) => set("endMadinah", e.target.value)}
-                  className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                />
-              </FormField>
-            </FieldRow>
-
-            {nightsMadinah > 0 && (
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                <p className="text-[11px] text-orange-700 font-semibold">
-                  {nightsMadinah} malam
-                  {form.hargaMadinah > 0 && (
-                    <span className="ml-1.5 text-orange-500 font-normal">
-                      · {form.hargaMadinah.toLocaleString("id-ID")} {form.hargaMadinahCurrency} ÷ {roomPaxMadinah} × {form.pax} pax × {nightsMadinah} mlm = {formatCurrency(summary.hotelMadinahIDR)}
-                    </span>
+          {form.hotels.map((h, idx) => {
+            const nights = hotelNights(h);
+            const roomPax = hotelRoomPax(h);
+            const hIDR = hotelIDRFor(h);
+            return (
+              <div key={h.id} className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
+                {/* Row header: label + delete */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-4 w-4 rounded bg-orange-400 flex items-center justify-center shrink-0">
+                      <BedDouble className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
+                    </div>
+                    <Input
+                      placeholder={`Penginapan ${idx + 1}`}
+                      value={h.label}
+                      onChange={(e) => updateHotel(h.id, { label: e.target.value })}
+                      className="h-7 text-[12px] font-semibold bg-white border-orange-200 w-36 md:w-48 px-2"
+                    />
+                  </div>
+                  {form.hotels.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeHotel(h.id)}
+                      className="h-6 w-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   )}
-                </p>
+                </div>
+
+                <FieldRow>
+                  <FormField label="Harga / Kamar / Malam" suffix="/ kamar / mlm">
+                    <NumInputWithCurrency
+                      value={h.price}
+                      onChange={(v) => updateHotel(h.id, { price: v })}
+                      currency={h.currency}
+                      onCurrencyChange={(c) => updateHotel(h.id, { currency: c })}
+                    />
+                  </FormField>
+                  <FormField label="Tipe Kamar">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <RoomTypeSelector value={h.roomType} onChange={(v) => updateHotel(h.id, { roomType: v })} />
+                      <span className="text-[10px] text-orange-500 font-medium">{roomPax} org/kamar</span>
+                    </div>
+                  </FormField>
+                </FieldRow>
+
+                <FieldRow>
+                  <FormField label="Tgl. Masuk">
+                    <Input
+                      type="date"
+                      value={h.startDate}
+                      onChange={(e) => updateHotel(h.id, { startDate: e.target.value })}
+                      className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
+                    />
+                  </FormField>
+                  <FormField label="Tgl. Keluar">
+                    <Input
+                      type="date"
+                      value={h.endDate}
+                      onChange={(e) => updateHotel(h.id, { endDate: e.target.value })}
+                      className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
+                    />
+                  </FormField>
+                </FieldRow>
+
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => updateHotel(h.id, { fbIncluded: !h.fbIncluded })}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                      h.fbIncluded
+                        ? "bg-green-500 text-white border-green-500"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-green-300"
+                    }`}
+                  >
+                    {h.fbIncluded ? "✓ Include F&B" : "Exclude F&B"}
+                  </button>
+                  {nights > 0 && (
+                    <p className="text-[11px] text-orange-700 font-semibold">
+                      {nights} malam
+                      {h.price > 0 && (
+                        <span className="ml-1.5 text-orange-500 font-normal">
+                          · {h.price.toLocaleString("id-ID")} {h.currency} ÷ {roomPax} × {form.pax} pax × {nights} mlm = {formatCurrency(hIDR)}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })}
 
           {/* ── Biaya Per Pax ── */}
           <SectionLabel icon={Wallet} label="Biaya Per Pax" />
@@ -827,8 +772,9 @@ export default function Calculator() {
           {/* Breakdown list */}
           <div className="space-y-1">
             {[
-              { label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} mlm × ${form.pax} pax)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
-              { label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} mlm × ${form.pax} pax)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
+              ...form.hotels
+                .filter((h) => hotelIDRFor(h) > 0)
+                .map((h) => ({ label: `${h.label || "Penginapan"} (${hotelNights(h)} mlm × ${form.pax} pax)`, value: hotelIDRFor(h), show: true })),
               { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxItemsIDR, show: summary.perPaxItemsIDR > 0 },
               { label: `Biaya Grup`, value: summary.grupCostIDR, show: summary.grupCostIDR > 0 },
               { label: "Transportasi", value: summary.transportIDR, show: summary.transportIDR > 0 },
