@@ -1,865 +1,1229 @@
-import { useState, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMemo, useState } from "react";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import {
-  FileText, Calculator as CalcIcon, Plane, Bus, Train, Car,
-  BedDouble, Users, Wallet, TrendingUp, Moon, Globe, Plus, Trash2,
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
+import {
+  computeProfessionalQuote,
+  computeGeneralQuote,
+  type HotelRow,
+  type TransportRow,
+  type TicketRow,
+  type VisaRow,
+  type DestinationRow,
+  type FnBRow,
+  type StaffRow,
+  type GeneralCostRow,
+  type CalcCurrency,
+  type CalcMode,
+  type CostUnit,
+} from "@/features/calculator/pricing";
+import { cn } from "@/lib/utils";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
-import type { Currency } from "@/lib/exchangeRates";
 
-type TripMode = "umroh" | "umum";
-type RoomType = "double" | "triple" | "quad";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const ROOM_TYPES: { value: RoomType; label: string; pax: number }[] = [
-  { value: "double", label: "Double", pax: 2 },
-  { value: "triple", label: "Triple", pax: 3 },
-  { value: "quad", label: "Quad", pax: 4 },
+interface CalcState {
+  mode: CalcMode;
+  packageName: string;
+  destination: string;
+  pax: number;
+  hotels: HotelRow[];
+  transports: TransportRow[];
+  tickets: TicketRow[];
+  visas: VisaRow[];
+  destinations: DestinationRow[];
+  fnbs: FnBRow[];
+  staffs: StaffRow[];
+  generalCosts: GeneralCostRow[];
+  commissionFee: number;
+  marginPercent: number;
+  discount: number;
+}
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "travelhub.standalone.calculator.v1";
+
+function saveState(value: CalcState) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)); } catch { /* ignore */ }
+}
+
+function loadState(fallback: CalcState): CalcState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallback;
+    const stored = JSON.parse(raw) as Partial<CalcState>;
+    return {
+      ...fallback,
+      ...stored,
+      mode: (stored.mode === "umum" || stored.mode === "umroh") ? stored.mode : fallback.mode,
+      hotels: stored.hotels ?? fallback.hotels,
+      transports: stored.transports ?? fallback.transports,
+      tickets: stored.tickets ?? fallback.tickets,
+      visas: stored.visas ?? fallback.visas,
+      destinations: stored.destinations ?? fallback.destinations,
+      fnbs: stored.fnbs ?? fallback.fnbs,
+      staffs: (stored.staffs ?? fallback.staffs).map((s: StaffRow) => ({ numStaff: 1, ...s })),
+      generalCosts: stored.generalCosts ?? fallback.generalCosts,
+    };
+  } catch { return fallback; }
+}
+
+// ── Defaults ──────────────────────────────────────────────────────────────────
+
+const DEFAULT_GENERAL_COSTS: GeneralCostRow[] = [
+  { id: "g1", label: "Penginapan", amount: 0, currency: "IDR", unit: "pax" },
+  { id: "g2", label: "Transportasi", amount: 0, currency: "IDR", unit: "group" },
+  { id: "g3", label: "Tiket & Aktivitas", amount: 0, currency: "IDR", unit: "pax" },
+  { id: "g4", label: "Makanan & Minuman", amount: 0, currency: "IDR", unit: "pax" },
+  { id: "g5", label: "Guide / Pemandu", amount: 0, currency: "IDR", unit: "group" },
 ];
 
-const CURRENCIES: Currency[] = ["IDR", "SAR", "USD"];
-
-const CURRENCY_COLORS: Record<Currency, string> = {
-  IDR: "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200",
-  SAR: "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200",
-  USD: "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200",
-};
-
-function CurrencyToggle({
-  value,
-  onChange,
-}: {
-  value: Currency;
-  onChange: (v: Currency) => void;
-}) {
-  const next = () => {
-    const idx = CURRENCIES.indexOf(value);
-    onChange(CURRENCIES[(idx + 1) % CURRENCIES.length]);
+function makeDefault(): CalcState {
+  return {
+    mode: "umroh",
+    packageName: "",
+    destination: "",
+    pax: 1,
+    hotels: [
+      { id: "h1", label: "Makkah", days: 4, pricePerNight: 0, rooms: 1 },
+      { id: "h2", label: "Madinah", days: 3, pricePerNight: 0, rooms: 1 },
+    ],
+    transports: [{ id: "t1", label: "All Transport", fleet: 1, pricePerFleet: 0 }],
+    tickets: [{ id: "tk1", label: "SUB - JED", flightType: "Return", pricePerPax: 0, currency: "IDR" }],
+    visas: [{ id: "v1", label: "Visa Umroh", pricePerPax: 0 }],
+    destinations: [{ id: "d1", label: "Tasreh", pricePerPax: 0 }],
+    fnbs: [{ id: "f1", label: "Zam-zam", pricePerPax: 0 }],
+    staffs: [
+      { id: "s1", label: "Akomodasi Guide", numStaff: 1, totalCost: 0 },
+      { id: "s2", label: "Muthowif", numStaff: 1, totalCost: 0 },
+    ],
+    generalCosts: DEFAULT_GENERAL_COSTS.map((c) => ({ ...c })),
+    commissionFee: 0,
+    marginPercent: 10,
+    discount: 0,
   };
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const M = { fontFamily: "'Manrope', sans-serif" };
+
+function fmtSAR(v: number) {
+  if (!v) return "—";
+  return "SAR " + v.toLocaleString("id-ID");
+}
+function fmtUSD(v: number) {
+  if (!v) return "—";
+  return "USD " + v.toLocaleString("id-ID");
+}
+
+// ── Spreadsheet cell helpers ──────────────────────────────────────────────────
+
+function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+  return (
+    <th
+      style={M}
+      className={cn(
+        "px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider text-orange-700 border-b border-orange-200 bg-orange-50/80 whitespace-nowrap",
+        right && "text-right"
+      )}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({ children, right, muted, bold, mono }: {
+  children: React.ReactNode; right?: boolean; muted?: boolean; bold?: boolean; mono?: boolean;
+}) {
+  return (
+    <td
+      className={cn(
+        "px-2.5 py-1.5 text-[12px] border-b border-orange-50",
+        right && "text-right",
+        muted && "text-[hsl(var(--muted-foreground))]",
+        bold && "font-bold",
+        mono && "font-mono"
+      )}
+    >
+      {children}
+    </td>
+  );
+}
+
+function NumCell({ value, onChange, placeholder }: {
+  value: number; onChange: (v: number) => void; placeholder?: string;
+}) {
+  return (
+    <input
+      type="number"
+      min={0}
+      value={value || ""}
+      onChange={(e) => onChange(Number(e.target.value))}
+      placeholder={placeholder ?? "0"}
+      style={M}
+      className="w-full h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] text-right focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
+    />
+  );
+}
+
+function TextCell({ value, onChange, placeholder }: {
+  value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder ?? ""}
+      style={M}
+      className="w-full h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
+    />
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  currency,
+  onAdd,
+  color,
+}: {
+  icon: React.ElementType;
+  title: string;
+  currency: string;
+  onAdd: () => void;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2.5 rounded-t-xl border border-b-0 border-orange-200" style={{ background: "linear-gradient(135deg,#fff7ed,#ffedd5)" }}>
+      <div className="flex items-center gap-2">
+        <div className={`h-6 w-6 rounded-lg flex items-center justify-center ${color}`}>
+          <Icon className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+        </div>
+        <span style={M} className="text-[12px] font-bold text-orange-800">{title}</span>
+        <span style={M} className="text-[10px] font-semibold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded">
+          {currency}
+        </span>
+      </div>
+      <button
+        onClick={onAdd}
+        style={M}
+        className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 rounded-lg px-2 py-1 transition-colors"
+      >
+        <Plus className="h-3 w-3" /> Tambah Baris
+      </button>
+    </div>
+  );
+}
+
+function DeleteBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="h-7 w-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function RowCurrencyToggle({ value, onChange }: { value: "SAR" | "USD"; onChange: (v: "SAR" | "USD") => void }) {
   return (
     <button
       type="button"
-      onClick={next}
-      title="Klik untuk ganti mata uang"
-      className={`shrink-0 h-8 md:h-9 px-2 md:px-2.5 rounded-lg border text-[10px] md:text-[11px] font-bold transition-colors ${CURRENCY_COLORS[value]}`}
+      onClick={() => onChange(value === "SAR" ? "USD" : "SAR")}
+      title="Klik ganti kurs (SAR / USD)"
+      style={M}
+      className={`shrink-0 h-7 px-2 rounded-md border text-[10px] font-bold transition-colors ${
+        value === "SAR"
+          ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+          : "bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100"
+      }`}
     >
       {value}
     </button>
   );
 }
 
-const TRANSPORT_OPTIONS = [
-  { value: "saudia", label: "Saudia Airlines", icon: Plane },
-  { value: "emirates", label: "Emirates", icon: Plane },
-  { value: "etihad", label: "Etihad Airways", icon: Plane },
-  { value: "qatar", label: "Qatar Airways", icon: Plane },
-  { value: "garuda", label: "Garuda Indonesia", icon: Plane },
-  { value: "lionair", label: "Lion Air", icon: Plane },
-  { value: "batik", label: "Batik Air", icon: Plane },
-  { value: "citilink", label: "Citilink", icon: Plane },
-  { value: "airasia", label: "AirAsia", icon: Plane },
-  { value: "bus", label: "Bus", icon: Bus },
-  { value: "kereta", label: "Kereta", icon: Train },
-  { value: "van", label: "Van / Hiace", icon: Car },
-  { value: "custom", label: "Lainnya (ketik sendiri)", icon: Car },
-];
-
-function daysBetween(start: string, end: string): number {
-  if (!start || !end) return 0;
-  const d = (new Date(end).getTime() - new Date(start).getTime()) / 86400000;
-  return Math.max(0, Math.round(d));
-}
-
-interface Transport {
-  jenis: string;
-  customJenis: string;
-  harga: number;
-  currency: Currency;
-}
-
-interface HotelEntry {
-  id: string;
+function SubtotalRow({ label, sarAmount, usdAmount, groupIDR, perPaxIDR, formatCurrency }: {
   label: string;
-  price: number;
-  currency: Currency;
-  roomType: RoomType;
-  fbIncluded: boolean;
-  startDate: string;
-  endDate: string;
-}
-
-function makeHotel(id: string, label: string): HotelEntry {
-  return { id, label, price: 0, currency: "SAR", roomType: "double", fbIncluded: false, startDate: "", endDate: "" };
-}
-
-interface FormState {
-  namaPaket: string;
-  pax: number;
-  hotels: HotelEntry[];
-  visaUmroh: number;
-  visaUmrohCurrency: Currency;
-  komisiFee: number;
-  komisiFeeurrency: Currency;
-  muthowif: number;
-  muthowifCurrency: Currency;
-  siskopatuh: number;
-  siskopatuhCurrency: Currency;
-  zamZam: number;
-  zamZamCurrency: Currency;
-  handlingBandara: number;
-  handlingBandaraCurrency: Currency;
-  transports: Transport[];
-  margin: number;
-  localRateSAR: number;
-  localRateUSD: number;
-}
-
-const initForm: FormState = {
-  namaPaket: "",
-  pax: 1,
-  hotels: [makeHotel("h1", "Makkah"), makeHotel("h2", "Madinah")],
-  visaUmroh: 0,
-  visaUmrohCurrency: "IDR",
-  komisiFee: 0,
-  komisiFeeurrency: "IDR",
-  muthowif: 0,
-  muthowifCurrency: "IDR",
-  siskopatuh: 0,
-  siskopatuhCurrency: "IDR",
-  zamZam: 0,
-  zamZamCurrency: "IDR",
-  handlingBandara: 0,
-  handlingBandaraCurrency: "IDR",
-  transports: Array.from({ length: 6 }, () => ({ jenis: "", customJenis: "", harga: 0, currency: "IDR" as Currency })),
-  margin: 10,
-  localRateSAR: 0,
-  localRateUSD: 0,
-};
-
-function FieldRow({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">{children}</div>;
-}
-
-function RoomTypeSelector({ value, onChange }: { value: RoomType; onChange: (v: RoomType) => void }) {
-  return (
-    <div className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50/60 p-0.5 self-start">
-      {ROOM_TYPES.map((rt) => (
-        <button
-          key={rt.value}
-          type="button"
-          onClick={() => onChange(rt.value)}
-          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-            value === rt.value
-              ? "bg-orange-500 text-white shadow-sm"
-              : "text-orange-600 hover:bg-orange-100"
-          }`}
-        >
-          {rt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function FormField({
-  label,
-  children,
-  suffix,
-}: {
-  label: string;
-  children: React.ReactNode;
-  suffix?: string;
+  sarAmount?: number;
+  usdAmount?: number;
+  groupIDR: number;
+  perPaxIDR: number;
+  formatCurrency: (v: number) => string;
 }) {
-  return (
-    <div className="space-y-1 min-w-0">
-      <div className="flex items-center justify-between gap-1">
-        <Label className="text-[11px] md:text-[12px] font-semibold text-[hsl(var(--foreground))] leading-tight">
-          {label}
-        </Label>
-        {suffix && (
-          <span className="text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded shrink-0">
-            {suffix}
-          </span>
-        )}
-      </div>
-      <div className="min-w-0">{children}</div>
-    </div>
-  );
-}
+  const hasSAR = sarAmount !== undefined && sarAmount > 0;
+  const hasUSD = usdAmount !== undefined && usdAmount > 0;
+  const foreignDisplay = hasSAR && hasUSD
+    ? <><span className="text-blue-700">{fmtSAR(sarAmount!)}</span> <span className="text-orange-400">+</span> <span className="text-violet-700">{fmtUSD(usdAmount!)}</span></>
+    : hasSAR ? <span className="text-blue-700">{fmtSAR(sarAmount!)}</span>
+    : hasUSD ? <span className="text-violet-700">{fmtUSD(usdAmount!)}</span>
+    : <span className="text-muted-foreground">—</span>;
 
-function NumInputWithCurrency({
-  value,
-  onChange,
-  currency,
-  onCurrencyChange,
-  placeholder,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  currency: Currency;
-  onCurrencyChange: (c: Currency) => void;
-  placeholder?: string;
-}) {
   return (
-    <div className="flex gap-1.5">
-      <Input
-        type="number"
-        min={0}
-        placeholder={placeholder ?? "0"}
-        value={value || ""}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-8 md:h-9 text-[13px] md:text-sm flex-1 min-w-0 bg-white"
-      />
-      <CurrencyToggle value={currency} onChange={onCurrencyChange} />
-    </div>
-  );
-}
-
-function SectionLabel({
-  icon: Icon,
-  label,
-}: {
-  icon?: React.ElementType;
-  label: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 pt-1 pb-0.5">
-      {Icon && (
-        <div className="h-5 w-5 rounded-md bg-orange-100 flex items-center justify-center shrink-0">
-          <Icon className="h-3 w-3 text-orange-600" strokeWidth={2.5} />
-        </div>
-      )}
-      <span className="text-[11px] font-extrabold text-orange-600 uppercase tracking-wide">
+    <tr className="bg-orange-50/50">
+      <td colSpan={2} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">
         {label}
-      </span>
-      <div className="h-px flex-1 bg-orange-100" />
-    </div>
+      </td>
+      <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right border-t-2 border-orange-200 font-mono">
+        {foreignDisplay}
+      </td>
+      <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">
+        {formatCurrency(groupIDR)}
+      </td>
+      <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-600 border-t-2 border-orange-200 font-mono">
+        {formatCurrency(perPaxIDR)}
+      </td>
+      <td className="border-t-2 border-orange-200" />
+    </tr>
   );
 }
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Calculator() {
   const rates = useRatesStore((s) => s.rates);
   const { formatCurrency } = useRegional();
-  const [form, setForm] = useState<FormState>(initForm);
+
+  const [calc, setCalc] = useState<CalcState>(() => loadState(makeDefault()));
+  const [showSummary, setShowSummary] = useState(true);
   const [pdfOpen, setPdfOpen] = useState(false);
-  const [tripMode, setTripMode] = useState<TripMode>("umroh");
 
-  const isUmroh = tripMode === "umroh";
-  const labels = {
-    hotel1: isUmroh ? "Penginapan Makkah" : "Penginapan 1",
-    hotel2: isUmroh ? "Penginapan Madinah" : "Penginapan 2",
-    visa: isUmroh ? "Visa Umroh" : "Visa / Izin Masuk",
-    muthowif: isUmroh ? "Muthowif" : "Tour Leader",
-    siskopatuh: "Siskopatuh",
-    zamzam: isUmroh ? "ZamZam" : "Oleh-oleh / Souvenir",
-    headerTitle: isUmroh ? "Kalkulator Paket Umroh" : "Kalkulator Paket Trip",
-    headerSub: isUmroh ? "Umrah & Haji" : "Perjalanan Wisata",
+  function update(value: CalcState) {
+    setCalc(value);
+    saveState(value);
+  }
+
+  const setField = <K extends keyof CalcState>(key: K, value: CalcState[K]) => {
+    const next = { ...calc, [key]: value };
+    update(next);
   };
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  const sarRate = rates.SAR ?? 1;
+  const usdRate = rates.USD ?? 1;
+  const safePax = Math.max(1, calc.pax);
 
-  const setTransport = (i: number, field: keyof Transport, value: string | number | Currency) =>
-    setForm((f) => {
-      const t = [...f.transports];
-      t[i] = { ...t[i], [field]: value };
-      return { ...f, transports: t };
+  const quote = useMemo(() => {
+    if (calc.mode === "umum") {
+      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates });
+    }
+    return computeProfessionalQuote({
+      pax: calc.pax,
+      hotels: calc.hotels,
+      transports: calc.transports,
+      tickets: calc.tickets ?? [],
+      visas: calc.visas,
+      destinations: calc.destinations,
+      fnbs: calc.fnbs ?? [],
+      staffs: calc.staffs,
+      commissionFee: calc.commissionFee,
+      marginPercent: calc.marginPercent,
+      discount: calc.discount,
+      rates,
     });
+  }, [calc, rates]);
 
-  const effectiveRates = useMemo(() => ({
-    SAR: form.localRateSAR > 0 ? form.localRateSAR : (rates["SAR"] ?? 1),
-    USD: form.localRateUSD > 0 ? form.localRateUSD : (rates["USD"] ?? 1),
-    IDR: 1,
-  }), [form.localRateSAR, form.localRateUSD, rates]);
+  // ── Row updaters ─────────────────────────────────────────────────────────────
 
-  const toIDR = (amount: number, currency: Currency): number => {
-    if (currency === "IDR") return amount;
-    return amount * (effectiveRates[currency as "SAR" | "USD"] ?? 1);
-  };
+  function updateHotel(id: string, patch: Partial<HotelRow>) {
+    update({ ...calc, hotels: calc.hotels.map((h) => h.id === id ? { ...h, ...patch } : h) });
+  }
+  function addHotel() {
+    update({ ...calc, hotels: [...calc.hotels, { id: `h${Date.now()}`, label: "Hotel", days: 1, pricePerNight: 0, rooms: 1 }] });
+  }
+  function removeHotel(id: string) {
+    update({ ...calc, hotels: calc.hotels.filter((h) => h.id !== id) });
+  }
 
-  const hotelNights = (h: HotelEntry) => daysBetween(h.startDate, h.endDate);
-  const hotelRoomPax = (h: HotelEntry) => ROOM_TYPES.find((r) => r.value === h.roomType)?.pax ?? 2;
-  const hotelIDRFor = (h: HotelEntry) =>
-    (toIDR(h.price, h.currency) / hotelRoomPax(h)) * form.pax * hotelNights(h);
+  function updateTransport(id: string, patch: Partial<TransportRow>) {
+    update({ ...calc, transports: calc.transports.map((t) => t.id === id ? { ...t, ...patch } : t) });
+  }
+  function addTransport() {
+    update({ ...calc, transports: [...calc.transports, { id: `t${Date.now()}`, label: "Transport", fleet: 1, pricePerFleet: 0 }] });
+  }
+  function removeTransport(id: string) {
+    update({ ...calc, transports: calc.transports.filter((t) => t.id !== id) });
+  }
 
-  const summary = useMemo(() => {
-    // Hotel: harga/kamar ÷ occupancy × total pax × malam (per row)
-    const hotelsIDR = form.hotels.reduce((s, h) => s + hotelIDRFor(h), 0);
+  function updateTicket(id: string, patch: Partial<TicketRow>) {
+    update({ ...calc, tickets: calc.tickets.map((t) => t.id === id ? { ...t, ...patch } : t) });
+  }
+  function addTicket() {
+    update({ ...calc, tickets: [...calc.tickets, { id: `tk${Date.now()}`, label: "Rute Baru", flightType: "Return", pricePerPax: 0, currency: "IDR" as const }] });
+  }
+  function removeTicket(id: string) {
+    update({ ...calc, tickets: calc.tickets.filter((t) => t.id !== id) });
+  }
 
-    // Per-pax costs (visa, siskopatuh, zamzam, komisi) → dikali jumlah pax
-    const perPaxItemsIDR =
-      (toIDR(form.visaUmroh, form.visaUmrohCurrency) +
-        toIDR(form.siskopatuh, form.siskopatuhCurrency) +
-        toIDR(form.zamZam, form.zamZamCurrency) +
-        toIDR(form.komisiFee, form.komisiFeeurrency)) *
-      form.pax;
+  function updateVisa(id: string, patch: Partial<VisaRow>) {
+    update({ ...calc, visas: calc.visas.map((v) => v.id === id ? { ...v, ...patch } : v) });
+  }
+  function addVisa() {
+    update({ ...calc, visas: [...calc.visas, { id: `v${Date.now()}`, label: "Visa", pricePerPax: 0 }] });
+  }
+  function removeVisa(id: string) {
+    update({ ...calc, visas: calc.visas.filter((v) => v.id !== id) });
+  }
 
-    // Group costs (muthowif, handling bandara) → biaya total grup, TIDAK dikali pax
-    const grupCostIDR =
-      toIDR(form.muthowif, form.muthowifCurrency) +
-      toIDR(form.handlingBandara, form.handlingBandaraCurrency);
+  function updateDest(id: string, patch: Partial<DestinationRow>) {
+    update({ ...calc, destinations: calc.destinations.map((d) => d.id === id ? { ...d, ...patch } : d) });
+  }
+  function addDest() {
+    update({ ...calc, destinations: [...calc.destinations, { id: `d${Date.now()}`, label: "Destinasi", pricePerPax: 0 }] });
+  }
+  function removeDest(id: string) {
+    update({ ...calc, destinations: calc.destinations.filter((d) => d.id !== id) });
+  }
 
-    const transportIDR = form.transports.reduce(
-      (s, t) => s + toIDR(t.harga, t.currency),
-      0
-    );
-    const subtotal = hotelsIDR + perPaxItemsIDR + grupCostIDR + transportIDR;
-    const marginAmt = (subtotal * form.margin) / 100;
-    const total = subtotal + marginAmt;
-    const perPerson = form.pax > 0 ? total / form.pax : 0;
+  function updateFnB(id: string, patch: Partial<FnBRow>) {
+    update({ ...calc, fnbs: calc.fnbs.map((f) => f.id === id ? { ...f, ...patch } : f) });
+  }
+  function addFnB() {
+    update({ ...calc, fnbs: [...calc.fnbs, { id: `f${Date.now()}`, label: "F&B", pricePerPax: 0 }] });
+  }
+  function removeFnB(id: string) {
+    update({ ...calc, fnbs: calc.fnbs.filter((f) => f.id !== id) });
+  }
 
-    return {
-      hotelsIDR,
-      perPaxItemsIDR,
-      grupCostIDR,
-      transportIDR,
-      subtotal,
-      marginAmt,
-      total,
-      perPerson,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, rates]);
+  function updateStaff(id: string, patch: Partial<StaffRow>) {
+    update({ ...calc, staffs: calc.staffs.map((s) => s.id === id ? { ...s, ...patch } : s) });
+  }
+  function addStaff() {
+    update({ ...calc, staffs: [...calc.staffs, { id: `s${Date.now()}`, label: "Guide", numStaff: 1, totalCost: 0 }] });
+  }
+  function removeStaff(id: string) {
+    update({ ...calc, staffs: calc.staffs.filter((s) => s.id !== id) });
+  }
 
-  const updateHotel = (id: string, patch: Partial<HotelEntry>) =>
-    setForm((f) => ({ ...f, hotels: f.hotels.map((h) => h.id === id ? { ...h, ...patch } : h) }));
-  const addHotel = () =>
-    setForm((f) => ({ ...f, hotels: [...f.hotels, makeHotel(`h${Date.now()}`, `Penginapan ${f.hotels.length + 1}`)] }));
-  const removeHotel = (id: string) =>
-    setForm((f) => ({ ...f, hotels: f.hotels.filter((h) => h.id !== id) }));
+  function updateGeneralCost(id: string, patch: Partial<GeneralCostRow>) {
+    update({ ...calc, generalCosts: calc.generalCosts.map((c) => c.id === id ? { ...c, ...patch } : c) });
+  }
+  function addGeneralCost() {
+    update({ ...calc, generalCosts: [...calc.generalCosts, { id: `g${Date.now()}`, label: "Biaya Tambahan", amount: 0, currency: "IDR" as CalcCurrency, unit: "pax" as CostUnit }] });
+  }
+  function removeGeneralCost(id: string) {
+    update({ ...calc, generalCosts: calc.generalCosts.filter((c) => c.id !== id) });
+  }
 
-  const pdfCosts = [
-    ...form.hotels
-      .filter((h) => hotelIDRFor(h) > 0)
-      .map((h) => ({
-        id: `hotel-${h.id}`,
-        label: `${h.label || "Penginapan"} — ${ROOM_TYPES.find(r => r.value === h.roomType)?.label ?? ""} (${hotelNights(h)} malam × ${form.pax} pax)${h.fbIncluded ? " · incl. F&B" : ""}`,
-        amount: hotelIDRFor(h),
-      })),
-    ...(toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax > 0
-      ? [{ id: "visa", label: `${labels.visa} (${form.pax} pax)`, amount: toIDR(form.visaUmroh, form.visaUmrohCurrency) * form.pax }]
-      : []),
-    ...(isUmroh && toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax > 0
-      ? [{ id: "sisko", label: `${labels.siskopatuh} (${form.pax} pax)`, amount: toIDR(form.siskopatuh, form.siskopatuhCurrency) * form.pax }]
-      : []),
-    ...(toIDR(form.zamZam, form.zamZamCurrency) * form.pax > 0
-      ? [{ id: "zamzam", label: `${labels.zamzam} (${form.pax} pax)`, amount: toIDR(form.zamZam, form.zamZamCurrency) * form.pax }]
-      : []),
-    ...(toIDR(form.komisiFee, form.komisiFeeurrency) * form.pax > 0
-      ? [{ id: "komisi", label: `Komisi Fee (${form.pax} pax)`, amount: toIDR(form.komisiFee, form.komisiFeeurrency) * form.pax }]
-      : []),
-    ...(toIDR(form.muthowif, form.muthowifCurrency) > 0
-      ? [{ id: "muthowif", label: `${labels.muthowif} (biaya grup)`, amount: toIDR(form.muthowif, form.muthowifCurrency) }]
-      : []),
-    ...(toIDR(form.handlingBandara, form.handlingBandaraCurrency) > 0
-      ? [{ id: "handling", label: `Handling Bandara (biaya grup)`, amount: toIDR(form.handlingBandara, form.handlingBandaraCurrency) }]
-      : []),
-    ...form.transports
-      .map((t, i) => ({ ...t, i }))
-      .filter((t) => t.harga > 0)
-      .map((t) => ({
-        id: `transport-${t.i}`,
-        label: t.jenis
-          ? `Transport ${t.i + 1} — ${t.jenis === "custom" && t.customJenis ? t.customJenis : (TRANSPORT_OPTIONS.find((o) => o.value === t.jenis)?.label ?? t.jenis)}`
-          : `Transport ${t.i + 1}`,
-        amount: toIDR(t.harga, t.currency),
-      })),
-  ];
+  function handleReset() {
+    const fresh = makeDefault();
+    update(fresh);
+  }
+
+  const pdfCosts = quote.breakdown.map((b) => ({ id: b.id, label: b.label, amount: b.groupIDR }));
 
   return (
-    <div className="calculator-compact max-w-3xl mx-auto space-y-2.5 md:space-y-4">
+    <div className="space-y-3 md:space-y-5 max-w-5xl mx-auto" style={M}>
 
-      {/* ── Compact header row ── */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="h-7 w-7 rounded-lg bg-orange-500 flex items-center justify-center shrink-0 shadow-sm">
-            <CalcIcon strokeWidth={2} className="h-3.5 w-3.5 text-white" />
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-xl bg-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+            <CalcIcon strokeWidth={2} className="h-4 w-4 text-white" />
           </div>
-          <div className="min-w-0">
-            <h1 className="text-sm md:text-base font-bold text-[hsl(var(--foreground))] leading-tight truncate">
-              {labels.headerTitle}
+          <div>
+            <h1 className="text-base md:text-lg font-bold text-[hsl(var(--foreground))] leading-tight" style={M}>
+              Kalkulator Profesional
             </h1>
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight hidden sm:block">
-              Klik badge <span className="font-semibold text-slate-500">IDR / SAR / USD</span> untuk ganti kurs per baris
+            <p className="text-[10px] text-muted-foreground leading-tight hidden sm:block" style={M}>
+              Kalkulasi biaya paket Umroh, Haji &amp; Trip
             </p>
           </div>
         </div>
-        {/* Mode Toggle */}
-        <div className="flex items-center shrink-0 rounded-lg border border-orange-200 bg-orange-50/60 p-0.5 gap-0.5">
+        <div className="flex items-center gap-2">
           <button
-            type="button"
-            onClick={() => setTripMode("umroh")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-              tripMode === "umroh" ? "bg-orange-500 text-white shadow-sm" : "text-orange-600 hover:bg-orange-100"
-            }`}
+            onClick={handleReset}
+            style={M}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-orange-200 text-orange-600 bg-white hover:bg-orange-50 text-[11px] font-semibold transition-colors"
           >
-            <Moon className="h-3 w-3" />
-            Umroh
+            <RotateCcw className="h-3 w-3" /> Reset
           </button>
-          <button
-            type="button"
-            onClick={() => setTripMode("umum")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-              tripMode === "umum" ? "bg-orange-500 text-white shadow-sm" : "text-orange-600 hover:bg-orange-100"
-            }`}
+          <Button
+            onClick={() => setPdfOpen(true)}
+            disabled={quote.finalPrice === 0}
+            className="h-8 px-3 rounded-xl gradient-primary text-white text-[11px] font-semibold"
           >
-            <Globe className="h-3 w-3" />
-            Umum
-          </button>
+            <FileText className="h-3.5 w-3.5 mr-1.5" /> Ekspor PDF
+          </Button>
         </div>
       </div>
 
-      {/* ─── Main form card ─── */}
-      <div className="calculator-card rounded-xl border border-orange-200 bg-white overflow-hidden shadow-sm">
-
-        {/* Thin top accent */}
-        <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #ea580c, #f97316, #fb923c)" }} />
-
-        <div className="calculator-card-body p-3 md:p-4 space-y-2.5 md:space-y-4">
-
-          {/* ── Informasi Dasar ── */}
-          <SectionLabel icon={Users} label="Informasi Dasar" />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Nama Paket</Label>
-              <Input
-                placeholder="cth: Umrah Ramadhan 2026"
-                value={form.namaPaket}
-                onChange={(e) => set("namaPaket", e.target.value)}
-                className="h-8 md:h-9 text-[13px] md:text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold">Jumlah Pax</Label>
-              <Input
-                type="number"
-                min={1}
-                value={form.pax || ""}
-                onChange={(e) => set("pax", Math.max(1, Number(e.target.value)))}
-                className="h-8 md:h-9 text-[13px] md:text-sm"
-              />
-            </div>
+      {/* ── Mode switcher + kurs strip ── */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200 bg-orange-50/50">
+          {(["umroh", "umum"] as CalcMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setField("mode", m)}
+              style={M}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all",
+                calc.mode === m
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "text-orange-600 hover:bg-orange-100"
+              )}
+            >
+              {m === "umroh" ? "🕌 Umroh" : "🗺️ Umum"}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
+            <span className="text-[10px] font-bold text-slate-600 uppercase">SAR</span>
+            <span className="text-[10px] text-muted-foreground">=</span>
+            <span className="text-[10px] font-bold text-slate-800 font-mono">{sarRate.toLocaleString("id-ID")}</span>
           </div>
-
-          {/* Rates strip — editable inline */}
-          <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Override Kurs (khusus form ini)</p>
-            <div className="flex flex-wrap gap-2">
-              {(["SAR", "USD"] as const).map((cur) => {
-                const storeVal = rates[cur] ?? 0;
-                const localVal = cur === "SAR" ? form.localRateSAR : form.localRateUSD;
-                const active = localVal > 0;
-                return (
-                  <div key={cur} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition-colors ${active ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"}`}>
-                    <span className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 shrink-0">{cur}</span>
-                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">= Rp</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder={storeVal.toLocaleString("id-ID")}
-                      value={localVal || ""}
-                      onChange={(e) => set(cur === "SAR" ? "localRateSAR" : "localRateUSD", Number(e.target.value))}
-                      className="h-6 w-24 text-[11px] font-bold border-0 bg-transparent shadow-none p-0 focus-visible:ring-0"
-                    />
-                    {active && (
-                      <button type="button" onClick={() => set(cur === "SAR" ? "localRateSAR" : "localRateUSD", 0)}
-                        className="text-[10px] text-orange-400 hover:text-orange-600 font-medium shrink-0">↩</button>
-                    )}
-                    {!active && <span className="text-[10px] text-slate-400 italic">(dari Pengaturan)</span>}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="flex items-center gap-1 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1">
+            <span className="text-[10px] font-bold text-slate-600 uppercase">USD</span>
+            <span className="text-[10px] text-muted-foreground">=</span>
+            <span className="text-[10px] font-bold text-slate-800 font-mono">{usdRate.toLocaleString("id-ID")}</span>
           </div>
+        </div>
+      </div>
 
-          {/* ── Penginapan (dynamic) ── */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 pt-1 pb-0.5 flex-1 min-w-0">
-              <div className="h-5 w-5 rounded-md bg-orange-100 flex items-center justify-center shrink-0">
-                <BedDouble className="h-3 w-3 text-orange-600" strokeWidth={2.5} />
+      {/* ── Package Info ── */}
+      <div className="rounded-xl border border-orange-200 bg-white p-3 md:p-4 space-y-2.5 md:space-y-3">
+        <p style={M} className="text-[10px] font-extrabold uppercase tracking-wide text-orange-600">Info Paket</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
+          <div className="col-span-2 space-y-1">
+            <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Nama Paket</label>
+            <input
+              type="text"
+              value={calc.packageName}
+              onChange={(e) => setField("packageName", e.target.value)}
+              placeholder="cth: Umrah Ramadhan 2026"
+              style={M}
+              className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </div>
+          <div className="space-y-1">
+            <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Destinasi</label>
+            <input
+              type="text"
+              value={calc.destination}
+              onChange={(e) => setField("destination", e.target.value)}
+              placeholder="cth: Makkah - Madinah"
+              style={M}
+              className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </div>
+          <div className="space-y-1">
+            <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Jumlah Pax</label>
+            <input
+              type="number"
+              min={1}
+              value={calc.pax || ""}
+              onChange={(e) => setField("pax", Math.max(1, Number(e.target.value)))}
+              style={M}
+              className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ══ MODE-SPECIFIC SECTION ══ */}
+
+      {calc.mode === "umroh" && (<>
+
+        {/* ── HOTEL TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={Hotel} title="Apartment / Hotel" currency="SAR / USD" color="bg-blue-500" onAdd={addHotel} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Nama Hotel</Th>
+                  <Th right>Hari</Th>
+                  <Th right>Harga/Malam</Th>
+                  <Th right>Kamar</Th>
+                  <Th right>Total Asing</Th>
+                  <Th right>Total IDR</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.hotels.map((h) => {
+                  const cur = h.currency ?? "SAR";
+                  const rate = cur === "SAR" ? sarRate : usdRate;
+                  const foreignAmount = h.days * h.pricePerNight * h.rooms;
+                  const totalIDR = foreignAmount * rate;
+                  return (
+                    <tr key={h.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={h.label} onChange={(v) => updateHotel(h.id, { label: v })} placeholder="Nama hotel" /></Td>
+                      <Td right><NumCell value={h.days} onChange={(v) => updateHotel(h.id, { days: v })} /></Td>
+                      <Td right>
+                        <div className="flex items-center gap-1">
+                          <NumCell value={h.pricePerNight} onChange={(v) => updateHotel(h.id, { pricePerNight: v })} />
+                          <RowCurrencyToggle value={cur} onChange={(v) => updateHotel(h.id, { currency: v })} />
+                        </div>
+                      </Td>
+                      <Td right><NumCell value={h.rooms} onChange={(v) => updateHotel(h.id, { rooms: v })} /></Td>
+                      <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeHotel(h.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL HOTEL"
+                    sarAmount={quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesSAR, 0)}
+                    usdAmount={quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.hotelIDR}
+                    perPaxIDR={quote.hotelIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── TRANSPORT TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={Bus} title="Transportasi" currency="SAR / USD" color="bg-blue-600" onAdd={addTransport} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Nama Armada</Th>
+                  <Th right>Jumlah Armada</Th>
+                  <Th right>Harga/Armada</Th>
+                  <Th right>Total Asing</Th>
+                  <Th right>Total IDR (Grup)</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.transports.map((t) => {
+                  const cur = t.currency ?? "SAR";
+                  const rate = cur === "SAR" ? sarRate : usdRate;
+                  const foreignAmount = t.fleet * t.pricePerFleet;
+                  const totalIDR = foreignAmount * rate;
+                  return (
+                    <tr key={t.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Bus Lokal" /></Td>
+                      <Td right><NumCell value={t.fleet} onChange={(v) => updateTransport(t.id, { fleet: v })} /></Td>
+                      <Td right>
+                        <div className="flex items-center gap-1">
+                          <NumCell value={t.pricePerFleet} onChange={(v) => updateTransport(t.id, { pricePerFleet: v })} />
+                          <RowCurrencyToggle value={cur} onChange={(v) => updateTransport(t.id, { currency: v })} />
+                        </div>
+                      </Td>
+                      <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeTransport(t.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL TRANSPORT"
+                    sarAmount={quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesSAR, 0)}
+                    usdAmount={quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.transportIDR}
+                    perPaxIDR={quote.transportIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── AIRLINE TICKET TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={Globe} title="Tiket Pesawat" currency="IDR / USD" color="bg-sky-500" onAdd={addTicket} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Rute</Th>
+                  <Th>Jenis</Th>
+                  <Th right>Harga/Pax</Th>
+                  <Th>Mata Uang</Th>
+                  <Th right>Total Grup (IDR)</Th>
+                  <Th right>Per Pax (IDR)</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {(calc.tickets ?? []).map((tk) => {
+                  const totalIDR = tk.currency === "USD"
+                    ? tk.pricePerPax * safePax * usdRate
+                    : tk.pricePerPax * safePax;
+                  return (
+                    <tr key={tk.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={tk.label} onChange={(v) => updateTicket(tk.id, { label: v })} placeholder="cth: SUB - JED" /></Td>
+                      <Td>
+                        <select
+                          value={tk.flightType}
+                          onChange={(e) => updateTicket(tk.id, { flightType: e.target.value })}
+                          style={M}
+                          className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                        >
+                          <option value="Return">Return</option>
+                          <option value="One Way">One Way</option>
+                          <option value="Open Jaw">Open Jaw</option>
+                        </select>
+                      </Td>
+                      <Td right><NumCell value={tk.pricePerPax} onChange={(v) => updateTicket(tk.id, { pricePerPax: v })} /></Td>
+                      <Td>
+                        <select
+                          value={tk.currency}
+                          onChange={(e) => updateTicket(tk.id, { currency: e.target.value as "IDR" | "USD" })}
+                          style={M}
+                          className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                        >
+                          <option value="IDR">IDR</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeTicket(tk.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL TIKET"
+                    usdAmount={quote.breakdown.filter(b => b.category === "Tiket").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.ticketIDR}
+                    perPaxIDR={quote.ticketIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── VISA TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={Globe} title="Visa" currency="SAR / USD" color="bg-indigo-500" onAdd={addVisa} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Jenis Visa</Th>
+                  <Th right>Harga/Pax</Th>
+                  <Th right>Pax</Th>
+                  <Th right>Total Asing</Th>
+                  <Th right>Total IDR (Grup)</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.visas.map((v) => {
+                  const cur = v.currency ?? "USD";
+                  const rate = cur === "SAR" ? sarRate : usdRate;
+                  const foreignAmount = v.pricePerPax * safePax;
+                  const totalIDR = foreignAmount * rate;
+                  return (
+                    <tr key={v.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={v.label} onChange={(val) => updateVisa(v.id, { label: val })} placeholder="cth: Visa Umroh" /></Td>
+                      <Td right>
+                        <div className="flex items-center gap-1">
+                          <NumCell value={v.pricePerPax} onChange={(val) => updateVisa(v.id, { pricePerPax: val })} />
+                          <RowCurrencyToggle value={cur} onChange={(val) => updateVisa(v.id, { currency: val })} />
+                        </div>
+                      </Td>
+                      <Td right muted>{safePax}</Td>
+                      <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeVisa(v.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL VISA"
+                    sarAmount={quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesSAR, 0)}
+                    usdAmount={quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.visaIDR}
+                    perPaxIDR={quote.visaIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── DESTINATION TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={Globe} title="Destinasi / Ziarah" currency="SAR / USD" color="bg-emerald-500" onAdd={addDest} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Nama Destinasi</Th>
+                  <Th right>Harga/Pax</Th>
+                  <Th right>Pax</Th>
+                  <Th right>Total Asing</Th>
+                  <Th right>Total IDR (Grup)</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.destinations.map((d) => {
+                  const cur = d.currency ?? "SAR";
+                  const rate = cur === "SAR" ? sarRate : usdRate;
+                  const foreignAmount = d.pricePerPax * safePax;
+                  const totalIDR = foreignAmount * rate;
+                  return (
+                    <tr key={d.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={d.label} onChange={(v) => updateDest(d.id, { label: v })} placeholder="cth: Tasreh" /></Td>
+                      <Td right>
+                        <div className="flex items-center gap-1">
+                          <NumCell value={d.pricePerPax} onChange={(v) => updateDest(d.id, { pricePerPax: v })} />
+                          <RowCurrencyToggle value={cur} onChange={(v) => updateDest(d.id, { currency: v })} />
+                        </div>
+                      </Td>
+                      <Td right muted>{safePax}</Td>
+                      <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeDest(d.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL DESTINASI"
+                    sarAmount={quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesSAR, 0)}
+                    usdAmount={quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.destinationIDR}
+                    perPaxIDR={quote.destinationIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── F&B TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={Globe} title="F&B / Konsumsi" currency="SAR / USD" color="bg-amber-500" onAdd={addFnB} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Jenis Konsumsi</Th>
+                  <Th right>Harga/Pax</Th>
+                  <Th right>Pax</Th>
+                  <Th right>Total Asing</Th>
+                  <Th right>Total IDR (Grup)</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {(calc.fnbs ?? []).map((f) => {
+                  const cur = f.currency ?? "SAR";
+                  const rate = cur === "SAR" ? sarRate : usdRate;
+                  const foreignAmount = f.pricePerPax * safePax;
+                  const totalIDR = foreignAmount * rate;
+                  return (
+                    <tr key={f.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={f.label} onChange={(v) => updateFnB(f.id, { label: v })} placeholder="cth: Zam-zam" /></Td>
+                      <Td right>
+                        <div className="flex items-center gap-1">
+                          <NumCell value={f.pricePerPax} onChange={(v) => updateFnB(f.id, { pricePerPax: v })} />
+                          <RowCurrencyToggle value={cur} onChange={(v) => updateFnB(f.id, { currency: v })} />
+                        </div>
+                      </Td>
+                      <Td right muted>{safePax}</Td>
+                      <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeFnB(f.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL F&B"
+                    sarAmount={quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesSAR, 0)}
+                    usdAmount={quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.fnbIDR}
+                    perPaxIDR={quote.fnbIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── STAFF TABLE ── */}
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <SectionHeader icon={UserCheck} title="Cost for Staff" currency="SAR / USD" color="bg-orange-500" onAdd={addStaff} />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Jabatan / Nama</Th>
+                  <Th right>Jml Staff</Th>
+                  <Th right>Total Biaya</Th>
+                  <Th right>Per Pax Asing</Th>
+                  <Th right>Total IDR (Grup)</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.staffs.map((s) => {
+                  const cur = s.currency ?? "SAR";
+                  const rate = cur === "SAR" ? sarRate : usdRate;
+                  const totalIDR = s.totalCost * rate;
+                  const perPaxForeign = s.totalCost / safePax;
+                  return (
+                    <tr key={s.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={s.label} onChange={(v) => updateStaff(s.id, { label: v })} placeholder="cth: Muthowif" /></Td>
+                      <Td right><NumCell value={(s as StaffRow).numStaff ?? 1} onChange={(v) => updateStaff(s.id, { numStaff: v })} /></Td>
+                      <Td right>
+                        <div className="flex items-center gap-1">
+                          <NumCell value={s.totalCost} onChange={(v) => updateStaff(s.id, { totalCost: v })} />
+                          <RowCurrencyToggle value={cur} onChange={(v) => updateStaff(s.id, { currency: v })} />
+                        </div>
+                      </Td>
+                      <Td right muted mono>{cur === "SAR" ? fmtSAR(perPaxForeign) : fmtUSD(perPaxForeign)}</Td>
+                      <Td right bold mono>{formatCurrency(totalIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeStaff(s.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && (
+                  <SubtotalRow
+                    label="SUBTOTAL STAFF"
+                    sarAmount={quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesSAR, 0)}
+                    usdAmount={quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesUSD, 0)}
+                    groupIDR={quote.staffIDR}
+                    perPaxIDR={quote.staffIDR / safePax}
+                    formatCurrency={formatCurrency}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </>)}
+
+      {/* ── UMUM MODE TABLE ── */}
+      {calc.mode === "umum" && (
+        <div className="overflow-hidden rounded-xl border border-orange-200">
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-t-xl border border-b-0 border-orange-200" style={{ background: "linear-gradient(135deg,#fff7ed,#ffedd5)" }}>
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-lg flex items-center justify-center bg-orange-500">
+                <TrendingUp className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
               </div>
-              <span className="text-[11px] font-extrabold text-orange-600 uppercase tracking-wide shrink-0">Penginapan</span>
-              <div className="h-px flex-1 bg-orange-100" />
+              <span style={M} className="text-[12px] font-bold text-orange-800">Komponen Biaya</span>
+              <span style={M} className="text-[10px] font-semibold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded">IDR / SAR / USD</span>
             </div>
             <button
-              type="button"
-              onClick={addHotel}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500 text-white text-[11px] font-bold hover:bg-orange-600 transition-colors shrink-0"
+              onClick={addGeneralCost}
+              style={M}
+              className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 rounded-lg px-2 py-1 transition-colors"
             >
-              <Plus className="h-3 w-3" />
-              Tambah
+              <Plus className="h-3 w-3" /> Tambah Baris
             </button>
           </div>
-
-          {form.hotels.map((h, idx) => {
-            const nights = hotelNights(h);
-            const roomPax = hotelRoomPax(h);
-            const hIDR = hotelIDRFor(h);
-            return (
-              <div key={h.id} className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
-                {/* Row header: label + delete */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-4 w-4 rounded bg-orange-400 flex items-center justify-center shrink-0">
-                      <BedDouble className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
-                    </div>
-                    <Input
-                      placeholder={`Penginapan ${idx + 1}`}
-                      value={h.label}
-                      onChange={(e) => updateHotel(h.id, { label: e.target.value })}
-                      className="h-7 text-[12px] font-semibold bg-white border-orange-200 w-36 md:w-48 px-2"
-                    />
-                  </div>
-                  {form.hotels.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeHotel(h.id)}
-                      className="h-6 w-6 rounded flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                <FieldRow>
-                  <FormField label="Harga / Kamar / Malam" suffix="/ kamar / mlm">
-                    <NumInputWithCurrency
-                      value={h.price}
-                      onChange={(v) => updateHotel(h.id, { price: v })}
-                      currency={h.currency}
-                      onCurrencyChange={(c) => updateHotel(h.id, { currency: c })}
-                    />
-                  </FormField>
-                  <FormField label="Tipe Kamar">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <RoomTypeSelector value={h.roomType} onChange={(v) => updateHotel(h.id, { roomType: v })} />
-                      <span className="text-[10px] text-orange-500 font-medium">{roomPax} org/kamar</span>
-                    </div>
-                  </FormField>
-                </FieldRow>
-
-                <FieldRow>
-                  <FormField label="Tgl. Masuk">
-                    <Input
-                      type="date"
-                      value={h.startDate}
-                      onChange={(e) => updateHotel(h.id, { startDate: e.target.value })}
-                      className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                    />
-                  </FormField>
-                  <FormField label="Tgl. Keluar">
-                    <Input
-                      type="date"
-                      value={h.endDate}
-                      onChange={(e) => updateHotel(h.id, { endDate: e.target.value })}
-                      className="h-8 md:h-9 text-[13px] md:text-sm bg-white"
-                    />
-                  </FormField>
-                </FieldRow>
-
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => updateHotel(h.id, { fbIncluded: !h.fbIncluded })}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
-                      h.fbIncluded
-                        ? "bg-green-500 text-white border-green-500"
-                        : "bg-white text-slate-500 border-slate-200 hover:border-green-300"
-                    }`}
-                  >
-                    {h.fbIncluded ? "✓ Include F&B" : "Exclude F&B"}
-                  </button>
-                  {nights > 0 && (
-                    <p className="text-[11px] text-orange-700 font-semibold">
-                      {nights} malam
-                      {h.price > 0 && (
-                        <span className="ml-1.5 text-orange-500 font-normal">
-                          · {h.price.toLocaleString("id-ID")} {h.currency} ÷ {roomPax} × {form.pax} pax × {nights} mlm = {formatCurrency(hIDR)}
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* ── Biaya Per Pax ── */}
-          <SectionLabel icon={Wallet} label="Biaya Per Pax" />
-
-          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
-            <p className="text-[10px] text-orange-500 font-medium -mt-0.5">
-              Biaya per orang — otomatis dikali jumlah pax.
-            </p>
-            <FieldRow>
-              <FormField label={labels.visa} suffix="/ pax">
-                <NumInputWithCurrency
-                  value={form.visaUmroh}
-                  onChange={(v) => set("visaUmroh", v)}
-                  currency={form.visaUmrohCurrency}
-                  onCurrencyChange={(c) => set("visaUmrohCurrency", c)}
-                />
-              </FormField>
-              {isUmroh && (
-                <FormField label={labels.siskopatuh} suffix="/ pax">
-                  <NumInputWithCurrency
-                    value={form.siskopatuh}
-                    onChange={(v) => set("siskopatuh", v)}
-                    currency={form.siskopatuhCurrency}
-                    onCurrencyChange={(c) => set("siskopatuhCurrency", c)}
-                  />
-                </FormField>
-              )}
-            </FieldRow>
-            <FieldRow>
-              <FormField label={labels.zamzam} suffix="/ pax">
-                <NumInputWithCurrency
-                  value={form.zamZam}
-                  onChange={(v) => set("zamZam", v)}
-                  currency={form.zamZamCurrency}
-                  onCurrencyChange={(c) => set("zamZamCurrency", c)}
-                />
-              </FormField>
-              <FormField label="Komisi Fee" suffix="/ jamaah">
-                <NumInputWithCurrency
-                  value={form.komisiFee}
-                  onChange={(v) => set("komisiFee", v)}
-                  currency={form.komisiFeeurrency}
-                  onCurrencyChange={(c) => set("komisiFeeurrency", c)}
-                />
-              </FormField>
-            </FieldRow>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <Th>Nama Biaya</Th>
+                  <Th right>Jumlah</Th>
+                  <Th>Mata Uang</Th>
+                  <Th>Basis</Th>
+                  <Th right>Total IDR (Grup)</Th>
+                  <Th right>Per Pax IDR</Th>
+                  <Th> </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.generalCosts.map((c) => {
+                  const qty = c.unit === "pax" ? safePax : 1;
+                  const groupIDR = c.currency === "IDR" ? c.amount * qty : c.currency === "SAR" ? c.amount * qty * sarRate : c.amount * qty * usdRate;
+                  return (
+                    <tr key={c.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><TextCell value={c.label} onChange={(v) => updateGeneralCost(c.id, { label: v })} placeholder="cth: Penginapan" /></Td>
+                      <Td right><NumCell value={c.amount} onChange={(v) => updateGeneralCost(c.id, { amount: v })} /></Td>
+                      <Td>
+                        <select
+                          value={c.currency}
+                          onChange={(e) => updateGeneralCost(c.id, { currency: e.target.value as CalcCurrency })}
+                          style={M}
+                          className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                        >
+                          <option value="IDR">IDR</option>
+                          <option value="SAR">SAR</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </Td>
+                      <Td>
+                        <select
+                          value={c.unit}
+                          onChange={(e) => updateGeneralCost(c.id, { unit: e.target.value as CostUnit })}
+                          style={M}
+                          className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
+                        >
+                          <option value="pax">Per Pax</option>
+                          <option value="group">Per Grup</option>
+                        </select>
+                      </Td>
+                      <Td right bold mono>{formatCurrency(groupIDR)}</Td>
+                      <Td right muted mono>{formatCurrency(groupIDR / safePax)}</Td>
+                      <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeGeneralCost(c.id)} /></td>
+                    </tr>
+                  );
+                })}
+                {quote && calc.generalCosts.length > 0 && (
+                  <tr className="bg-orange-50/50">
+                    <td colSpan={4} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">
+                      TOTAL BIAYA
+                    </td>
+                    <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">
+                      {formatCurrency(quote.hpp)}
+                    </td>
+                    <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-600 border-t-2 border-orange-200 font-mono">
+                      {formatCurrency(quote.hpp / safePax)}
+                    </td>
+                    <td className="border-t-2 border-orange-200" />
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
+        </div>
+      )}
 
-          {/* ── Biaya Grup ── */}
-          <SectionLabel icon={Users} label="Biaya Grup" />
-
-          <div className="rounded-lg bg-blue-50/50 border border-blue-100 p-2.5 space-y-2">
-            <p className="text-[10px] text-blue-500 font-medium -mt-0.5">
-              Biaya total grup — dibagi rata ke semua pax.
-            </p>
-            <FieldRow>
-              <FormField label={labels.muthowif} suffix="total grup">
-                <NumInputWithCurrency
-                  value={form.muthowif}
-                  onChange={(v) => set("muthowif", v)}
-                  currency={form.muthowifCurrency}
-                  onCurrencyChange={(c) => set("muthowifCurrency", c)}
-                />
-              </FormField>
-              <FormField label="Handling Bandara" suffix="total grup">
-                <NumInputWithCurrency
-                  value={form.handlingBandara}
-                  onChange={(v) => set("handlingBandara", v)}
-                  currency={form.handlingBandaraCurrency}
-                  onCurrencyChange={(c) => set("handlingBandaraCurrency", c)}
-                />
-              </FormField>
-            </FieldRow>
-            {summary.grupCostIDR > 0 && form.pax > 0 && (
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                <p className="text-[11px] text-blue-700 font-semibold">
-                  Total biaya grup: {formatCurrency(summary.grupCostIDR)}
-                  <span className="ml-1.5 text-blue-500 font-normal">
-                    · per pax = {formatCurrency(summary.grupCostIDR / form.pax)}
-                  </span>
-                </p>
-              </div>
-            )}
+      {/* ── FINANCIAL PARAMETERS ── */}
+      <div className="rounded-xl border border-orange-200 bg-white overflow-hidden">
+        <div className="px-3 md:px-4 py-2.5 md:py-3 border-b border-orange-100 bg-orange-50/60">
+          <p style={M} className="text-[10px] font-extrabold uppercase tracking-wide text-orange-700 flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5" /> Parameter Finansial
+          </p>
+        </div>
+        <div className="p-3 md:p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+          <div className="space-y-2">
+            <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+              Commission Fee Admin (IDR Tetap)
+            </label>
+            <NumCell value={calc.commissionFee} onChange={(v) => setField("commissionFee", v)} placeholder="0" />
+            <p style={M} className="text-[10px] text-muted-foreground">Nominal IDR tambahan di atas HPP</p>
           </div>
-
-          {/* ── Transportasi ── */}
-          <SectionLabel icon={Plane} label="Transportasi" />
-
-          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-              {form.transports.map((t, i) => (
-                <div key={i} className="space-y-1">
-                  <Label className="text-[11px] md:text-[12px] font-semibold">Transport {i + 1}</Label>
-                  <div className="flex gap-1.5">
-                    <Select
-                      value={t.jenis}
-                      onValueChange={(v) => setTransport(i, "jenis", v)}
-                    >
-                      <SelectTrigger className="h-8 md:h-9 text-[13px] md:text-sm flex-1 min-w-0 bg-white">
-                        <SelectValue placeholder="Pilih maskapai / jenis" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TRANSPORT_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="Harga"
-                      value={t.harga || ""}
-                      onChange={(e) => setTransport(i, "harga", Number(e.target.value))}
-                      className="h-8 md:h-9 text-[13px] md:text-sm w-20 shrink-0 bg-white"
-                    />
-                    <CurrencyToggle
-                      value={t.currency}
-                      onChange={(c) => setTransport(i, "currency", c)}
-                    />
-                  </div>
-                  {t.jenis === "custom" && (
-                    <Input
-                      placeholder="Ketik nama maskapai / kendaraan…"
-                      value={t.customJenis}
-                      onChange={(e) => setTransport(i, "customJenis", e.target.value)}
-                      className="h-8 text-[12px] bg-white"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Margin ── */}
-          <SectionLabel icon={TrendingUp} label="Margin Keuntungan" />
-
-          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-[11px] md:text-[12px] font-semibold">Persentase Margin</Label>
-              <div className="flex items-center gap-1.5">
-                <span className="text-base md:text-xl font-extrabold text-orange-600">{form.margin}</span>
-                <span className="text-xs md:text-sm font-bold text-orange-400">%</span>
-              </div>
-            </div>
+          <div className="space-y-2">
+            <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+              Acceptable Profit / Margin ({calc.marginPercent}%)
+            </label>
             <Slider
-              value={[form.margin]}
-              min={0}
-              max={50}
-              step={1}
-              onValueChange={(v) => set("margin", v[0])}
+              value={[calc.marginPercent]}
+              min={0} max={50} step={1}
+              onValueChange={(v) => setField("marginPercent", v[0])}
             />
             <div className="flex justify-between text-[10px] text-orange-400 font-medium">
-              <span>0%</span>
-              <span>25%</span>
-              <span>50%</span>
+              <span>0%</span><span>25%</span><span>50%</span>
             </div>
+          </div>
+          <div className="space-y-2">
+            <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+              Discount (IDR dikurangkan)
+            </label>
+            <NumCell value={calc.discount} onChange={(v) => setField("discount", v)} placeholder="0" />
+            <p style={M} className="text-[10px] text-muted-foreground">Mengurangi Selling Price akhir</p>
           </div>
         </div>
       </div>
 
-      {/* ─── Summary card ─── */}
-      <div className="calculator-card rounded-xl border border-orange-200 bg-white overflow-hidden shadow-sm">
-
-        {/* Summary header */}
-        <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-orange-100 bg-orange-50/60">
-          <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded-md bg-orange-500 flex items-center justify-center">
-              <TrendingUp strokeWidth={2} className="h-3 w-3 text-white" />
+      {/* ── SUMMARY OUTPUT ── */}
+      {quote && (
+        <div className="rounded-xl border-2 border-orange-300 bg-white overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-3 md:px-5 py-3 md:py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white"
+            onClick={() => setShowSummary((v) => !v)}
+          >
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              <span style={M} className="font-extrabold text-[12px] md:text-[14px] uppercase tracking-wide">Ringkasan Kalkulasi</span>
             </div>
-            <span className="font-bold text-[12px] text-orange-800">Ringkasan Biaya</span>
-          </div>
-          {summary.total > 0 && (
-            <span className="text-[11px] font-bold text-orange-600 font-mono">{formatCurrency(summary.perPerson)}<span className="text-orange-400 font-normal"> / pax</span></span>
+            {showSummary ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {showSummary && (
+            <div className="p-3 md:p-4 space-y-3 md:space-y-4">
+
+              {/* Main summary table */}
+              <div className="overflow-x-auto rounded-xl border border-orange-200">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr style={{ background: "linear-gradient(135deg,#fff7ed,#ffedd5)" }}>
+                      <Th>Komponen</Th>
+                      <Th right>Total Grup (IDR)</Th>
+                      <Th right>Per Pax (IDR)</Th>
+                      <Th right>Referensi (SAR)</Th>
+                      <Th right>Referensi (USD)</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(calc.mode === "umum"
+                      ? quote.breakdown.map((b) => ({ label: b.label, idr: b.groupIDR, sar: b.notesSAR, usd: b.notesUSD }))
+                      : [
+                          { label: "🏨 Hotel / Penginapan", idr: quote.hotelIDR, sar: quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                          { label: "🚌 Transportasi", idr: quote.transportIDR, sar: quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                          { label: "✈️ Tiket Pesawat", idr: quote.ticketIDR, sar: 0, usd: quote.breakdown.filter(b => b.category === "Tiket").reduce((s, b) => s + b.notesUSD, 0) },
+                          { label: "🛂 Visa", idr: quote.visaIDR, sar: quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesSAR, 0), usd: quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesUSD, 0) },
+                          { label: "🗺️ Destinasi", idr: quote.destinationIDR, sar: quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                          { label: "🍽️ F&B / Konsumsi", idr: quote.fnbIDR, sar: quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                          { label: "👤 Staff / Guide", idr: quote.staffIDR, sar: quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesSAR, 0), usd: 0 },
+                        ]
+                    ).filter(r => r.idr > 0).map((r) => (
+                      <tr key={r.label} className="hover:bg-orange-50/20">
+                        <td style={M} className="px-3 py-2 text-[12px] border-b border-orange-50">{r.label}</td>
+                        <td style={M} className="px-3 py-2 text-[12px] font-semibold text-right border-b border-orange-50 font-mono">{formatCurrency(r.idr)}</td>
+                        <td style={M} className="px-3 py-2 text-[12px] text-right text-muted-foreground border-b border-orange-50 font-mono">{formatCurrency(r.idr / safePax)}</td>
+                        <td style={M} className="px-3 py-2 text-[11px] text-right text-slate-600 border-b border-orange-50 font-mono">{r.sar > 0 ? fmtSAR(r.sar) : "—"}</td>
+                        <td style={M} className="px-3 py-2 text-[11px] text-right text-slate-600 border-b border-orange-50 font-mono">{r.usd > 0 ? fmtUSD(r.usd) : "—"}</td>
+                      </tr>
+                    ))}
+
+                    {/* HPP row */}
+                    <tr style={{ background: "#fff7ed" }}>
+                      <td style={M} className="px-3 py-2.5 text-[12px] font-extrabold text-orange-800 border-t-2 border-orange-300">
+                        💰 TOTAL BUDGET (HPP)
+                      </td>
+                      <td style={M} className="px-3 py-2.5 text-[13px] font-extrabold text-orange-800 text-right border-t-2 border-orange-300 font-mono">{formatCurrency(quote.hpp)}</td>
+                      <td style={M} className="px-3 py-2.5 text-[12px] font-bold text-orange-700 text-right border-t-2 border-orange-300 font-mono">{formatCurrency(quote.hpp / safePax)}</td>
+                      <td style={M} className="px-3 py-2.5 text-[11px] text-slate-600 text-right border-t-2 border-orange-300 font-mono">{fmtSAR(quote.totalSAR)}</td>
+                      <td style={M} className="px-3 py-2.5 text-[11px] text-slate-600 text-right border-t-2 border-orange-300 font-mono">{fmtUSD(quote.totalUSD)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Selling price breakdown */}
+              <div className="grid sm:grid-cols-2 gap-4">
+
+                {/* Left: price build-up */}
+                <div className="rounded-xl border border-orange-200 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-200">
+                    <p style={M} className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700">Pembentukan Harga Jual</p>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {[
+                      { label: "Total Budget (HPP)", value: quote.hpp, sub: `${formatCurrency(quote.hpp / safePax)}/pax`, color: "" },
+                      { label: `+ Commission Fee Admin`, value: quote.commissionFee, sub: `${formatCurrency(quote.commissionFee / safePax)}/pax`, color: "text-amber-600" },
+                      { label: `+ Profit Margin (${calc.marginPercent}%)`, value: quote.marginIDR, sub: `${formatCurrency(quote.marginIDR / safePax)}/pax`, color: "text-emerald-600" },
+                    ].map((r) => (
+                      <div key={r.label} className="flex items-center justify-between gap-2">
+                        <div>
+                          <p style={M} className={`text-[11px] font-semibold ${r.color || "text-[hsl(var(--foreground))]"}`}>{r.label}</p>
+                          <p style={M} className="text-[10px] text-muted-foreground">{r.sub}</p>
+                        </div>
+                        <p style={M} className={`text-[12px] font-bold font-mono text-right ${r.color}`}>{formatCurrency(r.value)}</p>
+                      </div>
+                    ))}
+                    <div className="border-t border-orange-200 pt-2 flex items-center justify-between">
+                      <div>
+                        <p style={M} className="text-[11px] font-bold text-orange-800">= Selling Price</p>
+                        <p style={M} className="text-[10px] text-muted-foreground">{formatCurrency(quote.sellingPrice / safePax)}/pax</p>
+                      </div>
+                      <p style={M} className="text-[13px] font-extrabold text-orange-700 font-mono">{formatCurrency(quote.sellingPrice)}</p>
+                    </div>
+                    {calc.discount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <p style={M} className="text-[11px] font-semibold text-red-600">- Discount</p>
+                        <p style={M} className="text-[12px] font-bold text-red-600 font-mono">- {formatCurrency(quote.discount)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: final price & net profit */}
+                <div className="space-y-3">
+                  <div
+                    className="rounded-xl p-4 text-white relative overflow-hidden"
+                    style={{ background: "linear-gradient(135deg,#ea580c,#f97316 60%,#fb923c)" }}
+                  >
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 90% 10%,white 0%,transparent 55%)" }} />
+                    <div className="relative">
+                      <p style={M} className="text-[10px] font-bold uppercase tracking-wide opacity-75">Harga Jual Final</p>
+                      <p style={M} className="text-xl md:text-2xl font-extrabold mt-1 font-mono">{formatCurrency(quote.finalPrice)}</p>
+                      <div className="mt-2.5 pt-2.5 border-t border-white/20 grid grid-cols-2 gap-2">
+                        <div>
+                          <p style={M} className="text-[10px] opacity-70">Per Pax ({safePax} pax)</p>
+                          <p style={M} className="text-sm md:text-base font-bold font-mono">{formatCurrency(quote.perPaxFinal)}</p>
+                        </div>
+                        <div>
+                          <p style={M} className="text-[10px] opacity-70">HPP per Pax</p>
+                          <p style={M} className="text-sm md:text-base font-bold font-mono">{formatCurrency(quote.hpp / safePax)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net profit card */}
+                  <div className={cn(
+                    "rounded-xl border p-3 md:p-4",
+                    quote.netProfit >= 0
+                      ? "bg-emerald-50 border-emerald-200"
+                      : "bg-red-50 border-red-200"
+                  )}>
+                    <p style={M} className={`text-[10px] font-extrabold uppercase tracking-wider ${quote.netProfit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                      Net Profit
+                    </p>
+                    <p style={M} className={`text-lg md:text-xl font-extrabold font-mono mt-0.5 ${quote.netProfit >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                      {quote.netProfit >= 0 ? "+" : ""}{formatCurrency(quote.netProfit)}
+                    </p>
+                    <p style={M} className="text-[10px] text-muted-foreground mt-0.5">
+                      {formatCurrency(quote.netProfit / safePax)}/pax
+                      {quote.netProfit < 0 && " ⚠️ di bawah modal!"}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => setPdfOpen(true)}
+                    disabled={quote.finalPrice === 0}
+                    className="w-full h-9 md:h-11 rounded-xl gradient-primary text-white text-sm"
+                    style={M}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Ekspor PDF
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
-
-        <div className="calculator-card-body p-3 md:p-4 grid md:grid-cols-2 gap-3 md:gap-4">
-          {/* Breakdown list */}
-          <div className="space-y-1">
-            {[
-              ...form.hotels
-                .filter((h) => hotelIDRFor(h) > 0)
-                .map((h) => ({ label: `${h.label || "Penginapan"} (${hotelNights(h)} mlm × ${form.pax} pax)`, value: hotelIDRFor(h), show: true })),
-              { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxItemsIDR, show: summary.perPaxItemsIDR > 0 },
-              { label: `Biaya Grup`, value: summary.grupCostIDR, show: summary.grupCostIDR > 0 },
-              { label: "Transportasi", value: summary.transportIDR, show: summary.transportIDR > 0 },
-            ]
-              .filter((r) => r.show)
-              .map((r) => (
-                <div key={r.label} className="flex justify-between items-center py-1 border-b border-dashed border-orange-100">
-                  <span className="text-[11px] text-[hsl(var(--muted-foreground))] truncate pr-2">{r.label}</span>
-                  <span className="text-[11px] font-semibold text-[hsl(var(--foreground))] shrink-0 font-mono">{formatCurrency(r.value)}</span>
-                </div>
-              ))}
-
-            {summary.subtotal === 0 && (
-              <div className="rounded-lg border border-dashed border-orange-200 bg-orange-50/50 py-3 text-center">
-                <p className="text-[11px] text-orange-400 font-medium">Isi form di atas untuk melihat kalkulasi.</p>
-              </div>
-            )}
-
-            {summary.subtotal > 0 && (
-              <>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Subtotal</span>
-                  <span className="text-[11px] font-semibold font-mono">{formatCurrency(summary.subtotal)}</span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b-2 border-orange-200">
-                  <span className="text-[11px] text-orange-600 font-semibold">Margin ({form.margin}%)</span>
-                  <span className="text-[11px] font-bold text-orange-600 font-mono">+ {formatCurrency(summary.marginAmt)}</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Total highlight + actions */}
-          <div className="flex flex-col gap-2">
-            <div
-              className="rounded-xl p-3 text-white relative overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%)" }}
-            >
-              <div className="flex items-end justify-between gap-2">
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wide opacity-75">Harga Grup ({form.pax} pax)</p>
-                  <p className="text-lg font-extrabold mt-0.5 tracking-tight font-mono">{formatCurrency(summary.total)}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[9px] opacity-75 uppercase tracking-wide font-semibold">Per Pax</p>
-                  <p className="text-base font-bold font-mono">{formatCurrency(summary.perPerson)}</p>
-                </div>
-              </div>
-              {summary.marginAmt > 0 && (
-                <p className="text-[9px] opacity-60 mt-1.5 pt-1.5 border-t border-white/20">Margin {form.margin}%: {formatCurrency(summary.marginAmt)}</p>
-              )}
-            </div>
-
-            <Button
-              className="btn-primary w-full h-9 rounded-lg text-[12px]"
-              onClick={() => setPdfOpen(true)}
-              disabled={summary.total === 0}
-            >
-              <FileText strokeWidth={1.5} className="h-3.5 w-3.5 mr-1.5" />
-              Ekspor PDF
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full h-8 rounded-lg text-[11px] border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
-              onClick={() => setForm(initForm)}
-            >
-              Reset Form
-            </Button>
-          </div>
-        </div>
-      </div>
+      )}
 
       <PdfPreviewDialog
         open={pdfOpen}
         onOpenChange={setPdfOpen}
         data={{
-          packageName: form.namaPaket || "Paket Trip IGH Tour",
-          destination:
-            [form.hotelMakkah, form.hotelMadinah].filter(Boolean).join(" — ") || "Destinasi Trip",
-          people: form.pax,
+          packageName: calc.packageName || "Paket Trip IGH Tour",
+          destination: calc.destination || "Destinasi Trip",
+          people: calc.pax,
           currency: "IDR",
           costs: pdfCosts,
-          total: summary.total,
-          perPerson: summary.perPerson,
+          total: quote.finalPrice,
+          perPerson: quote.perPaxFinal,
         }}
       />
     </div>
