@@ -16,6 +16,7 @@ import TripDetail from "./pages/TripDetail";
 import JamaahProfile from "./pages/JamaahProfile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import PublicCheck from "./pages/PublicCheck";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
 import PdfGenerator from "./pages/PdfGenerator";
@@ -146,6 +147,8 @@ function AnimatedRoutes() {
     <Routes location={location}>
       <Route path="/login" element={<Login />} />
       <Route path="/bootstrap" element={<Auth />} />
+      <Route path="/cek" element={<PublicCheck />} />
+      <Route path="/cek/:code" element={<PublicCheck />} />
 
       <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/calculator" element={<RequireAuth><DashboardLayout><Calculator /></DashboardLayout></RequireAuth>} />

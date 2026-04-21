@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Camera, Upload, Trash2, FileText, Plane, HeartPulse, ShieldCheck, FolderOpen, ExternalLink, Pencil, Save, X, ScanLine, CheckCircle2, FileKey, CreditCard, Clock, Plus, Wallet,
+  ArrowLeft, Camera, Upload, Trash2, FileText, Plane, HeartPulse, ShieldCheck, FolderOpen, ExternalLink, Pencil, Save, X, ScanLine, CheckCircle2, FileKey, CreditCard, Clock, Plus, Wallet, Copy, Share2, Link as LinkIcon,
 } from "lucide-react";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type JamaahDoc, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { scanPassport, countPassportDataFields, failedChecksumLabels } from "@/l
 import { useRegional } from "@/lib/regional";
 import {
   listPaymentsByJamaah, createPayment, deletePayment, sumPaid, paymentStatus,
+  uploadPaymentProof, getProofSignedUrl,
   PAYMENT_TYPE_LABEL, type Payment, type PaymentType,
 } from "@/features/payments/paymentsRepo";
 
@@ -43,12 +44,50 @@ function fmtIDR(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 }
 
-function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string }) {
+function BookingCodeShare({ code, jamaahName }: { code: string; jamaahName: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/cek/${encodeURIComponent(code)}`;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Link disalin — siap di-share ke jamaah.");
+      setTimeout(() => setCopied(false), 1800);
+    } catch { toast.error("Gagal menyalin link."); }
+  };
+
+  const sendWa = () => {
+    const text = `Assalamu'alaikum ${jamaahName},\n\nBerikut link untuk cek status booking Umrah Anda di IGH Tour:\n${url}\n\nKode booking: *${code}*\n\nTerima kasih.`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50/60 p-3 flex items-center gap-3 flex-wrap">
+      <div className="flex-1 min-w-[140px]">
+        <p className="text-[10px] uppercase tracking-wider text-orange-700/80 font-semibold">Kode Booking Jamaah</p>
+        <p className="font-mono font-bold text-orange-700 text-sm mt-0.5">{code}</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 truncate">Bagikan ke jamaah biar mereka cek sendiri.</p>
+      </div>
+      <Button size="sm" variant="outline" onClick={copyLink} className="h-8 rounded-lg">
+        {copied ? <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-emerald-600" /> : <LinkIcon className="h-3.5 w-3.5 mr-1" />}
+        {copied ? "Tersalin" : "Salin Link"}
+      </Button>
+      <Button size="sm" onClick={sendWa} className="h-8 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Share2 className="h-3.5 w-3.5 mr-1" /> WhatsApp
+      </Button>
+    </div>
+  );
+}
+
+function PaymentSection({ jamaahId, tripId, pricePerPax }: { jamaahId: string; tripId: string; pricePerPax?: number }) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofRef = useRef<HTMLInputElement>(null);
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState<{ type: PaymentType; amount: string; method: string; paidAt: string; notes: string }>({
     type: "dp", amount: "", method: "Transfer Bank", paidAt: today, notes: "",
@@ -69,18 +108,33 @@ function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string
     if (!form.paidAt) { toast.error("Tanggal pembayaran wajib diisi."); return; }
     setAdding(true);
     try {
+      let proofUrl: string | undefined;
+      if (proofFile) {
+        if (proofFile.size > 12 * 1024 * 1024) throw new Error("Bukti transfer maks. 12 MB.");
+        proofUrl = await uploadPaymentProof(proofFile, jamaahId);
+      }
       await createPayment({
         jamaahId, tripId, type: form.type,
         amount: amt, method: form.method, paidAt: form.paidAt, notes: form.notes,
+        proofUrl,
       });
       toast.success("Pembayaran tercatat.");
       setForm({ type: "dp", amount: "", method: "Transfer Bank", paidAt: today, notes: "" });
+      setProofFile(null);
+      if (proofRef.current) proofRef.current.value = "";
       setShowForm(false);
       await reload();
     } catch (err) {
       console.error(err);
-      toast.error("Gagal menyimpan pembayaran.");
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan pembayaran.";
+      toast.error(msg);
     } finally { setAdding(false); }
+  };
+
+  const openProof = async (path: string) => {
+    const url = await getProofSignedUrl(path);
+    if (!url) { toast.error("Gagal membuat link bukti."); return; }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleDelete = async () => {
@@ -94,12 +148,15 @@ function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string
   };
 
   const total = sumPaid(payments);
-  const status = paymentStatus(0, payments); // we don't have trip price; show only paid amount
+  const price = pricePerPax ?? 0;
+  const outstanding = price > 0 ? Math.max(0, price - total) : 0;
+  const status = paymentStatus(price, payments);
 
   const statusBadge = (() => {
-    if (payments.length === 0) return { label: "Belum ada", color: "bg-gray-100 text-gray-600" };
-    if (status === "lunas") return { label: "Lunas", color: "bg-emerald-100 text-emerald-700" };
-    return { label: "Sebagian", color: "bg-amber-100 text-amber-700" };
+    if (payments.length === 0) return { label: "Belum bayar", color: "bg-red-100 text-red-700" };
+    if (price > 0 && status === "lunas") return { label: "Lunas", color: "bg-emerald-100 text-emerald-700" };
+    if (price > 0) return { label: "Sebagian", color: "bg-amber-100 text-amber-700" };
+    return { label: "Tercatat", color: "bg-blue-100 text-blue-700" };
   })();
 
   const typeBadge = (t: PaymentType) => {
@@ -127,6 +184,11 @@ function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string
           <div className="text-right">
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">Total dibayar</p>
             <p className="text-sm font-bold text-[hsl(var(--primary))] leading-tight">{fmtIDR(total)}</p>
+            {price > 0 && (
+              <p className={cn("text-[10px] leading-tight mt-0.5", outstanding > 0 ? "text-red-600 font-semibold" : "text-emerald-600 font-semibold")}>
+                {outstanding > 0 ? `Sisa ${fmtIDR(outstanding)}` : `Lunas dari ${fmtIDR(price)}`}
+              </p>
+            )}
           </div>
           <Button size="sm" onClick={() => setShowForm((s) => !s)} variant={showForm ? "outline" : "default"}
             className={cn("h-8 text-xs rounded-xl", !showForm && "gradient-primary text-white hover:opacity-90")}>
@@ -166,7 +228,28 @@ function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string
           <div className="space-y-1 sm:col-span-2">
             <Label className="text-xs">Catatan (opsional)</Label>
             <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="cth: Bukti transfer no. 12345" className="h-9" />
+              placeholder="cth: Transfer dari rekening BCA xxx" className="h-9" />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label className="text-xs">Bukti Transfer (opsional, JPG/PNG/PDF maks 12 MB)</Label>
+            <div className="flex items-center gap-2">
+              <input ref={proofRef} type="file" accept="image/*,application/pdf" className="hidden"
+                onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} />
+              <Button type="button" variant="outline" size="sm" onClick={() => proofRef.current?.click()}
+                className="h-9 rounded-xl">
+                <Upload className="h-3.5 w-3.5 mr-1.5" /> {proofFile ? "Ganti File" : "Pilih File"}
+              </Button>
+              {proofFile && (
+                <span className="text-[11px] text-[hsl(var(--muted-foreground))] truncate flex-1">
+                  {proofFile.name} ({Math.round(proofFile.size / 1024)} KB)
+                </span>
+              )}
+              {proofFile && (
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setProofFile(null); if (proofRef.current) proofRef.current.value = ""; }}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
           <div className="sm:col-span-2 flex justify-end">
             <Button size="sm" onClick={handleAdd} disabled={adding}
@@ -202,6 +285,12 @@ function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string
                 {p.paidAt} · {p.method || "—"}{p.notes ? ` · ${p.notes}` : ""}
               </p>
             </div>
+            {p.proofUrl && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600"
+                title="Lihat bukti transfer" onClick={() => openProof(p.proofUrl!)}>
+                <FileText className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-500"
               onClick={() => setDeleteId(p.id)}>
               <Trash2 className="h-3.5 w-3.5" />
@@ -577,6 +666,7 @@ export default function JamaahProfile() {
                   </div>
                 ) : null)}
               </div>
+              {person.bookingCode && <BookingCodeShare code={person.bookingCode} jamaahName={person.name} />}
             </div>
           )}
         </div>
@@ -635,7 +725,7 @@ export default function JamaahProfile() {
 
       {/* Payments */}
       {jamaahId && trip && (
-        <PaymentSection jamaahId={jamaahId} tripId={trip.id} />
+        <PaymentSection jamaahId={jamaahId} tripId={trip.id} pricePerPax={trip.pricePerPax} />
       )}
 
       {/* Document sections */}

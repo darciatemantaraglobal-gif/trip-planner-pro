@@ -12,7 +12,38 @@ export interface Payment {
   method: string;
   paidAt: string;
   notes: string;
+  proofUrl?: string;
   createdAt: string;
+}
+
+const PROOF_BUCKET = "payment-proofs";
+
+function safeName(s: string): string {
+  return s.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+}
+
+export async function uploadPaymentProof(file: File, jamaahId: string): Promise<string> {
+  if (!isSupabaseConfigured()) throw new Error("Supabase belum dikonfigurasi.");
+  const agencyId = requireAgencyId();
+  const ext = (file.name.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "bin").toLowerCase();
+  const path = `${agencyId}/${safeName(jamaahId)}_${Date.now()}.${ext}`;
+  const { error } = await supabase!.storage.from(PROOF_BUCKET).upload(path, file, {
+    upsert: false, contentType: file.type || undefined,
+  });
+  if (error) throw error;
+  return path;
+}
+
+export async function getProofSignedUrl(path: string): Promise<string | null> {
+  if (!isSupabaseConfigured() || !path) return null;
+  const { data, error } = await supabase!.storage.from(PROOF_BUCKET).createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export async function deletePaymentProof(path: string): Promise<void> {
+  if (!isSupabaseConfigured() || !path) return;
+  await supabase!.storage.from(PROOF_BUCKET).remove([path]);
 }
 
 export const PAYMENT_TYPE_LABEL: Record<PaymentType, string> = {
@@ -32,6 +63,7 @@ const fromRow = (r: Record<string, unknown>): Payment => ({
   method: String(r.method ?? ""),
   paidAt: String(r.paid_at ?? ""),
   notes: String(r.notes ?? ""),
+  proofUrl: (r.proof_url as string) ?? undefined,
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
 
@@ -44,6 +76,7 @@ const toRow = (p: Payment, agencyId?: string) => ({
   method: p.method,
   paid_at: p.paidAt,
   notes: p.notes,
+  proof_url: p.proofUrl ?? null,
   created_at: p.createdAt,
   ...(agencyId ? { agency_id: agencyId } : {}),
 });
@@ -76,9 +109,20 @@ export async function createPayment(draft: Omit<Payment, "id" | "createdAt">): P
 
 export async function deletePayment(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
+    // fetch proof_url first to clean up storage
+    const { data } = await supabase!.from("payments").select("proof_url").eq("id", id).maybeSingle();
+    const proofPath = (data?.proof_url as string) || "";
     const { error } = await supabase!.from("payments").delete().eq("id", id);
     if (error) throw error;
+    if (proofPath) await deletePaymentProof(proofPath);
   }
+}
+
+export async function listAllAgencyPayments(): Promise<Payment[]> {
+  if (!isSupabaseConfigured()) return [];
+  const { data, error } = await supabase!.from("payments").select("*");
+  if (error) throw error;
+  return (data ?? []).map(fromRow);
 }
 
 export function sumPaid(payments: Payment[]): number {

@@ -11,6 +11,7 @@ export interface Trip {
   emoji: string;
   coverImage?: string;
   quotaPax?: number;
+  pricePerPax?: number;
   createdAt: string;
 }
 
@@ -24,7 +25,15 @@ export interface Jamaah {
   gender: "L" | "P" | "";
   photoDataUrl?: string;
   needsReview?: boolean;
+  bookingCode?: string;
   createdAt: string;
+}
+
+export function generateBookingCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "IGH-";
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
 }
 
 export type DocCategory = "passport" | "visa" | "ticket" | "medical" | "other";
@@ -61,6 +70,7 @@ const tripFromRow = (r: Record<string, unknown>): Trip => ({
   emoji: String(r.emoji ?? "✈️"),
   coverImage: (r.cover_image as string) ?? undefined,
   quotaPax: r.quota_pax == null ? undefined : Number(r.quota_pax),
+  pricePerPax: r.price_per_pax == null ? undefined : Number(r.price_per_pax),
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
 const tripToRow = (t: Trip, agencyId?: string) => ({
@@ -68,6 +78,7 @@ const tripToRow = (t: Trip, agencyId?: string) => ({
   start_date: t.startDate, end_date: t.endDate, emoji: t.emoji,
   cover_image: t.coverImage ?? null,
   quota_pax: t.quotaPax ?? null,
+  price_per_pax: t.pricePerPax ?? null,
   created_at: t.createdAt,
   ...(agencyId ? { agency_id: agencyId } : {}),
 });
@@ -82,6 +93,7 @@ const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
   gender: ((r.gender as string) ?? "") as "L" | "P" | "",
   photoDataUrl: (r.photo_data_url as string) ?? undefined,
   needsReview: Boolean(r.needs_review),
+  bookingCode: (r.booking_code as string) ?? undefined,
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
 const jamaahToRow = (j: Jamaah, agencyId?: string) => ({
@@ -89,6 +101,7 @@ const jamaahToRow = (j: Jamaah, agencyId?: string) => ({
   birth_date: j.birthDate, passport_number: j.passportNumber, gender: j.gender,
   photo_data_url: j.photoDataUrl ?? null,
   needs_review: !!j.needsReview,
+  booking_code: j.bookingCode ?? null,
   created_at: j.createdAt,
   ...(agencyId ? { agency_id: agencyId } : {}),
 });
@@ -159,6 +172,15 @@ export async function deleteTrip(id: string): Promise<void> {
 
 // ── JAMAAH ──────────────────────────────────────────────────────────────────
 
+export async function listAllAgencyJamaah(): Promise<Jamaah[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await supabase!.from("jamaah").select("*");
+    if (error) throw error;
+    return (data ?? []).map(jamaahFromRow);
+  }
+  return load<Jamaah>(JAMAAH_KEY, []);
+}
+
 export async function listJamaah(tripId: string): Promise<Jamaah[]> {
   if (isSupabaseConfigured()) {
     const { data, error } = await supabase!.from("jamaah").select("*").eq("trip_id", tripId);
@@ -178,7 +200,13 @@ export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Pro
   if (isSupabaseConfigured() && isDataUrl(photoUrl)) {
     photoUrl = await uploadJamaahPhoto(id, draft.passportNumber, photoUrl as string);
   }
-  const j: Jamaah = { ...draft, photoDataUrl: photoUrl, id, createdAt: new Date().toISOString() };
+  const j: Jamaah = {
+    ...draft,
+    photoDataUrl: photoUrl,
+    id,
+    bookingCode: draft.bookingCode || generateBookingCode(),
+    createdAt: new Date().toISOString(),
+  };
   if (isSupabaseConfigured()) {
     const agencyId = requireAgencyId();
     const { error } = await supabase!.from("jamaah").insert(jamaahToRow(j, agencyId));

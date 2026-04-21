@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin, ScanLine, Pencil, Save, ExternalLink, ShieldCheck, Copy, Check } from "lucide-react";
+import { ArrowLeft, Plus, Phone, CalendarDays, CreditCard, Trash2, Users, Camera, Upload, X, FileText, ImageIcon, MapPin, ScanLine, Pencil, Save, ExternalLink, ShieldCheck, Copy, Check, Megaphone } from "lucide-react";
+import FlyerDialog from "@/components/FlyerDialog";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -690,6 +691,7 @@ export default function TripDetail() {
   const { formatDate } = useRegional();
   const { jamaah, loadingJamaah, fetchJamaah, removeJamaah } = useJamaahStore();
   const [addOpen, setAddOpen] = useState(false);
+  const [flyerOpen, setFlyerOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
   const [previewTarget, setPreviewTarget] = useState<Jamaah | null>(null);
 
@@ -746,11 +748,17 @@ export default function TripDetail() {
             </span>
           </div>
         </div>
-        <Button onClick={() => setAddOpen(true)} disabled={quotaFull}
-          title={quotaFull ? "Kuota penuh" : ""}
-          className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-4 text-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-          <Plus strokeWidth={1.5} className="h-4 w-4 mr-1.5" /> Tambah Jamaah
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={() => setFlyerOpen(true)} variant="outline"
+            className="h-9 px-3 text-sm rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50">
+            <Megaphone strokeWidth={1.5} className="h-4 w-4 mr-1.5" /> Flyer
+          </Button>
+          <Button onClick={() => setAddOpen(true)} disabled={quotaFull}
+            title={quotaFull ? "Kuota penuh" : ""}
+            className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            <Plus strokeWidth={1.5} className="h-4 w-4 mr-1.5" /> Tambah Jamaah
+          </Button>
+        </div>
       </div>
 
       {/* Jamaah grid */}
@@ -797,6 +805,13 @@ export default function TripDetail() {
       )}
 
       {id && <AddJamaahDialog open={addOpen} tripId={id} onClose={() => setAddOpen(false)} />}
+
+      <FlyerDialog
+        open={flyerOpen}
+        onClose={() => setFlyerOpen(false)}
+        trip={trip}
+        jamaahCount={jamaah.length}
+      />
 
       <JamaahPreviewDialog
         jamaah={previewTarget}

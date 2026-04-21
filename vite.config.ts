@@ -155,6 +155,29 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
+          // Supabase REST API — NetworkFirst so offline reads serve last cached payload
+          {
+            urlPattern: /^https:\/\/[a-z0-9]+\.supabase\.co\/rest\/v1\/.*/i,
+            handler: "NetworkFirst",
+            method: "GET",
+            options: {
+              cacheName: "supabase-rest-cache",
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 3 },
+              networkTimeoutSeconds: 4,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // Supabase Storage public/signed asset binaries
+          {
+            urlPattern: /^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/.*/i,
+            handler: "CacheFirst",
+            method: "GET",
+            options: {
+              cacheName: "supabase-storage-cache",
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train, AlertCircle, Clock, Star, ChevronRight } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train, AlertCircle, Clock, Star, ChevronRight, Wallet } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
+import { listAllAgencyJamaah } from "@/features/trips/tripsRepo";
+import { listAllAgencyPayments, sumPaid, type Payment } from "@/features/payments/paymentsRepo";
+import type { Jamaah } from "@/features/trips/tripsRepo";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useAuthStore } from "@/store/authStore";
@@ -119,10 +122,10 @@ function daysUntil(iso: string) {
 // ── ADD TRIP DIALOG ────────────────────────────────────────────────────────────
 function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addTrip = useTripsStore((s) => s.addTrip);
-  const [form, setForm] = useState({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "" as string });
+  const [form, setForm] = useState({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "" as string, pricePerPax: "" as string });
   const [loading, setLoading] = useState(false);
 
-  const reset = () => setForm({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "" });
+  const reset = () => setForm({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "", pricePerPax: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +135,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
     }
     setLoading(true);
     const quotaNum = form.quotaPax.trim() === "" ? undefined : Math.max(1, parseInt(form.quotaPax, 10) || 0);
+    const priceNum = form.pricePerPax.trim() === "" ? undefined : Math.max(0, parseFloat(form.pricePerPax.replace(/[^0-9.]/g, "")) || 0);
     await addTrip({
       name: form.name,
       destination: form.destination,
@@ -139,6 +143,7 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
       endDate: form.endDate,
       emoji: form.emoji,
       quotaPax: quotaNum,
+      pricePerPax: priceNum,
     });
     toast.success(`Paket "${form.name}" berhasil ditambahkan.`);
     setLoading(false);
@@ -210,22 +215,32 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
           </div>
 
-          {/* Quota */}
-          <div className="space-y-1">
-            <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Kuota Pax (opsional)</Label>
-            <Input
-              className="h-8 text-[12.5px] rounded-xl"
-              type="number"
-              min={1}
-              inputMode="numeric"
-              placeholder="cth: 40 (kosongkan = tanpa batas)"
-              value={form.quotaPax}
-              onChange={(e) => setForm((f) => ({ ...f, quotaPax: e.target.value }))}
-            />
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-snug">
-              Sistem akan menolak penambahan jamaah baru kalau kuota sudah penuh — cegah overbook seat pesawat.
-            </p>
+          {/* Quota & Price */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Kuota Pax (opsional)</Label>
+              <Input
+                className="h-8 text-[12.5px] rounded-xl"
+                type="number" min={1} inputMode="numeric"
+                placeholder="cth: 40"
+                value={form.quotaPax}
+                onChange={(e) => setForm((f) => ({ ...f, quotaPax: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Harga / Pax (IDR)</Label>
+              <Input
+                className="h-8 text-[12.5px] rounded-xl"
+                type="number" min={0} inputMode="numeric"
+                placeholder="cth: 35000000"
+                value={form.pricePerPax}
+                onChange={(e) => setForm((f) => ({ ...f, pricePerPax: e.target.value }))}
+              />
+            </div>
           </div>
+          <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-snug -mt-1">
+            Harga dipakai buat hitung sisa tagihan jamaah & alert H-30 belum lunas.
+          </p>
 
           {/* Footer */}
           <div className="flex gap-2 pt-1">
@@ -548,6 +563,140 @@ function RightPanel({ trips }: { trips: Trip[] }) {
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────────
+// ── PAYMENT ALERTS (H-30 belum lunas) ──────────────────────────────────────────
+interface UnpaidAlert {
+  jamaah: Jamaah;
+  trip: Trip;
+  daysLeft: number;
+  paid: number;
+  outstanding: number;
+}
+
+function fmtIDRShort(n: number): string {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+}
+
+function PaymentAlerts({ trips }: { trips: Trip[] }) {
+  const navigate = useNavigate();
+  const [alerts, setAlerts] = useState<UnpaidAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [allJamaah, allPayments] = await Promise.all([
+          listAllAgencyJamaah(),
+          listAllAgencyPayments(),
+        ]);
+        if (cancelled) return;
+        const byJamaah = new Map<string, Payment[]>();
+        for (const p of allPayments) {
+          const arr = byJamaah.get(p.jamaahId) ?? [];
+          arr.push(p);
+          byJamaah.set(p.jamaahId, arr);
+        }
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const tripById = new Map(trips.map((t) => [t.id, t] as const));
+        const out: UnpaidAlert[] = [];
+        for (const j of allJamaah) {
+          const trip = tripById.get(j.tripId);
+          if (!trip || !trip.startDate || !trip.pricePerPax || trip.pricePerPax <= 0) continue;
+          const dep = new Date(trip.startDate);
+          if (isNaN(dep.getTime())) continue;
+          const days = Math.ceil((dep.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (days < 0 || days > 30) continue;
+          const paid = sumPaid(byJamaah.get(j.id) ?? []);
+          const outstanding = trip.pricePerPax - paid;
+          if (outstanding <= 0) continue;
+          out.push({ jamaah: j, trip, daysLeft: days, paid, outstanding });
+        }
+        out.sort((a, b) => a.daysLeft - b.daysLeft);
+        setAlerts(out);
+      } catch (err) {
+        console.error("[payment-alerts]", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [trips]);
+
+  if (loading) return null;
+  if (alerts.length === 0) return null;
+
+  const totalOutstanding = alerts.reduce((s, a) => s + a.outstanding, 0);
+
+  return (
+    <motion.div
+      className="mb-4 md:mb-5"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.14, ease: "easeOut" }}
+    >
+      <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-orange-50 overflow-hidden">
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="w-full px-4 md:px-5 py-3 flex items-center justify-between gap-3 hover:bg-red-100/40 transition-colors"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-8 w-8 rounded-xl bg-red-500 flex items-center justify-center shrink-0">
+              <Wallet strokeWidth={2} className="h-4 w-4 text-white" />
+            </div>
+            <div className="text-left min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-[13.5px] md:text-[14px] font-bold text-red-700">Tagihan Belum Lunas (H-30)</h2>
+                <span className="h-5 px-2 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center">{alerts.length}</span>
+              </div>
+              <p className="text-[11px] text-red-600/80 mt-0.5 truncate">
+                Total kurang bayar: <strong>{fmtIDRShort(totalOutstanding)}</strong>
+              </p>
+            </div>
+          </div>
+          <ChevronRight strokeWidth={2} className={cn("h-4 w-4 text-red-500 shrink-0 transition-transform", !collapsed && "rotate-90")} />
+        </button>
+
+        {!collapsed && (
+          <div className="px-3 md:px-4 pb-3 md:pb-4 space-y-2">
+            {alerts.slice(0, 8).map((a) => (
+              <button
+                key={a.jamaah.id}
+                onClick={() => navigate(`/trips/${a.trip.id}/jamaah/${a.jamaah.id}`)}
+                className="w-full flex items-center gap-3 rounded-xl bg-white border border-red-100 p-3 hover:border-red-300 hover:shadow-sm transition-all text-left"
+              >
+                <div className={cn(
+                  "h-9 w-9 rounded-xl shrink-0 flex items-center justify-center text-white text-sm font-bold",
+                  a.daysLeft <= 7 ? "bg-red-500" : a.daysLeft <= 14 ? "bg-orange-500" : "bg-amber-500"
+                )}>
+                  {a.daysLeft <= 0 ? "H!" : `H-${a.daysLeft}`}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[hsl(var(--foreground))] truncate">{a.jamaah.name}</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] truncate">
+                    {a.trip.emoji} {a.trip.name}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[12.5px] font-bold text-red-600 leading-tight">{fmtIDRShort(a.outstanding)}</p>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">kurang</p>
+                </div>
+                <ChevronRight strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--muted-foreground))] shrink-0" />
+              </button>
+            ))}
+            {alerts.length > 8 && (
+              <p className="text-center text-[11px] text-red-600/70 pt-1">
+                +{alerts.length - 8} jamaah lainnya — buka tiap paket buat detail.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { trips, loadingTrips, fetchTrips, removeTrip } = useTripsStore();
@@ -687,6 +836,9 @@ export default function Dashboard() {
             </button>
           ))}
         </motion.div>
+
+        {/* ── Payment alerts H-30 ── */}
+        <PaymentAlerts trips={trips} />
 
         {/* ── Perlu Perhatian ── */}
         {pendingPackages.length > 0 && (
