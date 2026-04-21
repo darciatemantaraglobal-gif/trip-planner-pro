@@ -273,6 +273,30 @@ function DeleteBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
+function RowCurrencyToggle({
+  value,
+  onChange,
+}: {
+  value: "SAR" | "USD";
+  onChange: (v: "SAR" | "USD") => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(value === "SAR" ? "USD" : "SAR")}
+      title="Klik ganti kurs (SAR / USD)"
+      style={M}
+      className={`shrink-0 h-7 px-2 rounded-md border text-[10px] font-bold transition-colors ${
+        value === "SAR"
+          ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+          : "bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100"
+      }`}
+    >
+      {value}
+    </button>
+  );
+}
+
 function SubtotalRow({ label, sarAmount, usdAmount, groupIDR, perPaxIDR, formatCurrency }: {
   label: string;
   sarAmount?: number;
@@ -281,21 +305,22 @@ function SubtotalRow({ label, sarAmount, usdAmount, groupIDR, perPaxIDR, formatC
   perPaxIDR: number;
   formatCurrency: (v: number) => string;
 }) {
+  const hasSAR = sarAmount !== undefined && sarAmount > 0;
+  const hasUSD = usdAmount !== undefined && usdAmount > 0;
+  const foreignDisplay = hasSAR && hasUSD
+    ? <><span className="text-blue-700">{fmtSAR(sarAmount!)}</span> <span className="text-orange-400">+</span> <span className="text-violet-700">{fmtUSD(usdAmount!)}</span></>
+    : hasSAR ? <span className="text-blue-700">{fmtSAR(sarAmount!)}</span>
+    : hasUSD ? <span className="text-violet-700">{fmtUSD(usdAmount!)}</span>
+    : <span className="text-muted-foreground">—</span>;
+
   return (
     <tr className="bg-orange-50/50">
       <td colSpan={2} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">
         {label}
       </td>
-      {sarAmount !== undefined && (
-        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-blue-700 border-t-2 border-orange-200 font-mono">
-          {fmtSAR(sarAmount)}
-        </td>
-      )}
-      {usdAmount !== undefined && (
-        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-violet-700 border-t-2 border-orange-200 font-mono">
-          {fmtUSD(usdAmount)}
-        </td>
-      )}
+      <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right border-t-2 border-orange-200 font-mono">
+        {foreignDisplay}
+      </td>
       <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">
         {formatCurrency(groupIDR)}
       </td>
@@ -805,16 +830,16 @@ export default function PackageDetail() {
 
           {/* ── HOTEL TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={Hotel} title="Apartment / Hotel" currency="SAR" color="bg-blue-500" onAdd={addHotel} />
+            <SectionHeader icon={Hotel} title="Apartment / Hotel" currency="SAR / USD" color="bg-blue-500" onAdd={addHotel} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Nama Hotel</Th>
                     <Th right>Hari</Th>
-                    <Th right>Harga/Malam (SAR)</Th>
+                    <Th right>Harga/Malam</Th>
                     <Th right>Kamar</Th>
-                    <Th right>Total SAR</Th>
+                    <Th right>Total Asing</Th>
                     <Th right>Total IDR</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -822,15 +847,22 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {calc.hotels.map((h) => {
-                    const totalSAR = h.days * h.pricePerNight * h.rooms;
-                    const totalIDR = totalSAR * sarRate;
+                    const cur = h.currency ?? "SAR";
+                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const foreignAmount = h.days * h.pricePerNight * h.rooms;
+                    const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={h.id} className="hover:bg-orange-50/30 transition-colors">
                         <Td><TextCell value={h.label} onChange={(v) => updateHotel(h.id, { label: v })} placeholder="Nama hotel" /></Td>
                         <Td right><NumCell value={h.days} onChange={(v) => updateHotel(h.id, { days: v })} /></Td>
-                        <Td right><NumCell value={h.pricePerNight} onChange={(v) => updateHotel(h.id, { pricePerNight: v })} /></Td>
+                        <Td right>
+                          <div className="flex items-center gap-1">
+                            <NumCell value={h.pricePerNight} onChange={(v) => updateHotel(h.id, { pricePerNight: v })} />
+                            <RowCurrencyToggle value={cur} onChange={(v) => updateHotel(h.id, { currency: v })} />
+                          </div>
+                        </Td>
                         <Td right><NumCell value={h.rooms} onChange={(v) => updateHotel(h.id, { rooms: v })} /></Td>
-                        <Td right muted mono>{fmtSAR(totalSAR)}</Td>
+                        <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeHotel(h.id)} /></td>
@@ -841,6 +873,7 @@ export default function PackageDetail() {
                     <SubtotalRow
                       label="SUBTOTAL HOTEL"
                       sarAmount={quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesSAR, 0)}
+                      usdAmount={quote.breakdown.filter(b => b.category === "Hotel").reduce((s, b) => s + b.notesUSD, 0)}
                       groupIDR={quote.hotelIDR}
                       perPaxIDR={quote.hotelIDR / safePax}
                       formatCurrency={formatCurrency}
@@ -853,15 +886,15 @@ export default function PackageDetail() {
 
           {/* ── TRANSPORT TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={Bus} title="Transportasi" currency="SAR" color="bg-blue-600" onAdd={addTransport} />
+            <SectionHeader icon={Bus} title="Transportasi" currency="SAR / USD" color="bg-blue-600" onAdd={addTransport} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Nama Armada</Th>
                     <Th right>Jumlah Armada</Th>
-                    <Th right>Harga/Armada (SAR)</Th>
-                    <Th right>Total SAR</Th>
+                    <Th right>Harga/Armada</Th>
+                    <Th right>Total Asing</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -869,14 +902,21 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {calc.transports.map((t) => {
-                    const totalSAR = t.fleet * t.pricePerFleet;
-                    const totalIDR = totalSAR * sarRate;
+                    const cur = t.currency ?? "SAR";
+                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const foreignAmount = t.fleet * t.pricePerFleet;
+                    const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={t.id} className="hover:bg-orange-50/30 transition-colors">
                         <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Bus Lokal" /></Td>
                         <Td right><NumCell value={t.fleet} onChange={(v) => updateTransport(t.id, { fleet: v })} /></Td>
-                        <Td right><NumCell value={t.pricePerFleet} onChange={(v) => updateTransport(t.id, { pricePerFleet: v })} /></Td>
-                        <Td right muted mono>{fmtSAR(totalSAR)}</Td>
+                        <Td right>
+                          <div className="flex items-center gap-1">
+                            <NumCell value={t.pricePerFleet} onChange={(v) => updateTransport(t.id, { pricePerFleet: v })} />
+                            <RowCurrencyToggle value={cur} onChange={(v) => updateTransport(t.id, { currency: v })} />
+                          </div>
+                        </Td>
+                        <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeTransport(t.id)} /></td>
@@ -887,6 +927,7 @@ export default function PackageDetail() {
                     <SubtotalRow
                       label="SUBTOTAL TRANSPORT"
                       sarAmount={quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesSAR, 0)}
+                      usdAmount={quote.breakdown.filter(b => b.category === "Transport").reduce((s, b) => s + b.notesUSD, 0)}
                       groupIDR={quote.transportIDR}
                       perPaxIDR={quote.transportIDR / safePax}
                       formatCurrency={formatCurrency}
@@ -965,15 +1006,15 @@ export default function PackageDetail() {
 
           {/* ── VISA TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={Globe} title="Visa" currency="USD" color="bg-violet-500" onAdd={addVisa} />
+            <SectionHeader icon={Globe} title="Visa" currency="SAR / USD" color="bg-violet-500" onAdd={addVisa} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Jenis Visa</Th>
-                    <Th right>Harga/Pax (USD)</Th>
+                    <Th right>Harga/Pax</Th>
                     <Th right>Pax</Th>
-                    <Th right>Total USD</Th>
+                    <Th right>Total Asing</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -981,14 +1022,21 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {calc.visas.map((v) => {
-                    const totalUSD = v.pricePerPax * safePax;
-                    const totalIDR = totalUSD * usdRate;
+                    const cur = v.currency ?? "USD";
+                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const foreignAmount = v.pricePerPax * safePax;
+                    const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={v.id} className="hover:bg-orange-50/30 transition-colors">
                         <Td><TextCell value={v.label} onChange={(val) => updateVisa(v.id, { label: val })} placeholder="cth: Visa Umroh" /></Td>
-                        <Td right><NumCell value={v.pricePerPax} onChange={(val) => updateVisa(v.id, { pricePerPax: val })} /></Td>
+                        <Td right>
+                          <div className="flex items-center gap-1">
+                            <NumCell value={v.pricePerPax} onChange={(val) => updateVisa(v.id, { pricePerPax: val })} />
+                            <RowCurrencyToggle value={cur} onChange={(val) => updateVisa(v.id, { currency: val })} />
+                          </div>
+                        </Td>
                         <Td right muted>{safePax}</Td>
-                        <Td right muted mono>{fmtUSD(totalUSD)}</Td>
+                        <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeVisa(v.id)} /></td>
@@ -998,6 +1046,7 @@ export default function PackageDetail() {
                   {quote && (
                     <SubtotalRow
                       label="SUBTOTAL VISA"
+                      sarAmount={quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesSAR, 0)}
                       usdAmount={quote.breakdown.filter(b => b.category === "Visa").reduce((s, b) => s + b.notesUSD, 0)}
                       groupIDR={quote.visaIDR}
                       perPaxIDR={quote.visaIDR / safePax}
@@ -1011,15 +1060,15 @@ export default function PackageDetail() {
 
           {/* ── DESTINATION & F&B TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={Globe} title="Destinasi & F&B" currency="SAR / Pax" color="bg-emerald-500" onAdd={addDest} />
+            <SectionHeader icon={Globe} title="Destinasi" currency="SAR / USD" color="bg-emerald-500" onAdd={addDest} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Keterangan</Th>
-                    <Th right>Harga/Pax (SAR)</Th>
+                    <Th right>Harga/Pax</Th>
                     <Th right>Pax</Th>
-                    <Th right>Total SAR</Th>
+                    <Th right>Total Asing</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -1027,14 +1076,21 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {calc.destinations.map((d) => {
-                    const totalSAR = d.pricePerPax * safePax;
-                    const totalIDR = totalSAR * sarRate;
+                    const cur = d.currency ?? "SAR";
+                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const foreignAmount = d.pricePerPax * safePax;
+                    const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={d.id} className="hover:bg-orange-50/30 transition-colors">
                         <Td><TextCell value={d.label} onChange={(v) => updateDest(d.id, { label: v })} placeholder="cth: City Tour" /></Td>
-                        <Td right><NumCell value={d.pricePerPax} onChange={(v) => updateDest(d.id, { pricePerPax: v })} /></Td>
+                        <Td right>
+                          <div className="flex items-center gap-1">
+                            <NumCell value={d.pricePerPax} onChange={(v) => updateDest(d.id, { pricePerPax: v })} />
+                            <RowCurrencyToggle value={cur} onChange={(v) => updateDest(d.id, { currency: v })} />
+                          </div>
+                        </Td>
                         <Td right muted>{safePax}</Td>
-                        <Td right muted mono>{fmtSAR(totalSAR)}</Td>
+                        <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeDest(d.id)} /></td>
@@ -1045,6 +1101,7 @@ export default function PackageDetail() {
                     <SubtotalRow
                       label="SUBTOTAL DESTINASI"
                       sarAmount={quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesSAR, 0)}
+                      usdAmount={quote.breakdown.filter(b => b.category === "Destinasi").reduce((s, b) => s + b.notesUSD, 0)}
                       groupIDR={quote.destinationIDR}
                       perPaxIDR={quote.destinationIDR / safePax}
                       formatCurrency={formatCurrency}
@@ -1057,15 +1114,15 @@ export default function PackageDetail() {
 
           {/* ── F&B TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={Globe} title="F&B (Konsumsi / Zam-zam)" currency="SAR / Pax" color="bg-teal-500" onAdd={addFnB} />
+            <SectionHeader icon={Globe} title="F&B (Konsumsi / Zam-zam)" currency="SAR / USD" color="bg-teal-500" onAdd={addFnB} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Jenis Konsumsi</Th>
-                    <Th right>Harga/Pax (SAR)</Th>
+                    <Th right>Harga/Pax</Th>
                     <Th right>Pax</Th>
-                    <Th right>Group SAR</Th>
+                    <Th right>Total Asing</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -1073,14 +1130,21 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {(calc.fnbs ?? []).map((f) => {
-                    const groupSAR = f.pricePerPax * safePax;
-                    const totalIDR = groupSAR * sarRate;
+                    const cur = f.currency ?? "SAR";
+                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const foreignAmount = f.pricePerPax * safePax;
+                    const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={f.id} className="hover:bg-orange-50/30 transition-colors">
                         <Td><TextCell value={f.label} onChange={(v) => updateFnB(f.id, { label: v })} placeholder="cth: Zam-zam" /></Td>
-                        <Td right><NumCell value={f.pricePerPax} onChange={(v) => updateFnB(f.id, { pricePerPax: v })} /></Td>
+                        <Td right>
+                          <div className="flex items-center gap-1">
+                            <NumCell value={f.pricePerPax} onChange={(v) => updateFnB(f.id, { pricePerPax: v })} />
+                            <RowCurrencyToggle value={cur} onChange={(v) => updateFnB(f.id, { currency: v })} />
+                          </div>
+                        </Td>
                         <Td right muted>{safePax}</Td>
-                        <Td right muted mono>{fmtSAR(groupSAR)}</Td>
+                        <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeFnB(f.id)} /></td>
@@ -1091,6 +1155,7 @@ export default function PackageDetail() {
                     <SubtotalRow
                       label="SUBTOTAL F&B"
                       sarAmount={quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesSAR, 0)}
+                      usdAmount={quote.breakdown.filter(b => b.category === "F&B").reduce((s, b) => s + b.notesUSD, 0)}
                       groupIDR={quote.fnbIDR}
                       perPaxIDR={quote.fnbIDR / safePax}
                       formatCurrency={formatCurrency}
@@ -1103,15 +1168,15 @@ export default function PackageDetail() {
 
           {/* ── STAFF TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={UserCheck} title="Cost for Staff" currency="SAR" color="bg-orange-500" onAdd={addStaff} />
+            <SectionHeader icon={UserCheck} title="Cost for Staff" currency="SAR / USD" color="bg-orange-500" onAdd={addStaff} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <Th>Jabatan / Nama</Th>
                     <Th right>Jml Staff</Th>
-                    <Th right>Total Biaya (SAR)</Th>
-                    <Th right>Per Pax (SAR)</Th>
+                    <Th right>Total Biaya</Th>
+                    <Th right>Per Pax Asing</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
                     <Th> </Th>
@@ -1119,14 +1184,21 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {calc.staffs.map((s) => {
-                    const totalIDR = s.totalCost * sarRate;
-                    const perPaxSAR = s.totalCost / safePax;
+                    const cur = s.currency ?? "SAR";
+                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const totalIDR = s.totalCost * rate;
+                    const perPaxForeign = s.totalCost / safePax;
                     return (
                       <tr key={s.id} className="hover:bg-orange-50/30 transition-colors">
                         <Td><TextCell value={s.label} onChange={(v) => updateStaff(s.id, { label: v })} placeholder="cth: Muthowif" /></Td>
                         <Td right><NumCell value={(s as StaffRow).numStaff ?? 1} onChange={(v) => updateStaff(s.id, { numStaff: v })} /></Td>
-                        <Td right><NumCell value={s.totalCost} onChange={(v) => updateStaff(s.id, { totalCost: v })} /></Td>
-                        <Td right muted mono>{fmtSAR(perPaxSAR)}</Td>
+                        <Td right>
+                          <div className="flex items-center gap-1">
+                            <NumCell value={s.totalCost} onChange={(v) => updateStaff(s.id, { totalCost: v })} />
+                            <RowCurrencyToggle value={cur} onChange={(v) => updateStaff(s.id, { currency: v })} />
+                          </div>
+                        </Td>
+                        <Td right muted mono>{cur === "SAR" ? fmtSAR(perPaxForeign) : fmtUSD(perPaxForeign)}</Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
                         <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeStaff(s.id)} /></td>
@@ -1137,6 +1209,7 @@ export default function PackageDetail() {
                     <SubtotalRow
                       label="SUBTOTAL STAFF"
                       sarAmount={quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesSAR, 0)}
+                      usdAmount={quote.breakdown.filter(b => b.category === "Staff").reduce((s, b) => s + b.notesUSD, 0)}
                       groupIDR={quote.staffIDR}
                       perPaxIDR={quote.staffIDR / safePax}
                       formatCurrency={formatCurrency}

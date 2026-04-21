@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
-  FileText, Calculator as CalcIcon, Hotel, Plane, Bus, Train, Car,
+  FileText, Calculator as CalcIcon, Plane, Bus, Train, Car,
   BedDouble, Users, Wallet, TrendingUp, Moon, Globe,
 } from "lucide-react";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
@@ -387,100 +387,55 @@ export default function Calculator() {
   ];
 
   return (
-    <div className="calculator-compact max-w-3xl mx-auto space-y-3 md:space-y-5">
+    <div className="calculator-compact max-w-3xl mx-auto space-y-2.5 md:space-y-4">
 
-      {/* Page title */}
-      <div className="calculator-page-title">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
-              <CalcIcon strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
+      {/* ── Compact header row ── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-7 w-7 rounded-lg bg-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+            <CalcIcon strokeWidth={2} className="h-3.5 w-3.5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-sm md:text-base font-bold text-[hsl(var(--foreground))] leading-tight truncate">
               {labels.headerTitle}
             </h1>
-            <p className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
-              Hitung biaya paket trip secara otomatis, lalu ekspor ke PDF.
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight hidden sm:block">
+              Klik badge <span className="font-semibold text-slate-500">IDR / SAR / USD</span> untuk ganti kurs per baris
             </p>
           </div>
-
-          {/* Mode Toggle */}
-          <div className="flex items-center shrink-0 rounded-xl border border-orange-200 bg-orange-50/60 p-1 gap-1">
-            <button
-              type="button"
-              onClick={() => setTripMode("umroh")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                tripMode === "umroh"
-                  ? "bg-orange-500 text-white shadow-sm"
-                  : "text-orange-600 hover:bg-orange-100"
-              }`}
-            >
-              <Moon className={`h-3 w-3 ${tripMode === "umroh" ? "icon-keep text-white" : ""}`} />
-              Umroh
-            </button>
-            <button
-              type="button"
-              onClick={() => setTripMode("umum")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                tripMode === "umum"
-                  ? "bg-orange-500 text-white shadow-sm"
-                  : "text-orange-600 hover:bg-orange-100"
-              }`}
-            >
-              <Globe className={`h-3 w-3 ${tripMode === "umum" ? "icon-keep text-white" : ""}`} />
-              Umum
-            </button>
-          </div>
+        </div>
+        {/* Mode Toggle */}
+        <div className="flex items-center shrink-0 rounded-lg border border-orange-200 bg-orange-50/60 p-0.5 gap-0.5">
+          <button
+            type="button"
+            onClick={() => setTripMode("umroh")}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+              tripMode === "umroh" ? "bg-orange-500 text-white shadow-sm" : "text-orange-600 hover:bg-orange-100"
+            }`}
+          >
+            <Moon className="h-3 w-3" />
+            Umroh
+          </button>
+          <button
+            type="button"
+            onClick={() => setTripMode("umum")}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+              tripMode === "umum" ? "bg-orange-500 text-white shadow-sm" : "text-orange-600 hover:bg-orange-100"
+            }`}
+          >
+            <Globe className="h-3 w-3" />
+            Umum
+          </button>
         </div>
       </div>
 
-      {/* Currency hint */}
-      <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
-        Klik badge <span className="font-semibold text-slate-600">IDR / SAR / USD</span> di setiap baris untuk ganti mata uang. Kurs diambil dari Pengaturan.
-      </p>
-
       {/* ─── Main form card ─── */}
-      <div className="calculator-card rounded-2xl border border-orange-200 bg-white overflow-hidden shadow-card">
+      <div className="calculator-card rounded-xl border border-orange-200 bg-white overflow-hidden shadow-sm">
 
-        {/* Branded header */}
-        <div
-          className="calculator-card-header px-4 py-4 md:px-6 md:py-5 text-white relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fb923c 100%)" }}
-        >
-          <div className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: "radial-gradient(circle at 80% 50%, white 0%, transparent 60%)",
-            }}
-          />
-          <div className="relative flex items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <img
-                  src="/logo-igh-tour.png"
-                  alt="IGH Tour"
-                  className="h-8 w-auto object-contain brightness-0 invert"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">
-                    IGH Tour — Formulir Paket
-                  </p>
-                  <p className="text-base md:text-lg font-extrabold leading-tight tracking-tight">
-                    {labels.headerTitle}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="text-right hidden sm:block">
-              <p className="text-[10px] opacity-70 uppercase tracking-wider">Pelopor Layanan</p>
-              <p className="text-[11px] font-bold opacity-90">Land Arrangement</p>
-              <p className="text-[11px] font-bold opacity-90">{labels.headerSub}</p>
-            </div>
-          </div>
-        </div>
+        {/* Thin top accent */}
+        <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #ea580c, #f97316, #fb923c)" }} />
 
-        {/* Thin orange accent bar */}
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #f97316, #fdba74, #f97316)" }} />
-
-        <div className="calculator-card-body p-3 md:p-6 space-y-3 md:space-y-5">
+        <div className="calculator-card-body p-3 md:p-4 space-y-2.5 md:space-y-4">
 
           {/* ── Informasi Dasar ── */}
           <SectionLabel icon={Users} label="Informasi Dasar" />
@@ -508,9 +463,9 @@ export default function Calculator() {
           </div>
 
           {/* Rates strip — editable inline */}
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Kurs (Override khusus form ini)</p>
-            <div className="flex flex-wrap gap-3">
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-2.5 space-y-1.5">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Override Kurs (khusus form ini)</p>
+            <div className="flex flex-wrap gap-2">
               {(["SAR", "USD"] as const).map((cur) => {
                 const storeVal = rates[cur] ?? 0;
                 const localVal = cur === "SAR" ? form.localRateSAR : form.localRateUSD;
@@ -541,7 +496,7 @@ export default function Calculator() {
           {/* ── Penginapan 1 ── */}
           <SectionLabel icon={BedDouble} label={labels.hotel1} />
 
-          <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
+          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
             <FieldRow>
               <FormField label="Nama Penginapan">
                 <Input
@@ -617,7 +572,7 @@ export default function Calculator() {
           {/* ── Penginapan 2 ── */}
           <SectionLabel icon={BedDouble} label={labels.hotel2} />
 
-          <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
+          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
             <FieldRow>
               <FormField label="Nama Penginapan">
                 <Input
@@ -693,9 +648,9 @@ export default function Calculator() {
           {/* ── Biaya Per Pax ── */}
           <SectionLabel icon={Wallet} label="Biaya Per Pax" />
 
-          <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
-            <p className="text-[10px] text-orange-500 font-medium -mt-1">
-              Harga di bawah ini adalah biaya per orang — akan dikali jumlah pax secara otomatis.
+          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
+            <p className="text-[10px] text-orange-500 font-medium -mt-0.5">
+              Biaya per orang — otomatis dikali jumlah pax.
             </p>
             <FieldRow>
               <FormField label={labels.visa} suffix="/ pax">
@@ -740,9 +695,9 @@ export default function Calculator() {
           {/* ── Biaya Grup ── */}
           <SectionLabel icon={Users} label="Biaya Grup" />
 
-          <div className="rounded-xl bg-blue-50/50 border border-blue-100 p-3.5 space-y-3">
-            <p className="text-[10px] text-blue-500 font-medium -mt-1">
-              Biaya di bawah ini ditanggung bersama seluruh grup — dibagi rata ke semua pax, bukan dikali pax.
+          <div className="rounded-lg bg-blue-50/50 border border-blue-100 p-2.5 space-y-2">
+            <p className="text-[10px] text-blue-500 font-medium -mt-0.5">
+              Biaya total grup — dibagi rata ke semua pax.
             </p>
             <FieldRow>
               <FormField label={labels.muthowif} suffix="total grup">
@@ -778,8 +733,8 @@ export default function Calculator() {
           {/* ── Transportasi ── */}
           <SectionLabel icon={Plane} label="Transportasi" />
 
-          <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
+          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
               {form.transports.map((t, i) => (
                 <div key={i} className="space-y-1">
                   <Label className="text-[11px] md:text-[12px] font-semibold">Transport {i + 1}</Label>
@@ -828,7 +783,7 @@ export default function Calculator() {
           {/* ── Margin ── */}
           <SectionLabel icon={TrendingUp} label="Margin Keuntungan" />
 
-          <div className="rounded-xl bg-orange-50/50 border border-orange-100 p-3.5 space-y-3">
+          <div className="rounded-lg bg-orange-50/50 border border-orange-100 p-2.5 space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] md:text-[12px] font-semibold">Persentase Margin</Label>
               <div className="flex items-center gap-1.5">
@@ -853,110 +808,92 @@ export default function Calculator() {
       </div>
 
       {/* ─── Summary card ─── */}
-      <div className="calculator-card rounded-2xl border border-orange-200 bg-white shadow-card overflow-hidden">
+      <div className="calculator-card rounded-xl border border-orange-200 bg-white overflow-hidden shadow-sm">
 
         {/* Summary header */}
-        <div className="calculator-card-header px-5 py-3 flex items-center gap-2 border-b border-orange-100"
-          style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)" }}
-        >
-          <div className="h-7 w-7 rounded-lg bg-orange-500 flex items-center justify-center shadow-sm">
-            <Hotel strokeWidth={1.5} className="h-3.5 w-3.5 text-white" />
+        <div className="px-3 py-2 flex items-center justify-between gap-2 border-b border-orange-100 bg-orange-50/60">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded-md bg-orange-500 flex items-center justify-center">
+              <TrendingUp strokeWidth={2} className="h-3 w-3 text-white" />
+            </div>
+            <span className="font-bold text-[12px] text-orange-800">Ringkasan Biaya</span>
           </div>
-          <span className="font-bold text-[14px] text-orange-800">Ringkasan Biaya</span>
+          {summary.total > 0 && (
+            <span className="text-[11px] font-bold text-orange-600 font-mono">{formatCurrency(summary.perPerson)}<span className="text-orange-400 font-normal"> / pax</span></span>
+          )}
         </div>
 
-        <div className="calculator-card-body p-3 md:p-6 grid md:grid-cols-2 gap-4 md:gap-6">
+        <div className="calculator-card-body p-3 md:p-4 grid md:grid-cols-2 gap-3 md:gap-4">
           {/* Breakdown list */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {[
               { label: `${labels.hotel1} — ${makkahRoomLabel} (${nightsMakkah} mlm × ${form.pax} pax)`, value: summary.hotelMakkahIDR, show: summary.hotelMakkahIDR > 0 },
               { label: `${labels.hotel2} — ${madinahRoomLabel} (${nightsMadinah} mlm × ${form.pax} pax)`, value: summary.hotelMadinahIDR, show: summary.hotelMadinahIDR > 0 },
               { label: `Biaya Per Pax (×${form.pax})`, value: summary.perPaxItemsIDR, show: summary.perPaxItemsIDR > 0 },
-              { label: `Biaya Grup (${labels.muthowif} + Handling)`, value: summary.grupCostIDR, show: summary.grupCostIDR > 0 },
+              { label: `Biaya Grup`, value: summary.grupCostIDR, show: summary.grupCostIDR > 0 },
               { label: "Transportasi", value: summary.transportIDR, show: summary.transportIDR > 0 },
             ]
               .filter((r) => r.show)
               .map((r) => (
-                <div
-                  key={r.label}
-                  className="flex justify-between items-center py-1.5 border-b border-dashed border-orange-100"
-                >
-                  <span className="text-[12px] text-[hsl(var(--muted-foreground))]">{r.label}</span>
-                  <span className="text-[12px] font-semibold text-[hsl(var(--foreground))]">{formatCurrency(r.value)}</span>
+                <div key={r.label} className="flex justify-between items-center py-1 border-b border-dashed border-orange-100">
+                  <span className="text-[11px] text-[hsl(var(--muted-foreground))] truncate pr-2">{r.label}</span>
+                  <span className="text-[11px] font-semibold text-[hsl(var(--foreground))] shrink-0 font-mono">{formatCurrency(r.value)}</span>
                 </div>
               ))}
 
             {summary.subtotal === 0 && (
-              <div className="rounded-xl border border-dashed border-orange-200 bg-orange-50/50 p-4 text-center">
-                <p className="text-xs text-orange-400 font-medium">
-                  Isi form di atas untuk melihat kalkulasi.
-                </p>
+              <div className="rounded-lg border border-dashed border-orange-200 bg-orange-50/50 py-3 text-center">
+                <p className="text-[11px] text-orange-400 font-medium">Isi form di atas untuk melihat kalkulasi.</p>
               </div>
             )}
 
             {summary.subtotal > 0 && (
               <>
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-[12px] text-[hsl(var(--muted-foreground))]">Subtotal</span>
-                  <span className="text-[12px] font-semibold">{formatCurrency(summary.subtotal)}</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Subtotal</span>
+                  <span className="text-[11px] font-semibold font-mono">{formatCurrency(summary.subtotal)}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b-2 border-orange-200">
-                  <span className="text-[12px] text-orange-600 font-semibold">
-                    Margin ({form.margin}%)
-                  </span>
-                  <span className="text-[12px] font-bold text-orange-600">
-                    + {formatCurrency(summary.marginAmt)}
-                  </span>
+                <div className="flex justify-between items-center py-1 border-b-2 border-orange-200">
+                  <span className="text-[11px] text-orange-600 font-semibold">Margin ({form.margin}%)</span>
+                  <span className="text-[11px] font-bold text-orange-600 font-mono">+ {formatCurrency(summary.marginAmt)}</span>
                 </div>
               </>
             )}
           </div>
 
           {/* Total highlight + actions */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <div
-              className="rounded-2xl p-5 text-white shadow-glow relative overflow-hidden"
+              className="rounded-xl p-3 text-white relative overflow-hidden"
               style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%)" }}
             >
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: "radial-gradient(circle at 90% 10%, white 0%, transparent 55%)",
-                }}
-              />
-              <div className="relative space-y-3">
+              <div className="flex items-end justify-between gap-2">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-75">
-                    Harga Grup ({form.pax} pax)
-                  </p>
-                  <p className="text-2xl font-extrabold mt-0.5 tracking-tight">
-                    {formatCurrency(summary.total)}
-                  </p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wide opacity-75">Harga Grup ({form.pax} pax)</p>
+                  <p className="text-lg font-extrabold mt-0.5 tracking-tight font-mono">{formatCurrency(summary.total)}</p>
                 </div>
-                <div className="pt-3 border-t border-white/20">
-                  <p className="text-[10px] opacity-75 uppercase tracking-wide font-semibold">Harga per Pax</p>
-                  <p className="text-xl font-bold mt-0.5">{formatCurrency(summary.perPerson)}</p>
+                <div className="text-right shrink-0">
+                  <p className="text-[9px] opacity-75 uppercase tracking-wide font-semibold">Per Pax</p>
+                  <p className="text-base font-bold font-mono">{formatCurrency(summary.perPerson)}</p>
                 </div>
-                {summary.marginAmt > 0 && (
-                  <div className="pt-2 border-t border-white/10">
-                    <p className="text-[10px] opacity-60">Sudah termasuk margin {form.margin}% ({formatCurrency(summary.marginAmt)})</p>
-                  </div>
-                )}
               </div>
+              {summary.marginAmt > 0 && (
+                <p className="text-[9px] opacity-60 mt-1.5 pt-1.5 border-t border-white/20">Margin {form.margin}%: {formatCurrency(summary.marginAmt)}</p>
+              )}
             </div>
 
             <Button
-              className="btn-primary w-full h-11 rounded-xl"
+              className="btn-primary w-full h-9 rounded-lg text-[12px]"
               onClick={() => setPdfOpen(true)}
               disabled={summary.total === 0}
             >
-              <FileText strokeWidth={1.5} className="h-4 w-4 mr-2" />
+              <FileText strokeWidth={1.5} className="h-3.5 w-3.5 mr-1.5" />
               Ekspor PDF
             </Button>
 
             <Button
               variant="outline"
-              className="w-full h-10 rounded-xl text-sm border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+              className="w-full h-8 rounded-lg text-[11px] border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
               onClick={() => setForm(initForm)}
             >
               Reset Form
