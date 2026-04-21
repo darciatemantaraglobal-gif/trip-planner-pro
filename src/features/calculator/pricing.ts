@@ -16,17 +16,17 @@ export interface HotelRow {
   id: string;
   label: string;
   days: number;
-  pricePerNight: number; // foreign currency per room per night
+  pricePerNight: number; // currency per room per night
   rooms: number;         // Quad = number of rooms
-  currency?: "SAR" | "USD"; // default SAR
+  currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 
 export interface TransportRow {
   id: string;
   label: string;
   fleet: number;
-  pricePerFleet: number; // foreign currency total per fleet unit
-  currency?: "SAR" | "USD"; // default SAR
+  pricePerFleet: number; // currency total per fleet unit
+  currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 
 export interface TicketRow {
@@ -34,36 +34,36 @@ export interface TicketRow {
   label: string;       // route e.g. "SUB - JED"
   flightType: string;  // e.g. "Return" / "One Way"
   pricePerPax: number; // price per person
-  currency: "IDR" | "USD";
+  currency: "IDR" | "SAR" | "USD";
 }
 
 export interface VisaRow {
   id: string;
   label: string;
-  pricePerPax: number; // foreign currency per pax
-  currency?: "SAR" | "USD"; // default USD
+  pricePerPax: number; // currency per pax
+  currency?: "IDR" | "SAR" | "USD"; // default USD
 }
 
 export interface DestinationRow {
   id: string;
   label: string;
-  pricePerPax: number; // foreign currency per pax
-  currency?: "SAR" | "USD"; // default SAR
+  pricePerPax: number; // currency per pax
+  currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 
 export interface FnBRow {
   id: string;
   label: string;
-  pricePerPax: number; // foreign currency per pax
-  currency?: "SAR" | "USD"; // default SAR
+  pricePerPax: number; // currency per pax
+  currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 
 export interface StaffRow {
   id: string;
   label: string;
   numStaff?: number; // number of staff (optional, for display only)
-  totalCost: number; // foreign currency total for whole group
-  currency?: "SAR" | "USD"; // default SAR
+  totalCost: number; // currency total for whole group
+  currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 
 // ── Umum Mode Input Structure ─────────────────────────────────────────────────
@@ -157,89 +157,88 @@ export function computeProfessionalQuote(input: ProfessionalCalcInput): Professi
   let totalSAR = 0;
   let totalUSD = 0;
 
-  // ── 1. Hotel (foreign currency per room per night × rooms × days) ────────
+  // helper: resolve amount → IDR and track foreign totals
+  function toIDR(amount: number, cur: "IDR" | "SAR" | "USD"): number {
+    if (cur === "SAR") return amount * sarRate;
+    if (cur === "USD") return amount * usdRate;
+    return amount;
+  }
+  function trackForeign(amount: number, cur: "IDR" | "SAR" | "USD") {
+    if (cur === "SAR") totalSAR += amount;
+    else if (cur === "USD") totalUSD += amount;
+  }
+
+  // ── 1. Hotel (currency per room per night × rooms × days) ─────────────────
   let hotelIDR = 0;
   for (const h of hotels) {
     const cur = h.currency ?? "SAR";
-    const rate = cur === "SAR" ? sarRate : usdRate;
     const foreignAmount = h.days * h.pricePerNight * h.rooms;
-    const idr = foreignAmount * rate;
-    if (cur === "SAR") totalSAR += foreignAmount; else totalUSD += foreignAmount;
+    const idr = toIDR(foreignAmount, cur);
+    trackForeign(foreignAmount, cur);
     hotelIDR += idr;
     breakdown.push({ id: h.id, category: "Hotel", label: h.label || "Hotel", notesSAR: cur === "SAR" ? foreignAmount : 0, notesUSD: cur === "USD" ? foreignAmount : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }
 
-  // ── 2. Transport (foreign currency per fleet × fleet count) ───────────────
+  // ── 2. Transport (currency per fleet × fleet count) ───────────────────────
   let transportIDR = 0;
   for (const t of transports) {
     const cur = t.currency ?? "SAR";
-    const rate = cur === "SAR" ? sarRate : usdRate;
     const foreignAmount = t.fleet * t.pricePerFleet;
-    const idr = foreignAmount * rate;
-    if (cur === "SAR") totalSAR += foreignAmount; else totalUSD += foreignAmount;
+    const idr = toIDR(foreignAmount, cur);
+    trackForeign(foreignAmount, cur);
     transportIDR += idr;
     breakdown.push({ id: t.id, category: "Transport", label: t.label || "Transportasi", notesSAR: cur === "SAR" ? foreignAmount : 0, notesUSD: cur === "USD" ? foreignAmount : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }
 
-  // ── 3. Airline Ticket (IDR or USD per pax) ─────────────────────────────────
+  // ── 3. Airline Ticket (IDR / SAR / USD per pax) ────────────────────────────
   let ticketIDR = 0;
   for (const tk of tickets) {
-    let idr = 0;
-    let usdRef = 0;
-    if (tk.currency === "USD") {
-      usdRef = tk.pricePerPax * safePax;
-      idr = usdRef * usdRate;
-      totalUSD += usdRef;
-    } else {
-      idr = tk.pricePerPax * safePax;
-    }
+    const foreignAmount = tk.pricePerPax * safePax;
+    const idr = toIDR(foreignAmount, tk.currency);
+    trackForeign(foreignAmount, tk.currency);
     ticketIDR += idr;
-    breakdown.push({ id: tk.id, category: "Tiket", label: `${tk.label}${tk.flightType ? ` (${tk.flightType})` : ""}`, notesSAR: 0, notesUSD: usdRef, groupIDR: idr, perPaxIDR: idr / safePax });
+    breakdown.push({ id: tk.id, category: "Tiket", label: `${tk.label}${tk.flightType ? ` (${tk.flightType})` : ""}`, notesSAR: tk.currency === "SAR" ? foreignAmount : 0, notesUSD: tk.currency === "USD" ? foreignAmount : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }
 
-  // ── 4. Visa (SAR or USD per pax, default USD) ──────────────────────────────
+  // ── 4. Visa (currency per pax, default USD) ────────────────────────────────
   let visaIDR = 0;
   for (const v of visas) {
     const cur = v.currency ?? "USD";
-    const rate = cur === "SAR" ? sarRate : usdRate;
     const foreignAmount = v.pricePerPax * safePax;
-    const idr = foreignAmount * rate;
-    if (cur === "SAR") totalSAR += foreignAmount; else totalUSD += foreignAmount;
+    const idr = toIDR(foreignAmount, cur);
+    trackForeign(foreignAmount, cur);
     visaIDR += idr;
     breakdown.push({ id: v.id, category: "Visa", label: v.label || "Visa", notesSAR: cur === "SAR" ? foreignAmount : 0, notesUSD: cur === "USD" ? foreignAmount : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }
 
-  // ── 5. Destination (foreign currency per pax, default SAR) ────────────────
+  // ── 5. Destination (currency per pax, default SAR) ────────────────────────
   let destinationIDR = 0;
   for (const d of destinations) {
     const cur = d.currency ?? "SAR";
-    const rate = cur === "SAR" ? sarRate : usdRate;
     const foreignAmount = d.pricePerPax * safePax;
-    const idr = foreignAmount * rate;
-    if (cur === "SAR") totalSAR += foreignAmount; else totalUSD += foreignAmount;
+    const idr = toIDR(foreignAmount, cur);
+    trackForeign(foreignAmount, cur);
     destinationIDR += idr;
     breakdown.push({ id: d.id, category: "Destinasi", label: d.label || "Destinasi", notesSAR: cur === "SAR" ? foreignAmount : 0, notesUSD: cur === "USD" ? foreignAmount : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }
 
-  // ── 6. F&B (foreign currency per pax, default SAR) ────────────────────────
+  // ── 6. F&B (currency per pax, default SAR) ────────────────────────────────
   let fnbIDR = 0;
   for (const f of fnbs) {
     const cur = f.currency ?? "SAR";
-    const rate = cur === "SAR" ? sarRate : usdRate;
     const foreignAmount = f.pricePerPax * safePax;
-    const idr = foreignAmount * rate;
-    if (cur === "SAR") totalSAR += foreignAmount; else totalUSD += foreignAmount;
+    const idr = toIDR(foreignAmount, cur);
+    trackForeign(foreignAmount, cur);
     fnbIDR += idr;
     breakdown.push({ id: f.id, category: "F&B", label: f.label || "F&B", notesSAR: cur === "SAR" ? foreignAmount : 0, notesUSD: cur === "USD" ? foreignAmount : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }
 
-  // ── 7. Staff (foreign currency group cost, default SAR) ───────────────────
+  // ── 7. Staff (currency group cost, default SAR) ───────────────────────────
   let staffIDR = 0;
   for (const s of staffs) {
     const cur = s.currency ?? "SAR";
-    const rate = cur === "SAR" ? sarRate : usdRate;
-    const idr = s.totalCost * rate;
-    if (cur === "SAR") totalSAR += s.totalCost; else totalUSD += s.totalCost;
+    const idr = toIDR(s.totalCost, cur);
+    trackForeign(s.totalCost, cur);
     staffIDR += idr;
     breakdown.push({ id: s.id, category: "Staff", label: s.label || "Guide", notesSAR: cur === "SAR" ? s.totalCost : 0, notesUSD: cur === "USD" ? s.totalCost : 0, groupIDR: idr, perPaxIDR: idr / safePax });
   }

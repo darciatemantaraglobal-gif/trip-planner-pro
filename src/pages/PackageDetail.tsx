@@ -276,27 +276,24 @@ function DeleteBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
-function RowCurrencyToggle({
-  value,
-  onChange,
-}: {
-  value: "SAR" | "USD";
-  onChange: (v: "SAR" | "USD") => void;
-}) {
+const CUR_STYLE: Record<"IDR" | "SAR" | "USD", string> = {
+  IDR: "bg-emerald-500 text-white",
+  SAR: "bg-blue-500 text-white",
+  USD: "bg-violet-500 text-white",
+};
+function RowCurrencyToggle({ value, onChange }: { value: "IDR" | "SAR" | "USD"; onChange: (v: "IDR" | "SAR" | "USD") => void }) {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(value === "SAR" ? "USD" : "SAR")}
-      title="Klik ganti kurs (SAR / USD)"
-      style={M}
-      className={`shrink-0 h-7 px-2 rounded-md border text-[10px] font-bold transition-colors ${
-        value === "SAR"
-          ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-          : "bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100"
-      }`}
-    >
-      {value}
-    </button>
+    <div className="flex rounded-md border border-orange-200 overflow-hidden shrink-0">
+      {(["IDR", "SAR", "USD"] as const).map((cur, i) => (
+        <button
+          key={cur}
+          type="button"
+          onClick={() => onChange(cur)}
+          style={M}
+          className={`h-7 px-1.5 text-[9px] font-bold transition-colors ${value === cur ? CUR_STYLE[cur] : "bg-white text-slate-400 hover:bg-slate-50"} ${i > 0 ? "border-l border-orange-200" : ""}`}
+        >{cur}</button>
+      ))}
+    </div>
   );
 }
 
@@ -892,7 +889,7 @@ export default function PackageDetail() {
                 <tbody>
                   {calc.hotels.map((h) => {
                     const cur = h.currency ?? "SAR";
-                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                     const foreignAmount = h.days * h.pricePerNight * h.rooms;
                     const totalIDR = foreignAmount * rate;
                     return (
@@ -947,7 +944,7 @@ export default function PackageDetail() {
                 <tbody>
                   {calc.transports.map((t) => {
                     const cur = t.currency ?? "SAR";
-                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                     const foreignAmount = t.fleet * t.pricePerFleet;
                     const totalIDR = foreignAmount * rate;
                     return (
@@ -1000,7 +997,9 @@ export default function PackageDetail() {
                 </thead>
                 <tbody>
                   {(calc.tickets ?? []).map((tk) => {
-                    const totalIDR = tk.currency === "USD"
+                    const totalIDR = tk.currency === "SAR"
+                      ? tk.pricePerPax * safePax * sarRate
+                      : tk.currency === "USD"
                       ? tk.pricePerPax * safePax * usdRate
                       : tk.pricePerPax * safePax;
                     return (
@@ -1019,15 +1018,7 @@ export default function PackageDetail() {
                         </Td>
                         <Td right><NumCell value={tk.pricePerPax} onChange={(v) => updateTicket(tk.id, { pricePerPax: v })} /></Td>
                         <Td>
-                          <select
-                            value={tk.currency}
-                            onChange={(e) => updateTicket(tk.id, { currency: e.target.value as "IDR" | "USD" })}
-                            style={M}
-                            className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
-                          >
-                            <option value="IDR">IDR</option>
-                            <option value="USD">USD</option>
-                          </select>
+                          <RowCurrencyToggle value={tk.currency} onChange={(v) => updateTicket(tk.id, { currency: v })} />
                         </Td>
                         <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                         <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
@@ -1067,7 +1058,7 @@ export default function PackageDetail() {
                 <tbody>
                   {calc.visas.map((v) => {
                     const cur = v.currency ?? "USD";
-                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                     const foreignAmount = v.pricePerPax * safePax;
                     const totalIDR = foreignAmount * rate;
                     return (
@@ -1121,7 +1112,7 @@ export default function PackageDetail() {
                 <tbody>
                   {calc.destinations.map((d) => {
                     const cur = d.currency ?? "SAR";
-                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                     const foreignAmount = d.pricePerPax * safePax;
                     const totalIDR = foreignAmount * rate;
                     return (
@@ -1175,7 +1166,7 @@ export default function PackageDetail() {
                 <tbody>
                   {(calc.fnbs ?? []).map((f) => {
                     const cur = f.currency ?? "SAR";
-                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                     const foreignAmount = f.pricePerPax * safePax;
                     const totalIDR = foreignAmount * rate;
                     return (
@@ -1229,7 +1220,7 @@ export default function PackageDetail() {
                 <tbody>
                   {calc.staffs.map((s) => {
                     const cur = s.currency ?? "SAR";
-                    const rate = cur === "SAR" ? sarRate : usdRate;
+                    const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                     const totalIDR = s.totalCost * rate;
                     const perPaxForeign = s.totalCost / safePax;
                     return (
