@@ -70,9 +70,9 @@ export default function Login() {
         transition={{ duration: 0.6, ease: [0.34, 1.2, 0.64, 1] }}
       >
         <img
-          src="/logo-igh-tour.png"
+          src="/logo-igh-tour-white.png"
           alt="IGH Tour"
-          className="h-24 w-auto object-contain brightness-0 invert drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+          className="h-24 w-auto object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
         />
 
         <AnimatePresence mode="wait">

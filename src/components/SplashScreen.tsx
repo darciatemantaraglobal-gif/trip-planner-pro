@@ -72,9 +72,9 @@ export function SplashScreen() {
               className="flex flex-col items-center mb-2"
             >
               <img
-                src="/logo-igh-tour.png"
+                src="/logo-igh-tour-white.png"
                 alt="IGH Tour"
-                className="h-24 w-auto object-contain brightness-0 invert drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                className="h-24 w-auto object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
                   img.style.display = "none";
