@@ -90,11 +90,13 @@ function savePackageCalc(packageId: string, value: ProfessionalCalcState) {
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_GENERAL_COSTS: GeneralCostRow[] = [
-  { id: "g1", label: "Penginapan", amount: 0, currency: "IDR", unit: "pax" },
-  { id: "g2", label: "Transportasi", amount: 0, currency: "IDR", unit: "group" },
-  { id: "g3", label: "Tiket & Aktivitas", amount: 0, currency: "IDR", unit: "pax" },
-  { id: "g4", label: "Makanan & Minuman", amount: 0, currency: "IDR", unit: "pax" },
-  { id: "g5", label: "Guide / Pemandu", amount: 0, currency: "IDR", unit: "group" },
+  { id: "g1", category: "akomodasi", label: "Hotel / Penginapan",   qty: 3, amount: 0, currency: "IDR", unit: "pax"   },
+  { id: "g2", category: "tiket",     label: "Tiket Pesawat PP",     qty: 1, amount: 0, currency: "IDR", unit: "pax"   },
+  { id: "g3", category: "transport", label: "Bus / Kendaraan",      qty: 1, amount: 0, currency: "IDR", unit: "group" },
+  { id: "g4", category: "visa",      label: "Visa & Dokumen",       qty: 1, amount: 0, currency: "IDR", unit: "pax"   },
+  { id: "g5", category: "makan",     label: "Makan & Minum",        qty: 7, amount: 0, currency: "IDR", unit: "pax"   },
+  { id: "g6", category: "atraksi",   label: "Atraksi & Wisata",     qty: 1, amount: 0, currency: "IDR", unit: "pax"   },
+  { id: "g7", category: "guide",     label: "Guide & Staff",        qty: 1, amount: 0, currency: "IDR", unit: "group" },
 ];
 
 function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcState {
@@ -292,6 +294,29 @@ function RowCurrencyToggle({ value, onChange }: { value: "IDR" | "SAR" | "USD"; 
           style={M}
           className={`h-7 px-1.5 text-[9px] font-bold transition-colors ${value === cur ? CUR_STYLE[cur] : "bg-white text-slate-400 hover:bg-slate-50"} ${i > 0 ? "border-l border-orange-200" : ""}`}
         >{cur}</button>
+      ))}
+    </div>
+  );
+}
+
+const CATS: Array<{ value: string; emoji: string; label: string }> = [
+  { value: "",          emoji: "•",  label: "—"           },
+  { value: "akomodasi", emoji: "🏨", label: "Akomodasi"   },
+  { value: "transport", emoji: "🚌", label: "Transport"   },
+  { value: "tiket",     emoji: "✈️", label: "Tiket"       },
+  { value: "visa",      emoji: "🪪", label: "Visa"        },
+  { value: "makan",     emoji: "🍽️", label: "Makan"       },
+  { value: "atraksi",   emoji: "🎭", label: "Atraksi"     },
+  { value: "guide",     emoji: "👨‍✈️", label: "Guide"      },
+  { value: "lainnya",   emoji: "📦", label: "Lainnya"     },
+];
+function UnitToggle({ value, onChange }: { value: CostUnit; onChange: (v: CostUnit) => void }) {
+  return (
+    <div className="flex rounded-md border border-orange-200 overflow-hidden shrink-0">
+      {(["pax", "group"] as const).map((u, i) => (
+        <button key={u} type="button" onClick={() => onChange(u)} style={M}
+          className={`h-7 px-1.5 text-[9px] font-bold transition-colors ${value === u ? "bg-orange-500 text-white" : "bg-white text-slate-400 hover:bg-slate-50"} ${i > 0 ? "border-l border-orange-200" : ""}`}
+        >{u === "pax" ? "/pax" : "/grup"}</button>
       ))}
     </div>
   );
@@ -657,7 +682,7 @@ export default function PackageDetail() {
     setCalc((prev) => prev ? { ...prev, generalCosts: prev.generalCosts.map((c) => c.id === rowId ? { ...c, ...patch } : c) } : prev);
   }
   function addGeneralCost() {
-    setCalc((prev) => prev ? { ...prev, generalCosts: [...prev.generalCosts, { id: `g${Date.now()}`, label: "Biaya Tambahan", amount: 0, currency: "IDR" as CalcCurrency, unit: "pax" as CostUnit }] } : prev);
+    setCalc((prev) => prev ? { ...prev, generalCosts: [...prev.generalCosts, { id: `g${Date.now()}`, category: "lainnya", label: "Biaya Tambahan", qty: 1, amount: 0, currency: "IDR" as CalcCurrency, unit: "pax" as CostUnit }] } : prev);
   }
   function removeGeneralCost(rowId: string) {
     setCalc((prev) => prev ? { ...prev, generalCosts: prev.generalCosts.filter((c) => c.id !== rowId) } : prev);
@@ -1265,14 +1290,10 @@ export default function PackageDetail() {
                   <div className="h-6 w-6 rounded-lg flex items-center justify-center bg-orange-500">
                     <TrendingUp className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
                   </div>
-                  <span style={M} className="text-[12px] font-bold text-orange-800">Komponen Biaya</span>
+                  <span style={M} className="text-[12px] font-bold text-orange-800">Rincian Biaya</span>
                   <span style={M} className="text-[10px] font-semibold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded">IDR / SAR / USD</span>
                 </div>
-                <button
-                  onClick={addGeneralCost}
-                  style={M}
-                  className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 rounded-lg px-2 py-1 transition-colors"
-                >
+                <button onClick={addGeneralCost} style={M} className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-white border border-orange-200 hover:bg-orange-50 rounded-lg px-2 py-1 transition-colors">
                   <Plus className="h-3 w-3" /> Tambah Baris
                 </button>
               </div>
@@ -1280,47 +1301,39 @@ export default function PackageDetail() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr>
-                      <Th>Nama Biaya</Th>
-                      <Th right>Jumlah</Th>
-                      <Th>Mata Uang</Th>
+                      <Th>Kategori</Th>
+                      <Th>Keterangan</Th>
+                      <Th right>Harga Satuan</Th>
+                      <Th right>Qty</Th>
+                      <Th>Kurs</Th>
                       <Th>Basis</Th>
-                      <Th right>Total IDR (Grup)</Th>
-                      <Th right>Per Pax IDR</Th>
+                      <Th right>Total Grup</Th>
+                      <Th right>Per Pax</Th>
                       <Th> </Th>
                     </tr>
                   </thead>
                   <tbody>
                     {calc.generalCosts.map((c) => {
-                      const qty = c.unit === "pax" ? safePax : 1;
-                      const groupIDR = c.currency === "IDR" ? c.amount * qty : c.currency === "SAR" ? c.amount * qty * sarRate : c.amount * qty * usdRate;
+                      const rowQty = c.qty ?? 1;
+                      const multiplier = (c.unit === "pax" ? safePax : 1) * rowQty;
+                      const groupIDR = c.currency === "IDR" ? c.amount * multiplier : c.currency === "SAR" ? c.amount * multiplier * sarRate : c.amount * multiplier * usdRate;
                       return (
                         <tr key={c.id} className="hover:bg-orange-50/30 transition-colors">
-                          <Td><TextCell value={c.label} onChange={(v) => updateGeneralCost(c.id, { label: v })} placeholder="cth: Penginapan" /></Td>
+                          <Td>
+                            <select value={c.category ?? ""} onChange={(e) => updateGeneralCost(c.id, { category: e.target.value })} style={M}
+                              className="h-7 w-28 rounded-md border border-orange-200 bg-white px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-orange-400">
+                              {CATS.map((cat) => <option key={cat.value} value={cat.value}>{cat.emoji} {cat.label}</option>)}
+                            </select>
+                          </Td>
+                          <Td><TextCell value={c.label} onChange={(v) => updateGeneralCost(c.id, { label: v })} placeholder="cth: Hotel Makkah" /></Td>
                           <Td right><NumCell value={c.amount} onChange={(v) => updateGeneralCost(c.id, { amount: v })} /></Td>
-                          <Td>
-                            <select
-                              value={c.currency}
-                              onChange={(e) => updateGeneralCost(c.id, { currency: e.target.value as CalcCurrency })}
-                              style={M}
-                              className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
-                            >
-                              <option value="IDR">IDR</option>
-                              <option value="SAR">SAR</option>
-                              <option value="USD">USD</option>
-                            </select>
+                          <Td right><NumCell value={rowQty} onChange={(v) => updateGeneralCost(c.id, { qty: Math.max(1, v) })} /></Td>
+                          <Td><RowCurrencyToggle value={c.currency} onChange={(v) => updateGeneralCost(c.id, { currency: v })} /></Td>
+                          <Td><UnitToggle value={c.unit} onChange={(v) => updateGeneralCost(c.id, { unit: v })} /></Td>
+                          <Td right bold mono>
+                            <div>{formatCurrency(groupIDR)}</div>
+                            {c.amount > 0 && <div style={M} className="text-[9px] text-slate-400 font-normal">{c.amount.toLocaleString("id-ID")}{c.currency !== "IDR" ? ` ${c.currency}` : ""} × {rowQty}{c.unit === "pax" ? ` × ${safePax}p` : " (fix)"}</div>}
                           </Td>
-                          <Td>
-                            <select
-                              value={c.unit}
-                              onChange={(e) => updateGeneralCost(c.id, { unit: e.target.value as CostUnit })}
-                              style={M}
-                              className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
-                            >
-                              <option value="pax">Per Pax</option>
-                              <option value="group">Per Grup</option>
-                            </select>
-                          </Td>
-                          <Td right bold mono>{formatCurrency(groupIDR)}</Td>
                           <Td right muted mono>{formatCurrency(groupIDR / safePax)}</Td>
                           <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeGeneralCost(c.id)} /></td>
                         </tr>
@@ -1328,15 +1341,9 @@ export default function PackageDetail() {
                     })}
                     {quote && calc.generalCosts.length > 0 && (
                       <tr className="bg-orange-50/50">
-                        <td colSpan={4} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">
-                          TOTAL BIAYA
-                        </td>
-                        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">
-                          {formatCurrency(quote.hpp)}
-                        </td>
-                        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-600 border-t-2 border-orange-200 font-mono">
-                          {formatCurrency(quote.hpp / safePax)}
-                        </td>
+                        <td colSpan={6} style={M} className="px-2.5 py-2 text-[11px] font-extrabold text-orange-700 uppercase tracking-wider border-t-2 border-orange-200">TOTAL BIAYA</td>
+                        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-700 border-t-2 border-orange-200 font-mono">{formatCurrency(quote.hpp)}</td>
+                        <td style={M} className="px-2.5 py-2 text-[11px] font-bold text-right text-orange-600 border-t-2 border-orange-200 font-mono">{formatCurrency(quote.hpp / safePax)}</td>
                         <td className="border-t-2 border-orange-200" />
                       </tr>
                     )}

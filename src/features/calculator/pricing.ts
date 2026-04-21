@@ -72,7 +72,9 @@ export type CostUnit = "group" | "pax";
 
 export interface GeneralCostRow {
   id: string;
+  category?: string;  // e.g. "akomodasi", "transport", "tiket", "visa", "makan", "atraksi", "guide", "lainnya"
   label: string;
+  qty?: number;       // unit multiplier (nights, buses, etc.) — default 1
   amount: number;
   currency: CalcCurrency;
   unit: CostUnit; // "group" = fixed total; "pax" = amount × pax count
@@ -276,19 +278,19 @@ export function computeGeneralQuote(input: GeneralCalcInput): ProfessionalQuote 
   let totalIDR = 0;
 
   for (const c of costs) {
-    const qty = c.unit === "pax" ? safePax : 1;
+    const multiplier = (c.unit === "pax" ? safePax : 1) * (c.qty ?? 1);
     let sarRef = 0;
     let usdRef = 0;
     let groupIDR = 0;
 
     if (c.currency === "IDR") {
-      groupIDR = c.amount * qty;
+      groupIDR = c.amount * multiplier;
     } else if (c.currency === "SAR") {
-      sarRef = c.amount * qty;
+      sarRef = c.amount * multiplier;
       groupIDR = sarRef * sarRate;
       totalSAR += sarRef;
     } else {
-      usdRef = c.amount * qty;
+      usdRef = c.amount * multiplier;
       groupIDR = usdRef * usdRate;
       totalUSD += usdRef;
     }
