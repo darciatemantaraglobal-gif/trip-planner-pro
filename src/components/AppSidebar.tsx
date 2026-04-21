@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck, StickyNote } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck, StickyNote, FileSpreadsheet } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -45,6 +45,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
       items: [
         { title: t.nav_pdf, url: "/pdf-generator", icon: FileText, end: false },
         { title: t.nav_notes, url: "/notes", icon: StickyNote, end: false },
+        { title: t.nav_exports ?? "Export Center", url: "/exports", icon: FileSpreadsheet, end: false },
       ],
     },
   ];

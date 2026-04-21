@@ -24,9 +24,12 @@ create table if not exists public.jamaah (
   passport_number text not null default '',
   gender          text not null default '',
   photo_data_url  text,
+  needs_review    boolean not null default false,
   created_at      timestamptz not null default now()
 );
 create index if not exists jamaah_trip_idx on public.jamaah (trip_id);
+-- Idempotent column add (untuk DB lama)
+alter table public.jamaah add column if not exists needs_review boolean not null default false;
 
 create table if not exists public.jamaah_docs (
   id          text primary key,
@@ -120,3 +123,20 @@ create policy "buckets_open_all" on storage.objects
   for all
   using (bucket_id in ('jamaah-photos','jamaah-docs','pdf-templates'))
   with check (bucket_id in ('jamaah-photos','jamaah-docs','pdf-templates'));
+
+-- ── REALTIME PUBLICATION ────────────────────────────────────────────────────
+-- Tabel-tabel ini akan emit perubahan via Supabase Realtime ke semua client.
+do $$
+declare t text;
+begin
+  for t in select unnest(array[
+    'trips','jamaah','jamaah_docs','packages',
+    'package_calculations','notes','pdf_templates'
+  ]) loop
+    -- tambahin ke publication kalau belum ada (idempotent)
+    begin
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    exception when duplicate_object then null;
+    end;
+  end loop;
+end$$;

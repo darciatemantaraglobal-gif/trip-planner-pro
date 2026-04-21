@@ -11,7 +11,10 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
   - `src/features/packages/packagesRepo.ts` — packages
   - `src/lib/cloudSync.ts` — notes (`pullNotes/syncNotesFull`) & package calculations (`pullPackageCalc/pushPackageCalc`)
 - **One-shot migration**: `src/lib/migrateLocalToSupabase.ts` — dipanggil dari `StoreBootstrap` di `App.tsx` setelah login. Bulk upsert semua data localStorage → Supabase, set flag `travelhub.supabase.migrated.v1`.
-- **Photos/docs**: masih disimpen base64 di kolom TEXT (`photo_data_url`, `data_url`). Bucket Storage udah dibuat tapi belum dipakai — TODO migrasi base64 → bucket di iterasi berikutnya.
+- **Photos/docs**: foto/dokumen baru di-upload ke bucket `jamaah-photos` & `jamaah-docs` via `src/lib/supabaseStorage.ts`. Kolom `photo_data_url` / `data_url` sekarang menyimpan public URL bucket. Data lama base64 ikut termigrasi otomatis pas one-shot migration jalan (bulk upsert convert dataURL → upload).
+- **Realtime sync**: `src/lib/supabaseRealtime.ts` subscribe perubahan `trips` / `jamaah` / `packages` (publication `supabase_realtime`). Perubahan dari device lain auto-refresh store.
+- **MRZ needs_review**: kolom `needs_review` di tabel `jamaah`. Kalau OCR paspor checksum gagal, jamaah ditandai → badge ⚠ "Perlu Review" tampil di list & profil.
+- **Export Center** (`/exports`): generate Excel Rooming List (2 jamaah/kamar, dipisah gender) & Flight Manifest (data paspor) per trip pakai library `xlsx`.
 - **Security TODO (v2)**: schema sekarang pake open RLS policy (anon key full access). Sebelum production wajib: (a) ganti login authStore ke Supabase Auth, (b) tightening RLS pakai `auth.uid()`.
 
 ## Calculator — Batch Update (Completed)

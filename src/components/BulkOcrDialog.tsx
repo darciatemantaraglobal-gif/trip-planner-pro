@@ -165,6 +165,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
           passportNumber: row.data.passportNumber.trim(),
           gender: row.data.gender,
           photoDataUrl: row.previewUrl.startsWith("blob:") ? undefined : row.previewUrl,
+          needsReview: row.mrzValid === false,
         });
       }
       toast.success(`${validRows.length} jamaah berhasil disimpan.`);

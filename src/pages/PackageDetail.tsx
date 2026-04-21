@@ -369,6 +369,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [mrzInvalid, setMrzInvalid] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
 
   const reset = () => {
@@ -403,6 +404,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
         passportNumber: result.passportNumber || prev.passportNumber,
         gender: result.gender || prev.gender,
       }));
+      setMrzInvalid(result.checksums ? !result.mrzValid : false);
       const found = countPassportDataFields(result);
       if (found > 0) toast.success(`OCR berhasil, ${found} field terisi.`);
       else toast.warning("MRZ paspor belum kebaca. Coba foto yang lebih jelas.");
@@ -419,7 +421,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
     if (!form.name.trim()) { toast.error("Nama jamaah wajib diisi."); return; }
     setSaving(true);
     try {
-      await addJamaah({ ...form, tripId: packageId, photoDataUrl });
+      await addJamaah({ ...form, tripId: packageId, photoDataUrl, needsReview: mrzInvalid });
       toast.success(`Jamaah "${form.name}" ditambahkan.`);
       reset();
       onClose();

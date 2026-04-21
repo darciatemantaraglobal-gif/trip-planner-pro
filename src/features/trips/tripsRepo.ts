@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { uploadJamaahPhoto, uploadJamaahDoc, isDataUrl } from "@/lib/supabaseStorage";
 
 export interface Trip {
   id: string;
@@ -20,6 +21,7 @@ export interface Jamaah {
   passportNumber: string;
   gender: "L" | "P" | "";
   photoDataUrl?: string;
+  needsReview?: boolean;
   createdAt: string;
 }
 
@@ -73,12 +75,15 @@ const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
   passportNumber: String(r.passport_number ?? ""),
   gender: ((r.gender as string) ?? "") as "L" | "P" | "",
   photoDataUrl: (r.photo_data_url as string) ?? undefined,
+  needsReview: Boolean(r.needs_review),
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
 const jamaahToRow = (j: Jamaah) => ({
   id: j.id, trip_id: j.tripId, name: j.name, phone: j.phone,
   birth_date: j.birthDate, passport_number: j.passportNumber, gender: j.gender,
-  photo_data_url: j.photoDataUrl ?? null, created_at: j.createdAt,
+  photo_data_url: j.photoDataUrl ?? null,
+  needs_review: !!j.needsReview,
+  created_at: j.createdAt,
 });
 
 const docFromRow = (r: Record<string, unknown>): JamaahDoc => ({
@@ -159,7 +164,12 @@ export async function listJamaah(tripId: string): Promise<Jamaah[]> {
 }
 
 export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Promise<Jamaah> {
-  const j: Jamaah = { ...draft, id: `j-${Date.now()}`, createdAt: new Date().toISOString() };
+  const id = `j-${Date.now()}`;
+  let photoUrl = draft.photoDataUrl;
+  if (isSupabaseConfigured() && isDataUrl(photoUrl)) {
+    photoUrl = await uploadJamaahPhoto(id, draft.passportNumber, photoUrl as string);
+  }
+  const j: Jamaah = { ...draft, photoDataUrl: photoUrl, id, createdAt: new Date().toISOString() };
   if (isSupabaseConfigured()) {
     const { error } = await supabase!.from("jamaah").insert(jamaahToRow(j));
     if (error) throw error;
@@ -172,14 +182,17 @@ export async function updateJamaah(id: string, patch: Partial<Jamaah>): Promise<
   const all = load<Jamaah>(JAMAAH_KEY, []);
   const idx = all.findIndex((j) => j.id === id);
   if (idx === -1) throw new Error("Jamaah not found");
-  const updated = { ...all[idx], ...patch };
-  all[idx] = updated;
+  const merged = { ...all[idx], ...patch };
+  if (isSupabaseConfigured() && isDataUrl(merged.photoDataUrl)) {
+    merged.photoDataUrl = await uploadJamaahPhoto(id, merged.passportNumber, merged.photoDataUrl!);
+  }
+  all[idx] = merged;
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("jamaah").update(jamaahToRow(updated)).eq("id", id);
+    const { error } = await supabase!.from("jamaah").update(jamaahToRow(merged)).eq("id", id);
     if (error) throw error;
   }
   save(JAMAAH_KEY, all);
-  return updated;
+  return merged;
 }
 
 export async function deleteJamaah(id: string): Promise<void> {
@@ -215,7 +228,12 @@ export async function listDocs(jamaahId: string): Promise<JamaahDoc[]> {
 }
 
 export async function addDoc(draft: Omit<JamaahDoc, "id" | "createdAt">): Promise<JamaahDoc> {
-  const d: JamaahDoc = { ...draft, id: `d-${Date.now()}`, createdAt: new Date().toISOString() };
+  const id = `d-${Date.now()}`;
+  let url = draft.dataUrl;
+  if (isSupabaseConfigured() && isDataUrl(url)) {
+    url = await uploadJamaahDoc(draft.jamaahId, draft.category, draft.fileName, url);
+  }
+  const d: JamaahDoc = { ...draft, dataUrl: url, id, createdAt: new Date().toISOString() };
   if (isSupabaseConfigured()) {
     const { error } = await supabase!.from("jamaah_docs").insert(docToRow(d));
     if (error) throw error;
@@ -241,11 +259,37 @@ export async function bulkUpsertTrips(trips: Trip[]) {
 }
 export async function bulkUpsertJamaah(jamaah: Jamaah[]) {
   if (!isSupabaseConfigured() || jamaah.length === 0) return;
-  const { error } = await supabase!.from("jamaah").upsert(jamaah.map(jamaahToRow));
+  // Upload base64 photos ke bucket dulu, ganti URL-nya
+  const migrated: Jamaah[] = [];
+  for (const j of jamaah) {
+    if (isDataUrl(j.photoDataUrl)) {
+      const url = await uploadJamaahPhoto(j.id, j.passportNumber, j.photoDataUrl!);
+      migrated.push({ ...j, photoDataUrl: url });
+    } else {
+      migrated.push(j);
+    }
+  }
+  const { error } = await supabase!.from("jamaah").upsert(migrated.map(jamaahToRow));
   if (error) throw error;
+  // Update local cache dengan URL baru
+  const all = load<Jamaah>(JAMAAH_KEY, []);
+  const next = all.map((existing) => migrated.find((m) => m.id === existing.id) ?? existing);
+  save(JAMAAH_KEY, next);
 }
 export async function bulkUpsertDocs(docs: JamaahDoc[]) {
   if (!isSupabaseConfigured() || docs.length === 0) return;
-  const { error } = await supabase!.from("jamaah_docs").upsert(docs.map(docToRow));
+  const migrated: JamaahDoc[] = [];
+  for (const d of docs) {
+    if (isDataUrl(d.dataUrl)) {
+      const url = await uploadJamaahDoc(d.jamaahId, d.category, d.fileName, d.dataUrl);
+      migrated.push({ ...d, dataUrl: url });
+    } else {
+      migrated.push(d);
+    }
+  }
+  const { error } = await supabase!.from("jamaah_docs").upsert(migrated.map(docToRow));
   if (error) throw error;
+  const all = load<JamaahDoc>(DOCS_KEY, []);
+  const next = all.map((existing) => migrated.find((m) => m.id === existing.id) ?? existing);
+  save(DOCS_KEY, next);
 }

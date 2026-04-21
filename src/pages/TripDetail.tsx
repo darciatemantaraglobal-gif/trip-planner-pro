@@ -51,6 +51,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   const [loading, setLoading] = useState(false);
   const [pendingCategory, setPendingCategory] = useState<DocCategory>("passport");
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [mrzInvalid, setMrzInvalid] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
 
   const photoRef = useRef<HTMLInputElement>(null);
@@ -92,6 +93,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
         passportNumber: result.passportNumber || f.passportNumber,
         gender: result.gender || f.gender,
       }));
+      setMrzInvalid(result.checksums ? !result.mrzValid : false);
       const fieldsFound = countPassportDataFields(result);
       if (fieldsFound > 0) toast.success(`OCR berhasil! ${fieldsFound} field terisi otomatis.`);
       else toast.warning("Teks MRZ tidak terbaca. Pastikan foto paspor jelas dan terbuka.");
@@ -132,7 +134,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
     if (!form.name) { toast.error("Nama jamaah wajib diisi."); return; }
     setLoading(true);
     try {
-      const j = await addJamaah({ ...form, tripId, photoDataUrl });
+      const j = await addJamaah({ ...form, tripId, photoDataUrl, needsReview: mrzInvalid });
       for (const doc of uploadedDocs) {
         await addDocument({
           jamaahId: j.id,
@@ -622,7 +624,14 @@ function JamaahCard({ jamaah, tripId, onDelete, onPreview }: { jamaah: Jamaah; t
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-sm text-[hsl(var(--card-foreground))] truncate">{jamaah.name}</h4>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <h4 className="font-semibold text-sm text-[hsl(var(--card-foreground))] truncate">{jamaah.name}</h4>
+          {jamaah.needsReview && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200" title="MRZ checksum gagal — cek ulang manual">
+              REVIEW
+            </span>
+          )}
+        </div>
         {jamaah.passportNumber && (
           <div className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
             <CreditCard strokeWidth={1.5} className="h-3 w-3" />

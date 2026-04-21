@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
-import { Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText, TrendingUp, RefreshCw, LogOut, StickyNote } from "lucide-react";
+import { Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText, TrendingUp, RefreshCw, LogOut, StickyNote, FileSpreadsheet } from "lucide-react";
 
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const bottomNavItems = [
   { title: "Progress", url: "/progress", icon: GitBranch, end: false },
   { title: "Catatan", url: "/notes", icon: StickyNote, end: false },
   { title: "PDF", url: "/pdf-generator", icon: FileText, end: false },
+  { title: "Export", url: "/exports", icon: FileSpreadsheet, end: false },
   { title: "Settings", url: "/settings", icon: Settings, end: false },
 ];
 

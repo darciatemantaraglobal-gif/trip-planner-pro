@@ -19,6 +19,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound.tsx";
 import PdfGenerator from "./pages/PdfGenerator";
 import Notes from "./pages/Notes";
+import ExportCenter from "./pages/ExportCenter";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
@@ -27,6 +28,7 @@ import { useRegionalStore } from "@/store/regionalStore";
 import { applyAppearanceSettings, loadAppearanceSettings } from "@/lib/appearance";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { migrateLocalToSupabase } from "@/lib/migrateLocalToSupabase";
+import { startRealtimeSync } from "@/lib/supabaseRealtime";
 import { toast } from "sonner";
 
 const queryClient = new QueryClient();
@@ -54,6 +56,14 @@ function StoreBootstrap() {
       await Promise.all([refreshPackages(), fetchTrips()]);
     })();
   }, [refreshRates, refreshPackages, fetchTrips, isAuthenticated]);
+
+  // Realtime sync — subscribe perubahan dari device lain
+  useEffect(() => {
+    if (!isAuthenticated || !isSupabaseConfigured()) return;
+    const unsubscribe = startRealtimeSync();
+    return unsubscribe;
+  }, [isAuthenticated]);
+
   return null;
 }
 
@@ -126,6 +136,7 @@ function AnimatedRoutes() {
       <Route path="/trips/:id" element={<RequireAuth><DashboardLayout><TripDetail /></DashboardLayout></RequireAuth>} />
       <Route path="/trips/:id/jamaah/:jamaahId" element={<RequireAuth><DashboardLayout><JamaahProfile /></DashboardLayout></RequireAuth>} />
       <Route path="/notes" element={<RequireAuth><DashboardLayout><Notes /></DashboardLayout></RequireAuth>} />
+      <Route path="/exports" element={<RequireAuth><DashboardLayout><ExportCenter /></DashboardLayout></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><DashboardLayout><Settings /></DashboardLayout></RequireAuth>} />
       <Route path="/auth" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<NotFound />} />
