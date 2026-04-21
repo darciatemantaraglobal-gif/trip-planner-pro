@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
-import { Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText, TrendingUp, RefreshCw, LogOut, StickyNote, FileSpreadsheet } from "lucide-react";
+import { Menu, LayoutDashboard, Calculator, Package, GitBranch, Settings, FileText, RefreshCw, LogOut, StickyNote, FileSpreadsheet, MoreHorizontal, ChevronRight } from "lucide-react";
 
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -8,15 +8,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRatesStore } from "@/store/ratesStore";
 import { useAuthStore } from "@/store/authStore";
 
-const bottomNavItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
-  { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
+// 5 primary tabs (last is "Lainnya" / More) — standard mobile pattern
+const primaryNavItems = [
+  { title: "Beranda", url: "/", icon: LayoutDashboard, end: true },
   { title: "Paket", url: "/packages", icon: Package, end: false },
+  { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
   { title: "Progress", url: "/progress", icon: GitBranch, end: false },
-  { title: "Catatan", url: "/notes", icon: StickyNote, end: false },
-  { title: "PDF", url: "/pdf-generator", icon: FileText, end: false },
-  { title: "Export", url: "/exports", icon: FileSpreadsheet, end: false },
-  { title: "Settings", url: "/settings", icon: Settings, end: false },
+];
+
+// Secondary items live inside the "Lainnya" bottom sheet
+const moreNavItems = [
+  { title: "Catatan", url: "/notes", icon: StickyNote, desc: "Catatan & memo cepat" },
+  { title: "PDF Generator", url: "/pdf-generator", icon: FileText, desc: "Buat PDF penawaran" },
+  { title: "Export Center", url: "/exports", icon: FileSpreadsheet, desc: "Rooming & manifest Excel" },
+  { title: "Pengaturan", url: "/settings", icon: Settings, desc: "Akun, tim, kurs, tampilan" },
 ];
 
 interface DashboardLayoutProps {
@@ -26,6 +31,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, noPadding = false }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { rates, mode: rateMode, loading: ratesLoading, lastUpdated, refresh: refreshRates } = useRatesStore();
@@ -40,6 +46,13 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
     return end ? location.pathname === url : location.pathname.startsWith(url);
   };
 
+  const moreActive = moreNavItems.some((m) => location.pathname.startsWith(m.url));
+
+  const goTo = (url: string) => {
+    setMoreOpen(false);
+    navigate(url);
+  };
+
   return (
     <>
       {/* ── Mobile layout ── */}
@@ -49,11 +62,11 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
       >
         <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {/* ── Mobile Header ── */}
+        {/* ── Mobile Header — compact, single row, no overflow ── */}
         <motion.header
-          className="pwa-header flex items-center px-4 shrink-0"
+          className="pwa-header flex items-center gap-2 px-3 shrink-0"
           style={{
-            height: "52px",
+            height: "48px",
             background: "hsl(var(--card))",
             borderBottom: "1px solid hsl(var(--border))",
           }}
@@ -61,64 +74,60 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           animate={{ opacity: 1 }}
           transition={{ duration: 0.25 }}
         >
-          {/* Hamburger — bare icon, no box */}
+          {/* Hamburger */}
           <button
-            className="flex items-center justify-center shrink-0 -ml-1 p-1.5 transition-opacity active:opacity-50"
+            aria-label="Buka menu"
+            className="flex items-center justify-center shrink-0 h-9 w-9 -ml-1 rounded-xl transition-opacity active:opacity-60"
             onClick={() => setSidebarOpen(true)}
           >
-            <Menu strokeWidth={1.6} className="h-[19px] w-[19px] text-[hsl(var(--foreground))]" />
+            <Menu strokeWidth={1.8} className="h-5 w-5 text-[hsl(var(--foreground))]" />
           </button>
 
-          {/* Brand lockup */}
-          <div className="flex items-center gap-2 ml-3 shrink-0">
-            <img src="/logo-igh-tour-text.png" alt="IGH Tour" className="h-7 w-auto object-contain" />
-            <div className="flex flex-col leading-none">
-              <span
-                className="text-[11px] font-black tracking-[0.05em] uppercase"
-                style={{
-                  fontFamily: "'Manrope', sans-serif",
-                  background: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                }}
-              >
-                IGH Tour
-              </span>
-              <span className="text-[9px] font-medium tracking-[0.1em] uppercase text-[hsl(var(--muted-foreground))] mt-[2px]">
-                Umrah & Haji
-              </span>
-            </div>
-          </div>
+          {/* Brand — minimal: just wordmark */}
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-1.5 shrink-0 -ml-0.5 transition-opacity active:opacity-60"
+          >
+            <img src="/logo-igh-tour-text.png" alt="IGH Tour" className="h-6 w-auto object-contain" />
+            <span
+              className="text-[12px] font-black tracking-[0.04em] uppercase leading-none"
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                background: "linear-gradient(135deg, #f97316 0%, #c2410c 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              IGH
+            </span>
+          </button>
 
           <div className="flex-1" />
 
-          {/* Rates — bare text, no box */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1.5" style={{ fontVariantNumeric: "tabular-nums" }}>
-              <div
-                className="h-1.5 w-1.5 rounded-full shrink-0"
-                style={{
-                  background: rateMode === "manual" ? "#f97316" : "#10b981",
-                  boxShadow: rateMode === "manual" ? "0 0 4px #f97316aa" : "0 0 4px #10b981aa",
-                }}
-              />
-              <span className="text-[10.5px] font-semibold text-[hsl(var(--muted-foreground))]">
-                USD <span className="text-orange-500 font-bold">{rates.USD ? `${(rates.USD / 1000).toFixed(1)}k` : "—"}</span>
-              </span>
-              <span className="text-[9px] text-[hsl(var(--border))]">·</span>
-              <span className="text-[10.5px] font-semibold text-[hsl(var(--muted-foreground))]">
-                SAR <span className="text-orange-500 font-bold">{rates.SAR ? `${(rates.SAR / 1000).toFixed(1)}k` : "—"}</span>
-              </span>
-            </div>
-            <button
-              onClick={() => refreshRates()}
-              className="transition-opacity active:opacity-50"
-              style={{ color: "hsl(var(--muted-foreground))" }}
-            >
-              <RefreshCw className={cn("h-3 w-3", ratesLoading && "animate-spin")} />
-            </button>
-          </div>
+          {/* Rates chip — single pill, tap to refresh */}
+          <button
+            onClick={() => refreshRates()}
+            className="flex items-center gap-1.5 shrink-0 h-7 px-2.5 rounded-full bg-orange-50 border border-orange-100 transition-opacity active:opacity-60"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+            title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Tap untuk perbarui"}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full shrink-0"
+              style={{
+                background: rateMode === "manual" ? "#f97316" : "#10b981",
+                boxShadow: rateMode === "manual" ? "0 0 4px #f97316aa" : "0 0 4px #10b981aa",
+              }}
+            />
+            <span className="text-[10.5px] font-bold text-orange-600 leading-none">
+              {rates.USD ? `$${(rates.USD / 1000).toFixed(1)}k` : "—"}
+            </span>
+            <span className="text-[10px] text-orange-200 leading-none">·</span>
+            <span className="text-[10.5px] font-bold text-orange-600 leading-none">
+              {rates.SAR ? `﷼${(rates.SAR / 1000).toFixed(1)}k` : "—"}
+            </span>
+            <RefreshCw className={cn("h-3 w-3 text-orange-400 ml-0.5", ratesLoading && "animate-spin")} />
+          </button>
         </motion.header>
 
         {/* Page content */}
@@ -139,7 +148,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           </AnimatePresence>
         </div>
 
-        {/* ── Bottom nav ── */}
+        {/* ── Bottom nav — 5 tabs (4 primary + Lainnya) ── */}
         <nav
           className="pwa-bottom-nav shrink-0"
           style={{
@@ -147,8 +156,8 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             borderTop: "1px solid hsl(var(--border))",
           }}
         >
-          <div className="flex items-center px-1 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))]">
-            {bottomNavItems.map((item) => {
+          <div className="flex items-stretch px-1 pt-1 pb-[max(8px,env(safe-area-inset-bottom))]">
+            {primaryNavItems.map((item) => {
               const isActive = activeCheck(item.url, item.end);
               return (
                 <NavLink
@@ -158,40 +167,38 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                   className="flex-1 flex flex-col items-center"
                 >
                   <motion.div
-                    className="flex flex-col items-center gap-[3px] w-full"
-                    whileTap={{ scale: 0.88 }}
+                    className="flex flex-col items-center gap-[3px] w-full pt-1.5 pb-0.5"
+                    whileTap={{ scale: 0.9 }}
                     transition={{ duration: 0.1 }}
                   >
-                    {/* Active bar on top */}
-                    <div className="w-full flex justify-center">
+                    <div className="w-full flex justify-center -mt-1 mb-0.5">
                       <AnimatePresence>
-                        {isActive && (
+                        {isActive ? (
                           <motion.div
                             layoutId="nav-bar"
-                            className="h-[2px] w-5 rounded-full bg-orange-500"
+                            className="h-[2.5px] w-6 rounded-full bg-orange-500"
                             initial={{ opacity: 0, scaleX: 0 }}
                             animate={{ opacity: 1, scaleX: 1 }}
                             exit={{ opacity: 0, scaleX: 0 }}
                             transition={{ type: "spring", stiffness: 500, damping: 35 }}
                           />
+                        ) : (
+                          <div className="h-[2.5px] w-6" />
                         )}
-                        {!isActive && <div className="h-[2px] w-5" />}
                       </AnimatePresence>
                     </div>
 
-                    {/* Icon — no box */}
                     <item.icon
-                      strokeWidth={isActive ? 2.2 : 1.5}
+                      strokeWidth={isActive ? 2.3 : 1.7}
                       className={cn(
-                        "h-[18px] w-[18px] transition-colors duration-150",
+                        "h-[20px] w-[20px] transition-colors duration-150",
                         isActive ? "text-orange-500" : "text-[hsl(var(--muted-foreground))]"
                       )}
                     />
 
-                    {/* Label */}
                     <span
                       className={cn(
-                        "text-[9.5px] font-semibold leading-none tracking-tight transition-colors duration-150",
+                        "text-[10px] font-semibold leading-none tracking-tight transition-colors duration-150 mt-1",
                         isActive ? "text-orange-500" : "text-[hsl(var(--muted-foreground))]"
                       )}
                     >
@@ -201,8 +208,150 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                 </NavLink>
               );
             })}
+
+            {/* Lainnya (More) — opens bottom sheet */}
+            <button
+              onClick={() => setMoreOpen(true)}
+              className="flex-1 flex flex-col items-center"
+              aria-label="Lainnya"
+            >
+              <motion.div
+                className="flex flex-col items-center gap-[3px] w-full pt-1.5 pb-0.5"
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.1 }}
+              >
+                <div className="w-full flex justify-center -mt-1 mb-0.5">
+                  <AnimatePresence>
+                    {moreActive ? (
+                      <motion.div
+                        layoutId="nav-bar"
+                        className="h-[2.5px] w-6 rounded-full bg-orange-500"
+                        initial={{ opacity: 0, scaleX: 0 }}
+                        animate={{ opacity: 1, scaleX: 1 }}
+                        exit={{ opacity: 0, scaleX: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    ) : (
+                      <div className="h-[2.5px] w-6" />
+                    )}
+                  </AnimatePresence>
+                </div>
+                <MoreHorizontal
+                  strokeWidth={moreActive ? 2.3 : 1.7}
+                  className={cn(
+                    "h-[20px] w-[20px] transition-colors duration-150",
+                    moreActive ? "text-orange-500" : "text-[hsl(var(--muted-foreground))]"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-semibold leading-none tracking-tight transition-colors duration-150 mt-1",
+                    moreActive ? "text-orange-500" : "text-[hsl(var(--muted-foreground))]"
+                  )}
+                >
+                  Lainnya
+                </span>
+              </motion.div>
+            </button>
           </div>
         </nav>
+
+        {/* ── "Lainnya" bottom sheet ── */}
+        <AnimatePresence>
+          {moreOpen && (
+            <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+              <motion.div
+                className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setMoreOpen(false)}
+              />
+              <motion.div
+                className="relative bg-[hsl(var(--card))] rounded-t-[1.75rem] shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 360, damping: 36, mass: 0.85 }}
+              >
+                {/* Grabber */}
+                <div className="flex justify-center pt-2.5 pb-1">
+                  <div className="h-1 w-10 rounded-full bg-[hsl(var(--border))]" />
+                </div>
+
+                {/* Header */}
+                <div className="px-5 pt-1 pb-3 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[15px] font-bold text-[hsl(var(--foreground))] leading-tight">Lainnya</h3>
+                    <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">Tools, ekspor, & pengaturan</p>
+                  </div>
+                  {currentUser && (
+                    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-orange-50">
+                      <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center text-white text-[10px] font-bold">
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-[11px] font-semibold text-orange-700 max-w-[100px] truncate">{displayName}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Items */}
+                <div className="px-3 space-y-1">
+                  {moreNavItems.map((item) => {
+                    const isActive = location.pathname.startsWith(item.url);
+                    return (
+                      <button
+                        key={item.url}
+                        onClick={() => goTo(item.url)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-colors text-left",
+                          isActive
+                            ? "bg-orange-50 text-orange-700"
+                            : "hover:bg-[hsl(var(--secondary))]"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                            isActive
+                              ? "bg-orange-500 text-white"
+                              : "bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]"
+                          )}
+                        >
+                          <item.icon strokeWidth={isActive ? 2.2 : 1.8} className="h-[17px] w-[17px]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={cn("text-[13.5px] font-semibold leading-tight", isActive ? "text-orange-700" : "text-[hsl(var(--foreground))]")}>
+                            {item.title}
+                          </div>
+                          <div className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-tight truncate">
+                            {item.desc}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))] shrink-0" />
+                      </button>
+                    );
+                  })}
+
+                  {/* Logout */}
+                  <button
+                    onClick={() => { setMoreOpen(false); handleLogout(); }}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl transition-colors text-left hover:bg-red-50 mt-2"
+                  >
+                    <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 bg-red-50 text-red-500">
+                      <LogOut strokeWidth={1.8} className="h-[17px] w-[17px]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13.5px] font-semibold leading-tight text-red-600">Keluar</div>
+                      <div className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-tight">Sign out dari akun</div>
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Desktop layout ── */}
