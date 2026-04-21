@@ -163,10 +163,13 @@ function NumCell({ value, onChange, placeholder }: {
 }) {
   return (
     <input
-      type="number"
-      min={0}
-      value={value || ""}
-      onChange={(e) => onChange(Number(e.target.value))}
+      type="text"
+      inputMode="numeric"
+      value={value > 0 ? value.toLocaleString("id-ID") : ""}
+      onChange={(e) => {
+        const stripped = e.target.value.replace(/\./g, "").replace(/[^0-9]/g, "");
+        onChange(stripped ? Number(stripped) : 0);
+      }}
       placeholder={placeholder ?? "0"}
       style={M}
       className="w-full h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] text-right focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
@@ -498,11 +501,14 @@ export default function Calculator() {
                 <span style={M} className="text-[10px] font-bold text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 shrink-0">{cur}</span>
                 <span style={M} className="text-[11px] text-muted-foreground">= Rp</span>
                 <input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="numeric"
                   placeholder={storeVal.toLocaleString("id-ID")}
-                  value={localVal || ""}
-                  onChange={(e) => setField(cur === "SAR" ? "localRateSAR" : "localRateUSD", Number(e.target.value))}
+                  value={localVal > 0 ? localVal.toLocaleString("id-ID") : ""}
+                  onChange={(e) => {
+                    const stripped = e.target.value.replace(/\./g, "").replace(/[^0-9]/g, "");
+                    setField(cur === "SAR" ? "localRateSAR" : "localRateUSD", stripped ? Number(stripped) : 0);
+                  }}
                   style={M}
                   className="h-6 w-28 text-[11px] font-bold border-0 bg-transparent shadow-none p-0 focus:outline-none"
                 />
@@ -557,10 +563,13 @@ export default function Calculator() {
           <div className="space-y-1">
             <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Jumlah Pax</label>
             <input
-              type="number"
-              min={1}
-              value={calc.pax || ""}
-              onChange={(e) => setField("pax", Math.max(1, Number(e.target.value)))}
+              type="text"
+              inputMode="numeric"
+              value={calc.pax > 0 ? calc.pax.toLocaleString("id-ID") : ""}
+              onChange={(e) => {
+                const stripped = e.target.value.replace(/\./g, "").replace(/[^0-9]/g, "");
+                setField("pax", Math.max(1, stripped ? Number(stripped) : 1));
+              }}
               style={M}
               className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
