@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useT } from "@/lib/regional";
 
 const STORAGE_KEY = "travelhub.notes.v2";
 
@@ -94,6 +95,7 @@ function wordCount(text: string): number {
 }
 
 export default function Notes() {
+  const t = useT();
   const [notes, setNotes] = useState<Note[]>(() => loadNotes());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -290,10 +292,10 @@ export default function Notes() {
           <StickyNote className="h-5 w-5 text-orange-500" strokeWidth={1.5} />
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))]">
-              Catatan
+              {t.notes_title}
             </h1>
             <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
-              {notes.length} catatan tersimpan
+              {notes.length} {t.notes_saved_count}
             </p>
           </div>
         </div>
@@ -307,7 +309,7 @@ export default function Notes() {
           ) : (
             <Plus className="h-3.5 w-3.5" />
           )}
-          {showAddForm ? "Tutup" : "Tambah"}
+          {showAddForm ? t.notes_close_btn : t.notes_new_btn}
         </Button>
       </div>
 
@@ -323,10 +325,10 @@ export default function Notes() {
           >
             <div className="rounded-2xl border border-orange-200 bg-orange-50/40 p-4 space-y-3">
               <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
-                Catatan Baru
+                {t.notes_label_new}
               </p>
               <Input
-                placeholder="Judul catatan…"
+                placeholder={t.notes_placeholder_title}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 className="h-9 text-[13px] bg-white"
@@ -338,7 +340,7 @@ export default function Notes() {
               <div className="relative">
                 <Textarea
                   ref={textareaRef}
-                  placeholder="Tulis isi catatan di sini…"
+                  placeholder={t.notes_placeholder_content}
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
                   rows={4}
@@ -366,7 +368,7 @@ export default function Notes() {
               </div>
               {newContent && (
                 <p className="text-[10px] text-muted-foreground">
-                  {wordCount(newContent)} kata · {newContent.length} karakter
+                  {wordCount(newContent)} {t.notes_words} · {newContent.length} {t.notes_chars}
                 </p>
               )}
               {/* Tags input */}
@@ -401,7 +403,7 @@ export default function Notes() {
                           addTag(tagInput, true);
                         }
                       }}
-                      placeholder="Tambah tag, Enter"
+                      placeholder={t.notes_add_tag}
                       className="h-5 w-32 text-[11px] border-0 bg-transparent shadow-none p-0 focus:outline-none text-slate-700 placeholder:text-slate-400"
                     />
                   </div>
@@ -409,7 +411,7 @@ export default function Notes() {
               </div>
               <div className="flex justify-between items-center gap-2">
                 <p className="text-[10px] text-muted-foreground hidden sm:block">
-                  Ctrl+Enter untuk simpan
+                  {t.notes_ctrl_enter}
                 </p>
                 <div className="flex gap-2 ml-auto">
                   <Button
@@ -418,7 +420,7 @@ export default function Notes() {
                     onClick={() => setShowAddForm(false)}
                     className="h-8"
                   >
-                    Batal
+                    {t.notes_cancel}
                   </Button>
                   <Button
                     size="sm"
@@ -426,7 +428,7 @@ export default function Notes() {
                     className="gap-1.5 rounded-xl gradient-primary text-white h-8"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Tambah
+                    {t.notes_new_btn}
                   </Button>
                 </div>
               </div>
@@ -442,7 +444,7 @@ export default function Notes() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Cari catatan…"
+                placeholder={t.notes_search}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 text-[13px] pl-8"
@@ -459,9 +461,9 @@ export default function Notes() {
             <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden bg-white shrink-0">
               {(
                 [
-                  { value: "newest", label: "Terbaru" },
-                  { value: "oldest", label: "Lama" },
-                  { value: "az", label: "A-Z" },
+                  { value: "newest", label: t.notes_sort_newest },
+                  { value: "oldest", label: t.notes_sort_oldest },
+                  { value: "az", label: t.notes_sort_az },
                 ] as { value: SortMode; label: string }[]
               ).map((s) => (
                 <button
@@ -492,7 +494,7 @@ export default function Notes() {
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 )}
               >
-                Semua
+                {t.notes_filter_all}
               </button>
               {allTags.map((tag) => (
                 <button
@@ -522,15 +524,15 @@ export default function Notes() {
           <StickyNote className="h-10 w-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">
             {search || filterTag
-              ? "Catatan tidak ditemukan."
-              : "Belum ada catatan."}
+              ? t.notes_not_found
+              : t.notes_empty}
           </p>
           {!showAddForm && !search && !filterTag && (
             <button
               onClick={() => setShowAddForm(true)}
               className="mt-2 text-[12px] text-orange-500 font-medium hover:text-orange-600 transition-colors"
             >
-              + Buat catatan pertama
+              {t.notes_first_note}
             </button>
           )}
         </div>
@@ -570,7 +572,7 @@ export default function Notes() {
                   />
                   {/* Color picker */}
                   <div className="flex gap-1.5 flex-wrap items-center">
-                    <span className="text-[10px] text-muted-foreground">Warna:</span>
+                    <span className="text-[10px] text-muted-foreground">{t.notes_color}</span>
                     {NOTE_COLORS.map((c) => (
                       <button
                         key={c.value}
@@ -615,8 +617,8 @@ export default function Notes() {
                   </div>
                   {editContent && (
                     <p className="text-[10px] text-muted-foreground">
-                      {wordCount(editContent)} kata · {editContent.length}{" "}
-                      karakter
+                      {wordCount(editContent)} {t.notes_words} · {editContent.length}{" "}
+                      {t.notes_chars}
                     </p>
                   )}
                   {/* Tags edit */}
@@ -650,7 +652,7 @@ export default function Notes() {
                             addTag(editTagInput, false);
                           }
                         }}
-                        placeholder="Tag baru"
+                        placeholder={t.notes_new_tag}
                         className="h-5 w-24 text-[11px] border-0 bg-transparent shadow-none p-0 focus:outline-none text-slate-700 placeholder:text-slate-400"
                       />
                     </div>
@@ -662,14 +664,14 @@ export default function Notes() {
                       onClick={cancelEdit}
                       className="h-7 gap-1 text-[12px]"
                     >
-                      <X className="h-3 w-3" /> Batal
+                      <X className="h-3 w-3" /> {t.notes_cancel}
                     </Button>
                     <Button
                       size="sm"
                       onClick={saveEdit}
                       className="h-7 gap-1 text-[12px] rounded-xl"
                     >
-                      <Check className="h-3 w-3" /> Simpan
+                      <Check className="h-3 w-3" /> {t.notes_save}
                     </Button>
                   </div>
                 </div>
@@ -693,7 +695,7 @@ export default function Notes() {
                             ? "text-orange-500 hover:bg-orange-100"
                             : "text-slate-400 hover:bg-orange-50 hover:text-orange-500"
                         )}
-                        title={note.pinned ? "Lepas pin" : "Pin catatan"}
+                        title={note.pinned ? t.notes_unpin : t.notes_pin}
                       >
                         {note.pinned ? (
                           <PinOff className="h-3.5 w-3.5" />
@@ -705,7 +707,7 @@ export default function Notes() {
                         type="button"
                         onClick={() => setExpandedNote(note)}
                         className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                        title="Perbesar"
+                        title={t.notes_expand}
                       >
                         <Maximize2 className="h-3.5 w-3.5" />
                       </button>
@@ -713,7 +715,7 @@ export default function Notes() {
                         type="button"
                         onClick={() => copyNote(note)}
                         className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                        title="Salin"
+                        title={t.notes_copy}
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </button>
@@ -721,7 +723,7 @@ export default function Notes() {
                         type="button"
                         onClick={() => startEdit(note)}
                         className="p-1 rounded-lg hover:bg-orange-100 text-slate-400 hover:text-orange-600 transition-colors"
-                        title="Edit"
+                        title={t.btn_edit}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
@@ -729,7 +731,7 @@ export default function Notes() {
                         type="button"
                         onClick={() => deleteNote(note.id)}
                         className="p-1 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-                        title="Hapus"
+                        title={t.btn_delete}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -771,7 +773,7 @@ export default function Notes() {
                       {note.content && (
                         <span className="text-[10px] text-slate-400">
                           <AlignLeft className="h-2.5 w-2.5 inline mr-0.5" />
-                          {wordCount(note.content)} kata
+                          {wordCount(note.content)} {t.notes_words}
                         </span>
                       )}
                       {note.content.trim() && (
@@ -781,7 +783,7 @@ export default function Notes() {
                             handleRapihkan(note.id, note.content)
                           }
                           disabled={formatting === note.id}
-                          title="Rapihkan Teks (AI)"
+                          title={t.notes_clean}
                           className="flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-600 font-medium transition-colors"
                         >
                           <Sparkles
@@ -790,7 +792,7 @@ export default function Notes() {
                               formatting === note.id && "animate-pulse"
                             )}
                           />
-                          Rapihkan
+                          {t.notes_clean}
                         </button>
                       )}
                     </div>
@@ -850,14 +852,14 @@ export default function Notes() {
                       }
                     }}
                     className="p-1.5 rounded-lg hover:bg-orange-100 text-slate-400 hover:text-orange-600 transition-colors"
-                    title="Edit"
+                    title={t.btn_edit}
                   >
                     <Edit3 className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => copyNote(expandedNote)}
                     className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                    title="Salin"
+                    title={t.notes_copy}
                   >
                     <Copy className="h-4 w-4" />
                   </button>
@@ -895,7 +897,7 @@ export default function Notes() {
                   </p>
                 ) : (
                   <p className="text-[13px] text-muted-foreground italic">
-                    Tidak ada isi catatan.
+                    {t.notes_no_content}
                   </p>
                 )}
               </div>
@@ -904,8 +906,8 @@ export default function Notes() {
               <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200/60 shrink-0">
                 <span className="text-[10px] text-muted-foreground">
                   {expandedNote.content
-                    ? `${wordCount(expandedNote.content)} kata · ${expandedNote.content.length} karakter`
-                    : "Kosong"}
+                    ? `${wordCount(expandedNote.content)} ${t.notes_words} · ${expandedNote.content.length} ${t.notes_chars}`
+                    : t.notes_empty_label}
                 </span>
                 <div className="flex items-center gap-2">
                   {expandedNote.content.trim() && (
@@ -922,7 +924,7 @@ export default function Notes() {
                           formatting === expandedNote.id && "animate-pulse"
                         )}
                       />
-                      Rapihkan
+                      {t.notes_clean}
                     </button>
                   )}
                   <button
@@ -933,7 +935,7 @@ export default function Notes() {
                     className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 font-medium transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Hapus
+                    {t.btn_delete}
                   </button>
                 </div>
               </div>

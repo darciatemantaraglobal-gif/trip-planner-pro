@@ -1,5 +1,6 @@
 import { useRegionalStore, type RegionalCurrency, type RegionalDateFormat, type RegionalTimezone } from "@/store/regionalStore";
 import { useRatesStore } from "@/store/ratesStore";
+import { getT, type Translations } from "@/lib/i18n";
 
 export function getLocale(lang: string): string {
   switch (lang) {
@@ -121,4 +122,13 @@ export function useRegional() {
     formatDate: (iso: string, style: "full" | "short" | "numeric" = "short") =>
       formatDateStr(iso, dateFormat, timezone, locale, style),
   };
+}
+
+/**
+ * Hook that returns the translation dictionary for the current language.
+ * Usage: const t = useT();  then use t.nav_dashboard, t.btn_save, etc.
+ */
+export function useT(): Translations {
+  const { language } = useRegionalStore();
+  return getT(language);
 }

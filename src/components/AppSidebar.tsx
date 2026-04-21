@@ -3,32 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
-
-const navGroups = [
-  {
-    label: null,
-    items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
-    ],
-  },
-  {
-    label: "Operasional",
-    items: [
-      { title: "Kalkulator", url: "/calculator", icon: Calculator, end: false },
-      { title: "Paket Trip", url: "/packages", icon: Package, end: false },
-      { title: "Progress", url: "/progress", icon: GitBranch, end: false },
-    ],
-  },
-  {
-    label: "Tools",
-    items: [
-      { title: "Generator PDF", url: "/pdf-generator", icon: FileText, end: false },
-      { title: "Catatan", url: "/notes", icon: StickyNote, end: false },
-    ],
-  },
-];
-
-const settingsItem = { title: "Pengaturan", url: "/settings", icon: Settings, end: false, danger: false };
+import { useT } from "@/lib/regional";
 
 const stagger: Variants = {
   hidden: {},
@@ -48,6 +23,33 @@ interface AppSidebarProps {
 export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const t = useT();
+
+  const navGroups = [
+    {
+      label: null,
+      items: [
+        { title: t.nav_dashboard, url: "/", icon: LayoutDashboard, end: true },
+      ],
+    },
+    {
+      label: t.nav_group_operational,
+      items: [
+        { title: t.nav_calculator, url: "/calculator", icon: Calculator, end: false },
+        { title: t.nav_packages, url: "/packages", icon: Package, end: false },
+        { title: t.nav_progress, url: "/progress", icon: GitBranch, end: false },
+      ],
+    },
+    {
+      label: t.nav_group_tools,
+      items: [
+        { title: t.nav_pdf, url: "/pdf-generator", icon: FileText, end: false },
+        { title: t.nav_notes, url: "/notes", icon: StickyNote, end: false },
+      ],
+    },
+  ];
+
+  const settingsItem = { title: t.nav_settings, url: "/settings", icon: Settings, end: false, danger: false };
 
   const isActive = (url: string, end: boolean) => {
     if (url === "#") return false;
@@ -179,7 +181,7 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
             strokeWidth={1.5}
             className="h-[17px] w-[17px] shrink-0 transition-colors duration-150 group-hover:text-red-500"
           />
-          <span className="flex-1 leading-none pl-1 text-left">Logout</span>
+          <span className="flex-1 leading-none pl-1 text-left">{t.nav_logout}</span>
         </button>
       </div>
     </aside>

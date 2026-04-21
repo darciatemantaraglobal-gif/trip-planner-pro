@@ -23,6 +23,7 @@ import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
 import { useAuthStore } from "@/store/authStore";
+import { useRegionalStore } from "@/store/regionalStore";
 import { applyAppearanceSettings, loadAppearanceSettings } from "@/lib/appearance";
 import { toast } from "sonner";
 
@@ -75,6 +76,16 @@ function AppearanceBootstrap() {
   return null;
 }
 
+function LangDirectionBootstrap() {
+  const language = useRegionalStore((s) => s.language);
+  useEffect(() => {
+    const isAr = language === "ar";
+    document.documentElement.dir = isAr ? "rtl" : "ltr";
+    document.documentElement.lang = language === "ar" ? "ar" : language === "en" ? "en" : "id";
+  }, [language]);
+  return null;
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const location = useLocation();
@@ -112,6 +123,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AppearanceBootstrap />
+      <LangDirectionBootstrap />
       <StoreBootstrap />
       <LoginAlertNotifier />
       <OfflineBar />

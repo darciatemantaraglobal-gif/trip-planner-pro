@@ -20,16 +20,7 @@ import {
 import { useRatesStore } from "@/store/ratesStore";
 import { useAuthStore, type Credential, type LoginEvent } from "@/store/authStore";
 import { useRegionalStore } from "@/store/regionalStore";
-
-const TABS = [
-  { key: "profile",       label: "Profil",     icon: User },
-  { key: "notifications", label: "Notifikasi", icon: Bell },
-  { key: "security",      label: "Keamanan",   icon: Shield },
-  { key: "appearance",    label: "Tampilan",   icon: Palette },
-  { key: "regional",      label: "Regional",   icon: Globe },
-  { key: "rates",         label: "Kurs",       icon: TrendingUp },
-  { key: "agents",        label: "Agen",       icon: Users },
-];
+import { useT } from "@/lib/regional";
 
 function SectionHeader({ title, desc }: { title: string; desc: string }) {
   return (
@@ -53,7 +44,18 @@ function ToggleRow({ label, desc, checked, onChange }: { label: string; desc: st
 }
 
 export default function Settings() {
+  const t = useT();
   const [tab, setTab] = useState("profile");
+
+  const TABS = [
+    { key: "profile",       label: t.settings_profile,       icon: User },
+    { key: "notifications", label: t.settings_notifications, icon: Bell },
+    { key: "security",      label: t.settings_security,      icon: Shield },
+    { key: "appearance",    label: t.settings_appearance,    icon: Palette },
+    { key: "regional",      label: t.settings_regional,      icon: Globe },
+    { key: "rates",         label: t.settings_rates,         icon: TrendingUp },
+    { key: "agents",        label: t.settings_agents,        icon: Users },
+  ];
 
   const [profile, setProfile] = useState({
     name: "",
@@ -555,13 +557,13 @@ export default function Settings() {
 
         {tab === "regional" && (
           <div className="space-y-3 max-w-xl">
-            <SectionHeader title="Regional" desc="Pengaturan bahasa, zona waktu, mata uang, dan format tanggal — diterapkan otomatis ke seluruh aplikasi" />
+            <SectionHeader title={t.settings_regional} desc={t.settings_regional_desc} />
             <div className="grid grid-cols-2 gap-2.5">
               {[
-                { key: "language",   label: "Bahasa",            opts: [{ v: "id", l: "Bahasa Indonesia" }, { v: "en", l: "English" }, { v: "ar", l: "العربية" }] },
-                { key: "timezone",   label: "Zona Waktu",        opts: [{ v: "Asia/Jakarta", l: "WIB (UTC+7)" }, { v: "Asia/Makassar", l: "WITA (UTC+8)" }, { v: "Asia/Jayapura", l: "WIT (UTC+9)" }] },
-                { key: "currency",   label: "Mata Uang Default", opts: [{ v: "IDR", l: "IDR — Rupiah" }, { v: "USD", l: "USD — Dollar" }, { v: "SAR", l: "SAR — Riyal" }] },
-                { key: "dateFormat", label: "Format Tanggal",    opts: [{ v: "dd/mm/yyyy", l: "DD/MM/YYYY" }, { v: "mm/dd/yyyy", l: "MM/DD/YYYY" }, { v: "yyyy-mm-dd", l: "YYYY-MM-DD" }] },
+                { key: "language",   label: t.settings_regional_lang,     opts: [{ v: "id", l: "Bahasa Indonesia" }, { v: "en", l: "English" }, { v: "ar", l: "العربية" }] },
+                { key: "timezone",   label: t.settings_regional_tz,       opts: [{ v: "Asia/Jakarta", l: "WIB (UTC+7)" }, { v: "Asia/Makassar", l: "WITA (UTC+8)" }, { v: "Asia/Jayapura", l: "WIT (UTC+9)" }] },
+                { key: "currency",   label: t.settings_regional_currency, opts: [{ v: "IDR", l: "IDR — Rupiah" }, { v: "USD", l: "USD — Dollar" }, { v: "SAR", l: "SAR — Riyal" }] },
+                { key: "dateFormat", label: t.settings_regional_date,     opts: [{ v: "dd/mm/yyyy", l: "DD/MM/YYYY" }, { v: "mm/dd/yyyy", l: "MM/DD/YYYY" }, { v: "yyyy-mm-dd", l: "YYYY-MM-DD" }] },
               ].map((field) => (
                 <div key={field.key} className="space-y-1">
                   <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))]">{field.label}</Label>
@@ -569,7 +571,7 @@ export default function Settings() {
                     value={(regional as Record<string, string>)[field.key]}
                     onValueChange={(v) => {
                       setRegional({ [field.key]: v } as Parameters<typeof setRegional>[0]);
-                      toast.success("Pengaturan regional diperbarui", { description: "Perubahan langsung diterapkan ke seluruh aplikasi." });
+                      toast.success(t.settings_regional_updated, { description: t.settings_regional_updated_desc });
                     }}
                   >
                     <SelectTrigger className="h-8 md:h-9 text-[13px] md:text-sm"><SelectValue /></SelectTrigger>
@@ -583,10 +585,10 @@ export default function Settings() {
 
             {/* Live preview */}
             <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-4 space-y-3">
-              <p className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Preview Format Aktif</p>
+              <p className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">{t.settings_regional_preview}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Angka / Mata Uang</p>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{t.settings_regional_number}</p>
                   <p className="text-sm font-bold text-[hsl(var(--foreground))]">
                     {currency === "IDR"
                       ? `Rp ${(25000000).toLocaleString(language === "id" ? "id-ID" : "en-US")}`
@@ -596,7 +598,7 @@ export default function Settings() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">Tanggal</p>
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{t.settings_regional_date_label}</p>
                   <p className="text-sm font-bold text-[hsl(var(--foreground))]">
                     {(() => {
                       const d = new Date("2025-07-15T00:00:00");

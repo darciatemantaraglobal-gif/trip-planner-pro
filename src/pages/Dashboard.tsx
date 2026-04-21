@@ -11,7 +11,7 @@ import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useAuthStore } from "@/store/authStore";
-import { formatDateStr, getLocale } from "@/lib/regional";
+import { formatDateStr, getLocale, useT } from "@/lib/regional";
 import { useRegionalStore } from "@/store/regionalStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -40,33 +40,25 @@ function getTotalJamaah(): number {
   }
 }
 
-function getGreeting(name: string): string {
+function getGreeting(name: string, t: ReturnType<typeof useT>): string {
   const h = new Date().getHours();
   const prefix =
-    h < 5 ? "Selamat Malam" :
-    h < 12 ? "Selamat Pagi" :
-    h < 15 ? "Selamat Siang" :
-    h < 18 ? "Selamat Sore" : "Selamat Malam";
+    h < 5 ? t.greeting_early_morning :
+    h < 12 ? t.greeting_morning :
+    h < 15 ? t.greeting_day :
+    h < 18 ? t.greeting_afternoon : t.greeting_evening;
   const firstName = name.split(" ")[0];
   return `${prefix}, ${firstName}!`;
 }
 
-function formatTodayFull(): string {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatTodayFull(locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(new Date());
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  Draft: "Draft",
-  Calculated: "Dihitung",
-  Confirmed: "Dikonfirmasi",
-  Paid: "Lunas",
-  Completed: "Selesai",
-};
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: "bg-gray-100 text-gray-600",
@@ -536,9 +528,20 @@ export default function Dashboard() {
   const { trips, loadingTrips, fetchTrips, removeTrip } = useTripsStore();
   const { items: packages, loaded: packagesLoaded, refresh: refreshPackages } = usePackagesStore();
   const user = useAuthStore((s) => s.user);
+  const { language } = useRegionalStore();
+  const locale = getLocale(language);
+  const t = useT();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [tab, setTab] = useState<"all" | "upcoming" | "done">("all");
+
+  const STATUS_LABELS: Record<string, string> = {
+    Draft: t.status_draft,
+    Calculated: t.status_calculated,
+    Confirmed: t.status_confirmed,
+    Paid: t.status_paid,
+    Completed: t.status_completed,
+  };
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
   useEffect(() => { if (!packagesLoaded) refreshPackages(); }, [packagesLoaded, refreshPackages]);
@@ -581,23 +584,23 @@ export default function Dashboard() {
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <h1 className="text-[18px] md:text-[22px] font-bold text-[hsl(var(--foreground))] leading-tight">
-                  {getGreeting(user?.displayName ?? "Admin")} 👋
+                  {getGreeting(user?.displayName ?? "Admin", t)} 👋
                 </h1>
                 <p className="text-[11.5px] md:text-[12.5px] text-[hsl(var(--muted-foreground))] mt-1 capitalize">
-                  {formatTodayFull()}
+                  {formatTodayFull(locale)}
                 </p>
                 {nearestDeparture ? (
                   <div className="flex items-center gap-2 mt-2.5">
                     <div className="flex items-center gap-1.5 bg-orange-100 text-orange-700 rounded-full px-3 py-1 text-[11px] font-semibold">
                       <Plane strokeWidth={2} className="h-3 w-3 shrink-0" />
-                      <span>Keberangkatan terdekat:</span>
+                      <span>{t.dash_nearest_departure}</span>
                       <strong>{nearestDeparture.name}</strong>
                       <span className="text-orange-500">({daysUntil(nearestDeparture.departureDate!)})</span>
                     </div>
                   </div>
                 ) : (
                   <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-2 italic">
-                    Belum ada jadwal keberangkatan paket.
+                    {t.dash_no_schedule}
                   </p>
                 )}
               </div>
@@ -613,10 +616,10 @@ export default function Dashboard() {
           animate="visible"
         >
           {[
-            { icon: Plane, label: "Total Trip", value: trips.length, sub: "paket dibuat", color: "text-blue-500", onClick: () => {} },
-            { icon: TrendingUp, label: "Trip Aktif", value: activeTrips, sub: "sedang berjalan", color: "text-emerald-500", onClick: () => setTab("upcoming") },
-            { icon: CheckCircle, label: "Selesai", value: doneTrips, sub: "trip selesai", color: "text-purple-500", onClick: () => setTab("done") },
-            { icon: Users, label: "Total Jamaah", value: totalJamaah, sub: "jamaah terdaftar", color: "text-orange-500", onClick: () => navigate("/progress") },
+            { icon: Plane, label: t.dash_total_trip, value: trips.length, color: "text-blue-500", onClick: () => {} },
+            { icon: TrendingUp, label: t.dash_active_trip, value: activeTrips, color: "text-emerald-500", onClick: () => setTab("upcoming") },
+            { icon: CheckCircle, label: t.dash_done_trip, value: doneTrips, color: "text-purple-500", onClick: () => setTab("done") },
+            { icon: Users, label: t.dash_total_jamaah, value: totalJamaah, color: "text-orange-500", onClick: () => navigate("/progress") },
           ].map((stat) => (
             <motion.button
               key={stat.label}
@@ -641,10 +644,10 @@ export default function Dashboard() {
           transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
         >
           {[
-            { icon: Star, label: "Total Paket", value: packages.length, color: "bg-amber-50 text-amber-600", onClick: () => navigate("/packages") },
-            { icon: AlertCircle, label: "Perlu Aksi", value: pendingPackages.length, color: pendingPackages.length > 0 ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400", onClick: () => navigate("/packages") },
-            { icon: Clock, label: "Paket Lunas", value: packages.filter(p => p.status === "Paid").length, color: "bg-emerald-50 text-emerald-600", onClick: () => navigate("/packages") },
-            { icon: CheckCircle, label: "Paket Selesai", value: packages.filter(p => p.status === "Completed").length, color: "bg-purple-50 text-purple-600", onClick: () => navigate("/packages") },
+            { icon: Star, label: t.dash_total_packages, value: packages.length, color: "bg-amber-50 text-amber-600", onClick: () => navigate("/packages") },
+            { icon: AlertCircle, label: t.dash_need_action, value: pendingPackages.length, color: pendingPackages.length > 0 ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400", onClick: () => navigate("/packages") },
+            { icon: Clock, label: t.dash_paid_packages, value: packages.filter(p => p.status === "Paid").length, color: "bg-emerald-50 text-emerald-600", onClick: () => navigate("/packages") },
+            { icon: CheckCircle, label: t.dash_completed_packages, value: packages.filter(p => p.status === "Completed").length, color: "bg-purple-50 text-purple-600", onClick: () => navigate("/packages") },
           ].map((item) => (
             <button
               key={item.label}
@@ -671,12 +674,12 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-2">
                 <AlertCircle strokeWidth={1.5} className="h-4 w-4 text-amber-500" />
-                <h2 className="text-[13.5px] md:text-[14px] font-bold text-[hsl(var(--foreground))]">Paket Belum Selesai</h2>
+                <h2 className="text-[13.5px] md:text-[14px] font-bold text-[hsl(var(--foreground))]">{t.dash_needs_attention}</h2>
                 <span className="h-5 px-2 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center">{pendingPackages.length}</span>
               </div>
               <button onClick={() => navigate("/packages")}
                 className="text-[11px] text-[hsl(var(--primary))] font-medium hover:underline flex items-center gap-1">
-                Lihat semua <ChevronRight strokeWidth={2} className="h-3 w-3" />
+                {t.dash_view_all} <ChevronRight strokeWidth={2} className="h-3 w-3" />
               </button>
             </div>
             <div className="space-y-2">
@@ -731,7 +734,7 @@ export default function Dashboard() {
             className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-[border-color,background-color] duration-200 group active:scale-[0.98]"
           >
             <Calculator strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
-            <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Buka Kalkulator</span>
+            <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">{t.dash_open_calculator}</span>
             <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors ml-auto shrink-0" />
           </button>
           <button
@@ -739,7 +742,7 @@ export default function Dashboard() {
             className="flex items-center gap-1.5 md:gap-2 rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-2.5 md:px-3 py-2 md:py-2.5 hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))] transition-[border-color,background-color] duration-200 group active:scale-[0.98]"
           >
             <FileBarChart strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary))] shrink-0" />
-            <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">Laporan Progress</span>
+            <span className="text-[12px] md:text-[13px] font-medium text-[hsl(var(--foreground))] truncate">{t.dash_progress_report}</span>
             <ArrowRight strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] transition-colors ml-auto shrink-0" />
           </button>
         </motion.div>
@@ -747,9 +750,9 @@ export default function Dashboard() {
         {/* Section header */}
         <div className="flex items-center justify-between gap-2.5 mb-3 md:gap-3 md:mb-4">
           <div>
-            <h1 className="text-base md:text-xl font-bold text-[hsl(var(--foreground))]">Paket Trip</h1>
+            <h1 className="text-base md:text-xl font-bold text-[hsl(var(--foreground))]">{t.dash_packages_title}</h1>
               <div className="flex gap-2.5 md:gap-3 mt-1">
-              {[["all", "Semua"], ["upcoming", "Aktif"], ["done", "Selesai"]].map(([key, label]) => (
+              {[["all", t.dash_filter_all], ["upcoming", t.dash_filter_active], ["done", t.dash_filter_done]].map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => setTab(key as typeof tab)}
@@ -786,13 +789,13 @@ export default function Dashboard() {
             <div className="h-20 w-20 flex items-center justify-center mb-5">
               <Plane strokeWidth={1.5} className="h-9 w-9" />
             </div>
-            <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">Belum ada paket trip</h2>
+            <h2 className="text-base font-semibold text-[hsl(var(--foreground))]">{t.dash_no_packages}</h2>
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1 max-w-xs">
-              Buat paket perjalanan pertama kamu di halaman Paket Trip.
+              {t.dash_no_packages_desc}
             </p>
             <Button onClick={() => navigate("/packages")}
               className="btn-glow mt-6 rounded-xl px-6 h-10">
-              <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> Buat Paket Pertama
+              <Plus strokeWidth={1.5} className="h-4 w-4 mr-2" /> {t.dash_create_first}
             </Button>
           </div>
         ) : (
@@ -806,7 +809,7 @@ export default function Dashboard() {
               <div className="h-9 w-9 md:h-11 md:w-11 flex items-center justify-center transition-colors">
                 <Plus strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" />
               </div>
-              <span className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">Tambah Paket</span>
+              <span className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))] font-medium">{t.dash_add_package}</span>
             </button>
           </div>
         )}
@@ -822,14 +825,14 @@ export default function Dashboard() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent style={{ background: "#fff", color: "hsl(var(--foreground))" }}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Paket Trip?</AlertDialogTitle>
+            <AlertDialogTitle>{t.dash_delete_title}</AlertDialogTitle>
             <AlertDialogDescription>
-              Paket <strong>"{deleteTarget?.name}"</strong> dan semua data jamaah di dalamnya akan dihapus permanen.
+              <strong>"{deleteTarget?.name}"</strong> {t.dash_delete_desc}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white">Hapus</AlertDialogAction>
+            <AlertDialogCancel>{t.btn_cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white">{t.btn_delete}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
