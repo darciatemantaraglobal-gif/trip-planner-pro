@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: "#f97316",
         background_color: "#fff7ed",
         display: "standalone",
-        display_override: ["standalone", "minimal-ui", "browser"],
+        display_override: ["fullscreen", "standalone"],
         orientation: "portrait-primary",
         scope: "/",
         start_url: "/?source=pwa",

@@ -30,6 +30,9 @@ import { useJamaahStore, type Jamaah } from "@/store/tripsStore";
 import { useRegional } from "@/lib/regional";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { pushPackageCalc, pullPackageCalc } from "@/lib/cloudSync";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { buildGoogleCalendarUrl, downloadICS } from "@/lib/calendarExport";
+import { CalendarPlus, Download, ExternalLink } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -753,9 +756,60 @@ export default function PackageDetail() {
             <span className="hidden sm:inline-flex items-center gap-1"><Calendar className="h-3 w-3 md:h-3.5 md:w-3.5" />{formatDate(pkg.updatedAt ?? "")}</span>
           </div>
         </div>
-        <Button onClick={() => setAddOpen(true)} size="sm" className="gradient-primary text-white rounded-xl shrink-0 h-8 px-3 text-xs md:h-10 md:px-4 md:text-sm">
-          <Plus className="h-3.5 w-3.5 mr-1" /> Jamaah
-        </Button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {pkg.departureDate && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-xl h-8 px-2.5 md:h-10 md:px-3 border-orange-200 text-orange-600 hover:bg-orange-50" title="Sinkron ke kalender">
+                  <CalendarPlus className="h-3.5 w-3.5 md:mr-1" />
+                  <span className="hidden md:inline text-xs">Kalender</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="text-[11px]">Sinkron ke Kalender</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    const url = buildGoogleCalendarUrl({
+                      title: `${pkg.emoji ?? "✈️"} ${pkg.name}`,
+                      description: `Paket Umrah/Haji IGH Tour\nDestinasi: ${pkg.destination}\nJamaah: ${jamaah.length}/${pkg.people} pax\nTotal: Rp ${pkg.totalIDR.toLocaleString("id-ID")}`,
+                      location: pkg.destination,
+                      startDate: pkg.departureDate!,
+                      allDay: true,
+                    });
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                  className="text-xs"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                  Tambah ke Google Calendar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    downloadICS(
+                      {
+                        title: `${pkg.emoji ?? "✈️"} ${pkg.name}`,
+                        description: `Paket Umrah/Haji IGH Tour\nDestinasi: ${pkg.destination}\nJamaah: ${jamaah.length}/${pkg.people} pax`,
+                        location: pkg.destination,
+                        startDate: pkg.departureDate!,
+                        allDay: true,
+                      },
+                      `${pkg.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics`
+                    );
+                    toast.success("File .ics berhasil diunduh");
+                  }}
+                  className="text-xs"
+                >
+                  <Download className="h-3.5 w-3.5 mr-2" />
+                  Unduh .ics (Apple/Outlook)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button onClick={() => setAddOpen(true)} size="sm" className="gradient-primary text-white rounded-xl shrink-0 h-8 px-3 text-xs md:h-10 md:px-4 md:text-sm">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Jamaah
+          </Button>
+        </div>
       </div>
 
       {/* ── Stat cards ── */}

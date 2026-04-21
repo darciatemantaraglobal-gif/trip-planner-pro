@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { LiveClock } from "@/components/LiveClock";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -799,6 +800,16 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* ── Live Clock (multi-timezone) ── */}
+        <motion.div
+          className="mb-3 md:mb-5"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <LiveClock />
         </motion.div>
 
         {/* ── Primary stat cards (4 main metrics) ── */}
