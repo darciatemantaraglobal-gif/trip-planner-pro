@@ -88,9 +88,6 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
     const errs: Partial<Record<keyof PackageDraft, string>> = {};
     if (!draft.name.trim()) errs.name = "Wajib diisi";
     if (!draft.destination.trim()) errs.destination = "Wajib diisi";
-    if (!draft.airline) errs.airline = "Pilih maskapai";
-    if (!draft.hotelLevel) errs.hotelLevel = "Pilih level hotel";
-    if (!draft.departureDate) errs.departureDate = "Wajib diisi";
     if ((draft.people ?? 0) < 1) errs.people = "Min 1";
     if ((draft.days ?? 0) < 1) errs.days = "Min 1";
     setErrors(errs);
@@ -103,12 +100,18 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
     try {
       await onSubmit(draft);
       onOpenChange(false);
+    } catch (err) {
+      console.error("Gagal simpan paket:", err);
+      // Surface the failure so user knows
+      setErrors((p) => ({ ...p, name: err instanceof Error ? err.message : "Gagal menyimpan paket" }));
     } finally {
       setSaving(false);
     }
   };
 
-  const canSave = draft.name.trim() && draft.destination.trim() && draft.airline && draft.hotelLevel && draft.departureDate;
+  // Hanya nama + destinasi yang benar-benar wajib; sisanya opsional supaya
+  // user bisa langsung simpan paket draft & lengkapi detail belakangan.
+  const canSave = !!draft.name.trim() && !!draft.destination.trim();
 
   return (
     <AnimatePresence>
@@ -390,8 +393,8 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                   type="button"
                   onClick={handleSave}
                   disabled={saving || !canSave}
-                  className="flex-1 h-10 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-400 shadow-sm"
-                  style={canSave && !saving ? { background: "linear-gradient(135deg,#f97316,#ea580c)" } : undefined}
+                  className="flex-1 h-10 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                  style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
                 >
                   {saving ? (
                     <>

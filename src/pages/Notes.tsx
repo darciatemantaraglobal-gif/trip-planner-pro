@@ -116,9 +116,13 @@ export default function Notes() {
   const [expandedNote, setExpandedNote] = useState<Note | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Gate: jangan push ke cloud sampai initial pull selesai. Tanpa ini,
+  // first effect run akan kirim local empty + delete semua note di cloud.
+  const pulledRef = useRef(!isSupabaseConfigured());
 
   useEffect(() => {
     saveNotes(notes);
+    if (!pulledRef.current) return;
     if (isSupabaseConfigured()) {
       void syncNotesFull(notes as NoteCloud[]).catch(() => undefined);
     }
@@ -126,14 +130,25 @@ export default function Notes() {
 
   // Pull from cloud on mount
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured()) {
+      pulledRef.current = true;
+      return;
+    }
     let cancelled = false;
     void pullNotes().then((cloud) => {
-      if (cancelled || !cloud) return;
-      // Only overwrite if cloud has data; otherwise local wins (will be pushed by migration)
-      if (cloud.length > 0) {
+      if (cancelled) return;
+      if (cloud && cloud.length > 0) {
         setNotes(cloud as Note[]);
         saveNotes(cloud as Note[]);
+      }
+      // Open the gate AFTER pull completes (whether cloud was empty or not).
+      // If cloud was empty but local has notes, the next mutation will push them.
+      // If both empty, nothing to push. Either way we no longer wipe the cloud.
+      pulledRef.current = true;
+      // If local has notes that cloud doesn't yet, push them once now.
+      const localNotes = loadNotes();
+      if (localNotes.length > 0 && (!cloud || cloud.length === 0)) {
+        void syncNotesFull(localNotes as NoteCloud[]).catch(() => undefined);
       }
     });
     return () => { cancelled = true; };

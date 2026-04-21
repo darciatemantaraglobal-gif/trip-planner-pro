@@ -18,6 +18,29 @@ interface Props {
   onSave: (t: Omit<PdfTemplate, "id" | "createdAt">) => void;
 }
 
+/* ─── Sample placeholder text for WYSIWYG preview ────────────────── */
+const FIELD_SAMPLES: Record<string, string> = {
+  quoteNumber: "#001/IGH/2025",
+  tier: "PREMIUM",
+  title: "Penawaran Umrah Ramadhan 1447H",
+  subtitle: "Program Umrah Regular",
+  dateRange: "10 – 25 Maret 2025",
+  customerName: "PT Sahabat Tour",
+  hotelMakkah: "Hilton Suites Makkah",
+  hotelMadinah: "Pullman Madinah",
+  makkahNights: "5 malam",
+  madinahNights: "4 malam",
+  updateDate: "Update: 21 Apr 2026",
+  website: "www.igh-tour.id",
+  contactPhone: "+62 812-3456-7890",
+  contactName: "Bpk. Hasan",
+  priceTable: "[ Tabel Harga di sini ]",
+};
+
+function getFieldSample(key: string, label: string): string {
+  return FIELD_SAMPLES[key] ?? label;
+}
+
 /* ─── Image Analysis ─────────────────────────────────────────────── */
 
 interface ImageZones {
@@ -184,6 +207,24 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
   const [mobileTab, setMobileTab] = useState<"settings" | "canvas">("settings");
   const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Track the rendered preview height (px) so we can scale `pt` font sizes
+  // into accurate px and give the editor a true WYSIWYG feel.
+  const [previewHeightPx, setPreviewHeightPx] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+    const ro = new ResizeObserver(() => {
+      setPreviewHeightPx(el.getBoundingClientRect().height);
+    });
+    ro.observe(el);
+    setPreviewHeightPx(el.getBoundingClientRect().height);
+    return () => ro.disconnect();
+  }, [backgroundImage, orientation]);
+
+  // A4 page height in pt (595 portrait → height 842, landscape → height 595)
+  const pageHeightPt = orientation === "landscape" ? 595 : 842;
+  const ptToPx = previewHeightPx > 0 ? previewHeightPx / pageHeightPt : 0;
 
   const measureImage = (dataUrl: string, autoOrientation = false) => {
     const img = new Image();
@@ -760,36 +801,62 @@ export function TemplateEditorDialog({ open, onOpenChange, initial, onSave }: Pr
                         )}
                       </AnimatePresence>
 
-                      {/* Field badges */}
+                      {/* Field previews — WYSIWYG: render text at the actual
+                          pt size (scaled to pixels) so what user sees here
+                          matches what jsPDF outputs. */}
                       {fields.map((field) => {
                         const defIndex = TEMPLATE_FIELD_DEFS.findIndex(
                           (d) => d.key === field.key
                         );
-                        const color = FIELD_COLORS[defIndex % FIELD_COLORS.length];
+                        const accent = FIELD_COLORS[defIndex % FIELD_COLORS.length];
                         const isSelected = selected === field.key;
+                        const sampleText = getFieldSample(field.key, field.label);
+                        const fontPx = ptToPx > 0 ? field.fontSize * ptToPx : field.fontSize;
                         return (
                           <motion.div
                             key={field.key}
-                            className="absolute select-none"
+                            className="absolute select-none group"
                             style={{
                               left: `${field.x}%`,
                               top: `${field.y}%`,
-                              transform: "translate(-50%, -50%)",
                               zIndex: isSelected ? 20 : 10,
+                              cursor: dragging === field.key ? "grabbing" : "grab",
                             }}
-                            initial={{ opacity: 0, scale: 0.4 }}
+                            initial={{ opacity: 0, scale: 0.6 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ type: "spring", stiffness: 400, damping: 20 }}
                             onMouseDown={(e) => handleMouseDown(e, field.key)}
                           >
+                            {/* Tiny floating label above the text */}
                             <div
-                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-white text-[9px] font-medium shadow-md cursor-grab active:cursor-grabbing transition-transform ${
-                                isSelected ? "scale-110 ring-2 ring-white ring-offset-1" : ""
+                              className={`absolute -top-3.5 left-0 flex items-center gap-0.5 px-1 py-px rounded text-white text-[8px] font-semibold shadow-sm whitespace-nowrap transition-opacity ${
+                                isSelected ? "opacity-100" : "opacity-60 group-hover:opacity-100"
                               }`}
-                              style={{ background: color, opacity: 0.9 }}
+                              style={{ background: accent }}
                             >
-                              <GripVertical className="h-2.5 w-2.5 opacity-70 shrink-0" />
+                              <GripVertical className="h-2 w-2 opacity-80" />
                               {field.label}
+                            </div>
+                            {/* The actual text preview — uses field.fontSize/bold/color.
+                                jsPDF anchors text by its baseline, not its top edge,
+                                so we offset the preview up by ~0.8em to match. */}
+                            <div
+                              className={`whitespace-nowrap leading-none transition-all ${
+                                isSelected ? "ring-2 ring-offset-1 rounded-sm" : ""
+                              }`}
+                              style={{
+                                fontFamily: "Helvetica, Arial, sans-serif",
+                                fontSize: `${fontPx}px`,
+                                fontWeight: field.bold ? 700 : 400,
+                                color: field.color,
+                                transform: "translateY(-0.8em)",
+                                boxShadow: isSelected
+                                  ? `0 0 0 2px ${accent}80`
+                                  : undefined,
+                                padding: "1px 2px",
+                              }}
+                            >
+                              {sampleText}
                             </div>
                           </motion.div>
                         );
