@@ -810,6 +810,12 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
   flex-direction: column;
   width: 100%;
   max-width: 100%;
+  /* Push entire app below notch / status bar in PWA standalone mode.
+     env(safe-area-inset-top) is 0 in normal browsers, so this is universal-safe. */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: hsl(var(--card));
 }
 
 /* Standalone mode — PWA installed, stronger safe-area handling */
@@ -827,16 +833,8 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
   }
 
-  /* Status bar respected in header */
-  .pwa-header {
-    padding-top: max(0.5rem, env(safe-area-inset-top)) !important;
-  }
-
-  /* Edge safe-areas (landscape iPad / iPhone) — keep content inside notch zone */
-  .pwa-main-content {
-    padding-left: max(var(--main-pl, 0px), env(safe-area-inset-left)) !important;
-    padding-right: max(var(--main-pr, 0px), env(safe-area-inset-right)) !important;
-  }
+  /* Note: header status-bar offset and edge insets are handled at the shell
+     level (.app-shell-mobile padding-top/left/right) so we don't double-pad. */
 }
 
 /* ── Splash screen full-bleed across all devices ─────────────────────── */
