@@ -6,6 +6,7 @@
  * di-push ke Supabase. Saat app start, `pullAll()` narik ulang dari cloud.
  */
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { requireAgencyId } from "@/store/authStore";
 
 // ── PACKAGE CALCULATIONS ────────────────────────────────────────────────────
 
@@ -25,8 +26,9 @@ export async function pullPackageCalc(packageId: string): Promise<unknown | null
 
 export async function pushPackageCalc(packageId: string, payload: unknown): Promise<void> {
   if (!isSupabaseConfigured()) return;
+  const agencyId = requireAgencyId();
   await supabase!.from("package_calculations").upsert({
-    package_id: packageId, payload, updated_at: new Date().toISOString(),
+    package_id: packageId, agency_id: agencyId, payload, updated_at: new Date().toISOString(),
   });
 }
 
@@ -62,10 +64,11 @@ const noteFromRow = (r: Record<string, unknown>): NoteCloud => ({
   createdAt: Number(r.created_at ?? Date.now()),
   updatedAt: Number(r.updated_at ?? Date.now()),
 });
-const noteToRow = (n: NoteCloud) => ({
+const noteToRow = (n: NoteCloud, agencyId?: string) => ({
   id: n.id, title: n.title, content: n.content, color: n.color,
   pinned: !!n.pinned, tags: n.tags ?? [],
   created_at: n.createdAt, updated_at: n.updatedAt,
+  ...(agencyId ? { agency_id: agencyId } : {}),
 });
 
 export async function pullNotes(): Promise<NoteCloud[] | null> {
@@ -77,7 +80,8 @@ export async function pullNotes(): Promise<NoteCloud[] | null> {
 
 export async function pushNotes(notes: NoteCloud[]): Promise<void> {
   if (!isSupabaseConfigured() || notes.length === 0) return;
-  await supabase!.from("notes").upsert(notes.map(noteToRow));
+  const agencyId = requireAgencyId();
+  await supabase!.from("notes").upsert(notes.map((n) => noteToRow(n, agencyId)));
 }
 
 export async function deleteNoteCloud(id: string): Promise<void> {

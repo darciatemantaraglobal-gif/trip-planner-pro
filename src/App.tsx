@@ -16,6 +16,7 @@ import TripDetail from "./pages/TripDetail";
 import JamaahProfile from "./pages/JamaahProfile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
 import PdfGenerator from "./pages/PdfGenerator";
 import Notes from "./pages/Notes";
@@ -114,11 +115,29 @@ function LangDirectionBootstrap() {
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const needsBootstrap = useAuthStore((s) => s.needsBootstrap);
   const location = useLocation();
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white/60 text-sm">
+        Memuat sesi…
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+  if (needsBootstrap) {
+    return <Navigate to="/bootstrap" replace />;
+  }
   return <>{children}</>;
+}
+
+function AuthInitBootstrap() {
+  const init = useAuthStore((s) => s.init);
+  useEffect(() => { init(); }, [init]);
+  return null;
 }
 
 function AnimatedRoutes() {
@@ -126,6 +145,7 @@ function AnimatedRoutes() {
   return (
     <Routes location={location}>
       <Route path="/login" element={<Login />} />
+      <Route path="/bootstrap" element={<Auth />} />
 
       <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/calculator" element={<RequireAuth><DashboardLayout><Calculator /></DashboardLayout></RequireAuth>} />
@@ -151,6 +171,7 @@ const App = () => (
       <Sonner />
       <AppearanceBootstrap />
       <LangDirectionBootstrap />
+      <AuthInitBootstrap />
       <StoreBootstrap />
       <LoginAlertNotifier />
       <OfflineBar />

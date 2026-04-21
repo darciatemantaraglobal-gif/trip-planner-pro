@@ -1,197 +1,185 @@
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plane, Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+// Bootstrap page: dipake sekali untuk bikin agency + owner pertama.
+// Halaman ini cuma boleh dipake kalo DB belum ada agency.
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Building2, Mail, Lock, User, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { bootstrapFirstOwner, useAuthStore } from "@/store/authStore";
+import { supabase } from "@/lib/supabase";
 
 export default function Auth() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [agencyName, setAgencyName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [alreadyBootstrapped, setAlreadyBootstrapped] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!supabase) { setChecking(false); return; }
+      // Cek apakah udah ada agency
+      try {
+        const { count, error: e } = await supabase
+          .from("agencies").select("*", { count: "exact", head: true });
+        if (!active) return;
+        if (e) {
+          // Bisa karena RLS — kalo unauth, error → asumsi belum bootstrap
+          setAlreadyBootstrapped(false);
+        } else {
+          setAlreadyBootstrapped((count ?? 0) > 0);
+        }
+      } catch {
+        setAlreadyBootstrapped(false);
+      } finally {
+        if (active) setChecking(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (!email || !password) {
-      setError("Please fill in all required fields.");
+    if (!agencyName.trim() || !email.trim() || !password.trim()) {
+      setError("Semua field wajib diisi.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter.");
       return;
     }
-    if (mode === "register" && !name) {
-      setError("Please enter your full name.");
-      return;
-    }
-
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await bootstrapFirstOwner({
+        agencyName: agencyName.trim(),
+        email: email.trim(),
+        password,
+        displayName: displayName.trim() || undefined,
+      });
+      setSuccess(true);
+      // Auto login
+      const result = await login(email.trim(), password);
+      if (result === "ok") {
+        setTimeout(() => navigate("/", { replace: true }), 600);
+      } else {
+        setTimeout(() => navigate("/login", { replace: true }), 600);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
       setLoading(false);
-      setError("Authentication is not connected yet. Please sign in from the login page.");
-    }, 1200);
+    }
   };
 
-  const switchMode = () => {
-    setMode(mode === "login" ? "register" : "login");
-    setError(null);
-  };
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <Loader2 className="h-6 w-6 animate-spin text-white/70" />
+      </div>
+    );
+  }
+
+  if (alreadyBootstrapped) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-6">
+        <div className="max-w-md text-center text-white">
+          <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" />
+          <h1 className="mt-4 text-xl font-bold">Bootstrap sudah dilakukan</h1>
+          <p className="mt-2 text-sm text-white/60">
+            Agency awal sudah dibuat. Silakan login pakai akun owner. Member baru hanya bisa diundang oleh owner dari menu Settings.
+          </p>
+          <button
+            onClick={() => navigate("/login", { replace: true })}
+            className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-orange-500 px-6 text-sm font-bold uppercase tracking-widest text-white"
+          >
+            Ke Halaman Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between p-12 gradient-hero text-primary-foreground relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-72 h-72 rounded-full bg-white blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-white blur-3xl" />
-        </div>
-        <div className="relative flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
-            <Plane className="h-5 w-5" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-orange-950 px-4 py-10">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md rounded-3xl border border-white/15 bg-white/5 p-8 backdrop-blur-md"
+      >
+        <div className="text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/30 border border-orange-400/40">
+            <Building2 className="h-5 w-5 text-orange-300" />
           </div>
-          <span className="text-lg font-bold">TravelHub</span>
-        </div>
-
-        <div className="relative space-y-6">
-          <h1 className="text-4xl font-bold leading-tight">
-            Manage your travel<br />business beautifully.
-          </h1>
-          <p className="text-lg opacity-90 max-w-md">
-            Build packages, calculate prices in multiple currencies, track every booking from draft to completion.
+          <h1 className="mt-4 text-xl font-extrabold text-white">Setup Agency Pertama</h1>
+          <p className="mt-1 text-[12px] text-white/60">
+            Bikin akun owner & nama agency. Hanya muncul sekali.
           </p>
-          <div className="flex gap-6 pt-4">
-            <div>
-              <div className="text-3xl font-bold">1.2K+</div>
-              <div className="text-sm opacity-80">Travelers</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">98%</div>
-              <div className="text-sm opacity-80">Satisfaction</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">24/7</div>
-              <div className="text-sm opacity-80">Support</div>
-            </div>
-          </div>
         </div>
-        <div className="relative text-sm opacity-70">© 2026 TravelHub. All rights reserved.</div>
-      </div>
 
-      {/* Right form */}
-      <div className="flex items-center justify-center p-6 md:p-12">
-        <Card className="w-full max-w-md border-0 shadow-elegant">
-          <CardContent className="p-8 space-y-6">
-            <div className="lg:hidden flex items-center gap-2 mb-4">
-              <div className="h-9 w-9 rounded-lg gradient-primary flex items-center justify-center">
-                <Plane className="h-4 w-4 text-primary-foreground" />
+        {success ? (
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-emerald-200 text-sm">
+            <CheckCircle2 className="h-4 w-4" />
+            Agency dibuat. Mengarahkan…
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/15 px-3 py-2.5 text-red-200 text-[12px]">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
               </div>
-              <span className="font-bold">TravelHub</span>
-            </div>
+            )}
 
-            <div>
-              <h2 className="text-2xl font-bold">{mode === "login" ? "Welcome back" : "Create account"}</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {mode === "login" ? "Sign in to continue managing your packages" : "Start managing trips in minutes"}
-              </p>
-            </div>
+            <Field icon={<Building2 className="h-4 w-4" />} label="Nama Agency"
+              value={agencyName} onChange={setAgencyName} placeholder="IGH Tour Jakarta" disabled={loading} />
+            <Field icon={<User className="h-4 w-4" />} label="Nama Owner"
+              value={displayName} onChange={setDisplayName} placeholder="Owner Name" disabled={loading} />
+            <Field icon={<Mail className="h-4 w-4" />} label="Email" type="email"
+              value={email} onChange={setEmail} placeholder="owner@agency.com" disabled={loading} />
+            <Field icon={<Lock className="h-4 w-4" />} label="Password (min 8 char)" type="password"
+              value={password} onChange={setPassword} placeholder="••••••••" disabled={loading} />
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-600 to-orange-400 text-sm font-extrabold uppercase tracking-widest text-white shadow-lg disabled:opacity-50"
+            >
+              {loading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Membuat…</>) : "Bikin Agency"}
+            </button>
 
-              {mode === "register" && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      placeholder="Jane Doe"
-                      className="pl-9"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    className="pl-9"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-9"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
+            <p className="text-center text-[11px] text-white/40">
+              Pastikan Edge Function <code>bootstrap</code> sudah di-deploy.
+            </p>
+          </form>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full gradient-primary text-primary-foreground shadow-md hover:opacity-90 transition-smooth"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {mode === "login" ? "Signing in..." : "Creating account..."}
-                  </>
-                ) : (
-                  <>{mode === "login" ? "Sign in" : "Create account"}</>
-                )}
-              </Button>
-            </form>
-
-            <div className="text-center text-sm text-muted-foreground">
-              {mode === "login" ? "New here?" : "Already have an account?"}{" "}
-              <button
-                type="button"
-                onClick={switchMode}
-                disabled={loading}
-                className="text-primary font-semibold hover:underline disabled:opacity-50"
-              >
-                {mode === "login" ? "Create an account" : "Sign in"}
-              </button>
-            </div>
-
-            <div className="text-center pt-4 border-t">
-              <Link to="/" className="text-xs text-muted-foreground hover:text-primary">
-                ← Back to dashboard
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+function Field({ icon, label, value, onChange, placeholder, type = "text", disabled }: {
+  icon: React.ReactNode; label: string; value: string;
+  onChange: (v: string) => void; placeholder: string; type?: string; disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="pl-1 text-[11px] font-bold uppercase tracking-widest text-white/70">{label}</label>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">{icon}</span>
+        <input
+          type={type} value={value} onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder} disabled={disabled}
+          className="h-11 w-full rounded-xl border border-white/20 bg-white/10 pl-10 pr-4 text-sm font-medium text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400/60 disabled:opacity-50"
+        />
       </div>
     </div>
   );

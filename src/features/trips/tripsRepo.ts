@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { uploadJamaahPhoto, uploadJamaahDoc, isDataUrl } from "@/lib/supabaseStorage";
+import { requireAgencyId } from "@/store/authStore";
 
 export interface Trip {
   id: string;
@@ -60,10 +61,11 @@ const tripFromRow = (r: Record<string, unknown>): Trip => ({
   coverImage: (r.cover_image as string) ?? undefined,
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
-const tripToRow = (t: Trip) => ({
+const tripToRow = (t: Trip, agencyId?: string) => ({
   id: t.id, name: t.name, destination: t.destination,
   start_date: t.startDate, end_date: t.endDate, emoji: t.emoji,
   cover_image: t.coverImage ?? null, created_at: t.createdAt,
+  ...(agencyId ? { agency_id: agencyId } : {}),
 });
 
 const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
@@ -78,12 +80,13 @@ const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
   needsReview: Boolean(r.needs_review),
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
-const jamaahToRow = (j: Jamaah) => ({
+const jamaahToRow = (j: Jamaah, agencyId?: string) => ({
   id: j.id, trip_id: j.tripId, name: j.name, phone: j.phone,
   birth_date: j.birthDate, passport_number: j.passportNumber, gender: j.gender,
   photo_data_url: j.photoDataUrl ?? null,
   needs_review: !!j.needsReview,
   created_at: j.createdAt,
+  ...(agencyId ? { agency_id: agencyId } : {}),
 });
 
 const docFromRow = (r: Record<string, unknown>): JamaahDoc => ({
@@ -96,10 +99,11 @@ const docFromRow = (r: Record<string, unknown>): JamaahDoc => ({
   dataUrl: String(r.data_url ?? ""),
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
-const docToRow = (d: JamaahDoc) => ({
+const docToRow = (d: JamaahDoc, agencyId?: string) => ({
   id: d.id, jamaah_id: d.jamaahId, category: d.category, label: d.label,
   file_name: d.fileName, file_type: d.fileType, data_url: d.dataUrl,
   created_at: d.createdAt,
+  ...(agencyId ? { agency_id: agencyId } : {}),
 });
 
 // ── TRIPS ───────────────────────────────────────────────────────────────────
@@ -118,7 +122,8 @@ export async function listTrips(): Promise<Trip[]> {
 export async function createTrip(draft: Omit<Trip, "id" | "createdAt">): Promise<Trip> {
   const t: Trip = { ...draft, id: `t-${Date.now()}`, createdAt: new Date().toISOString() };
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("trips").insert(tripToRow(t));
+    const agencyId = requireAgencyId();
+    const { error } = await supabase!.from("trips").insert(tripToRow(t, agencyId));
     if (error) throw error;
   }
   save(TRIPS_KEY, [t, ...load<Trip>(TRIPS_KEY, [])]);
@@ -171,7 +176,8 @@ export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Pro
   }
   const j: Jamaah = { ...draft, photoDataUrl: photoUrl, id, createdAt: new Date().toISOString() };
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("jamaah").insert(jamaahToRow(j));
+    const agencyId = requireAgencyId();
+    const { error } = await supabase!.from("jamaah").insert(jamaahToRow(j, agencyId));
     if (error) throw error;
   }
   save(JAMAAH_KEY, [...load<Jamaah>(JAMAAH_KEY, []), j]);
@@ -235,7 +241,8 @@ export async function addDoc(draft: Omit<JamaahDoc, "id" | "createdAt">): Promis
   }
   const d: JamaahDoc = { ...draft, dataUrl: url, id, createdAt: new Date().toISOString() };
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("jamaah_docs").insert(docToRow(d));
+    const agencyId = requireAgencyId();
+    const { error } = await supabase!.from("jamaah_docs").insert(docToRow(d, agencyId));
     if (error) throw error;
   }
   save(DOCS_KEY, [...load<JamaahDoc>(DOCS_KEY, []), d]);
@@ -254,11 +261,13 @@ export async function deleteDoc(id: string): Promise<void> {
 
 export async function bulkUpsertTrips(trips: Trip[]) {
   if (!isSupabaseConfigured() || trips.length === 0) return;
-  const { error } = await supabase!.from("trips").upsert(trips.map(tripToRow));
+  const agencyId = requireAgencyId();
+  const { error } = await supabase!.from("trips").upsert(trips.map((t) => tripToRow(t, agencyId)));
   if (error) throw error;
 }
 export async function bulkUpsertJamaah(jamaah: Jamaah[]) {
   if (!isSupabaseConfigured() || jamaah.length === 0) return;
+  const agencyId = requireAgencyId();
   // Upload base64 photos ke bucket dulu, ganti URL-nya
   const migrated: Jamaah[] = [];
   for (const j of jamaah) {
@@ -269,7 +278,7 @@ export async function bulkUpsertJamaah(jamaah: Jamaah[]) {
       migrated.push(j);
     }
   }
-  const { error } = await supabase!.from("jamaah").upsert(migrated.map(jamaahToRow));
+  const { error } = await supabase!.from("jamaah").upsert(migrated.map((j) => jamaahToRow(j, agencyId)));
   if (error) throw error;
   // Update local cache dengan URL baru
   const all = load<Jamaah>(JAMAAH_KEY, []);
@@ -278,6 +287,7 @@ export async function bulkUpsertJamaah(jamaah: Jamaah[]) {
 }
 export async function bulkUpsertDocs(docs: JamaahDoc[]) {
   if (!isSupabaseConfigured() || docs.length === 0) return;
+  const agencyId = requireAgencyId();
   const migrated: JamaahDoc[] = [];
   for (const d of docs) {
     if (isDataUrl(d.dataUrl)) {
@@ -287,7 +297,7 @@ export async function bulkUpsertDocs(docs: JamaahDoc[]) {
       migrated.push(d);
     }
   }
-  const { error } = await supabase!.from("jamaah_docs").upsert(migrated.map(docToRow));
+  const { error } = await supabase!.from("jamaah_docs").upsert(migrated.map((d) => docToRow(d, agencyId)));
   if (error) throw error;
   const all = load<JamaahDoc>(DOCS_KEY, []);
   const next = all.map((existing) => migrated.find((m) => m.id === existing.id) ?? existing);

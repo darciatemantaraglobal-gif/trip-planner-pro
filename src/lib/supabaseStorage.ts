@@ -1,9 +1,9 @@
 /**
- * Helpers buat upload foto/dokumen ke Supabase Storage.
- * Foto jamaah & dokumen dipindah dari base64 (di kolom TEXT) ke bucket biar
- * database gak bengkak.
+ * Helpers buat upload foto/dokumen ke Supabase Storage, agency-scoped.
+ * Path convention: `{agency_id}/{file}` (RLS storage policy enforce).
  */
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { requireAgencyId } from "@/store/authStore";
 
 const PHOTO_BUCKET = "jamaah-photos";
 const DOC_BUCKET = "jamaah-docs";
@@ -30,19 +30,20 @@ function safeName(s: string): string {
   return s.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 60) || "file";
 }
 
-/** Upload foto jamaah; return public URL. Kalo input udah berupa http URL, balikin apa adanya. */
+/** Upload foto jamaah ke bucket, return public URL. Skip jika input udah URL. */
 export async function uploadJamaahPhoto(
   jamaahId: string,
   passportNumber: string,
   dataUrl: string,
 ): Promise<string> {
   if (!isSupabaseConfigured()) return dataUrl;
-  if (!dataUrl.startsWith("data:")) return dataUrl; // sudah URL
+  if (!dataUrl.startsWith("data:")) return dataUrl;
   const parsed = dataUrlToBlob(dataUrl);
   if (!parsed) return dataUrl;
+  const agencyId = requireAgencyId();
   const ext = extFromContentType(parsed.contentType);
   const base = passportNumber ? safeName(passportNumber) : safeName(jamaahId);
-  const path = `${base}_${Date.now()}.${ext}`;
+  const path = `${agencyId}/${base}_${Date.now()}.${ext}`;
   const { error } = await supabase!.storage.from(PHOTO_BUCKET).upload(path, parsed.blob, {
     upsert: true, contentType: parsed.contentType,
   });
@@ -54,7 +55,7 @@ export async function uploadJamaahPhoto(
   return data.publicUrl;
 }
 
-/** Upload dokumen jamaah; return public URL. */
+/** Upload dokumen jamaah ke bucket, return public URL. */
 export async function uploadJamaahDoc(
   jamaahId: string,
   category: string,
@@ -65,9 +66,10 @@ export async function uploadJamaahDoc(
   if (!dataUrl.startsWith("data:")) return dataUrl;
   const parsed = dataUrlToBlob(dataUrl);
   if (!parsed) return dataUrl;
+  const agencyId = requireAgencyId();
   const ext = extFromContentType(parsed.contentType);
   const base = `${safeName(jamaahId)}_${safeName(category)}_${safeName(fileName.replace(/\.[^.]+$/, ""))}`;
-  const path = `${base}_${Date.now()}.${ext}`;
+  const path = `${agencyId}/${base}_${Date.now()}.${ext}`;
   const { error } = await supabase!.storage.from(DOC_BUCKET).upload(path, parsed.blob, {
     upsert: true, contentType: parsed.contentType,
   });
@@ -79,7 +81,7 @@ export async function uploadJamaahDoc(
   return data.publicUrl;
 }
 
-/** Cek apakah string adalah base64 data URL (perlu di-upload). */
+/** Cek string adalah base64 data URL. */
 export function isDataUrl(s: string | undefined | null): boolean {
   return typeof s === "string" && s.startsWith("data:");
 }

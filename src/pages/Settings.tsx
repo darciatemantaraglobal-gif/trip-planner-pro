@@ -18,7 +18,8 @@ import {
   type AppearanceTheme,
 } from "@/lib/appearance";
 import { useRatesStore } from "@/store/ratesStore";
-import { useAuthStore, type Credential, type LoginEvent } from "@/store/authStore";
+import { useAuthStore, type LoginEvent, type MemberInfo } from "@/store/authStore";
+import { migrateBase64ToStorage, type MigrateProgress } from "@/lib/migrateBase64ToStorage";
 import { useRegionalStore } from "@/store/regionalStore";
 import { useT } from "@/lib/regional";
 
@@ -100,9 +101,9 @@ export default function Settings() {
 
   const {
     user,
-    addAgent,
-    removeAgent,
-    allCredentials,
+    inviteMember,
+    removeMember,
+    listMembers,
     changePassword,
     getSecuritySettings,
     updateSecuritySettings,
@@ -110,11 +111,15 @@ export default function Settings() {
     getLoginHistory,
   } = useAuthStore();
 
-  const [agents, setAgents] = useState<Credential[]>([]);
-  const [newAgentUsername, setNewAgentUsername] = useState("");
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentPass, setNewAgentPass] = useState("");
-  const [addingAgent, setAddingAgent] = useState(false);
+  const isOwner = user?.role === "owner";
+  const [members, setMembers] = useState<MemberInfo[]>([]);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberPass, setNewMemberPass] = useState("");
+  const [invitingMember, setInvitingMember] = useState(false);
+
+  const [migrating, setMigrating] = useState(false);
+  const [migrateProgress, setMigrateProgress] = useState<MigrateProgress | null>(null);
 
   const [loginHistory, setLoginHistory] = useState<LoginEvent[]>([]);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
@@ -124,8 +129,10 @@ export default function Settings() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
-    if (tab === "agents") setAgents(allCredentials());
-  }, [tab]);
+    if (tab === "agents") {
+      listMembers().then(setMembers).catch((e) => toast.error(`Gagal load member: ${e.message}`));
+    }
+  }, [tab, listMembers]);
 
   useEffect(() => {
     if (tab === "security") {
@@ -135,26 +142,57 @@ export default function Settings() {
     }
   }, [tab]);
 
-  const handleAddAgent = async () => {
-    if (!newAgentUsername || !newAgentName || !newAgentPass) {
-      toast.error("Lengkapi semua field agen."); return;
+  const handleInviteMember = async () => {
+    if (!newMemberEmail || !newMemberName || !newMemberPass) {
+      toast.error("Lengkapi semua field."); return;
     }
-    setAddingAgent(true);
+    if (newMemberPass.length < 8) {
+      toast.error("Password minimal 8 karakter."); return;
+    }
+    setInvitingMember(true);
     try {
-      await addAgent(newAgentUsername, newAgentName, newAgentPass);
-      setAgents(allCredentials());
-      setNewAgentUsername(""); setNewAgentName(""); setNewAgentPass("");
-      toast.success("Agen berhasil ditambahkan.");
+      await inviteMember(newMemberEmail.trim(), newMemberPass, newMemberName.trim());
+      setMembers(await listMembers());
+      setNewMemberEmail(""); setNewMemberName(""); setNewMemberPass("");
+      toast.success("Member diundang. Beri tahu password awalnya secara aman.");
     } catch (e: any) {
       toast.error(e.message);
     }
-    setAddingAgent(false);
+    setInvitingMember(false);
   };
 
-  const handleRemoveAgent = (username: string) => {
-    removeAgent(username);
-    setAgents(allCredentials());
-    toast.success("Agen dihapus.");
+  const handleRemoveMember = async (userId: string, displayName: string) => {
+    if (!confirm(`Hapus member "${displayName}"? Akun & akses dicabut permanen.`)) return;
+    try {
+      await removeMember(userId);
+      setMembers(await listMembers());
+      toast.success("Member dihapus.");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleMigrate = async () => {
+    if (!confirm("Migrasi semua foto/dokumen base64 di DB ke Supabase Storage. Lanjut?")) return;
+    setMigrating(true);
+    setMigrateProgress({ phase: "photos", total: 0, done: 0, failed: 0 });
+    try {
+      const res = await migrateBase64ToStorage((p) => setMigrateProgress(p));
+      const total = res.photosMigrated + res.docsMigrated;
+      const failed = res.photosFailed + res.docsFailed;
+      if (failed > 0) {
+        toast.warning(`Migrasi selesai: ${total} berhasil, ${failed} gagal.`, {
+          description: res.errors.slice(0, 3).join("\n"),
+        });
+      } else {
+        toast.success(`Migrasi selesai: ${total} item dipindahkan ke Storage.`);
+      }
+    } catch (e: any) {
+      toast.error(`Migrasi gagal: ${e.message}`);
+    } finally {
+      setMigrating(false);
+      setMigrateProgress(null);
+    }
   };
 
   const { language, timezone, currency, dateFormat, setRegional } = useRegionalStore();
@@ -789,54 +827,62 @@ export default function Settings() {
           </div>
         )}
 
-        {tab === "agents" && user?.role === "superadmin" && (
+        {tab === "agents" && (
           <div className="space-y-5 max-w-xl">
-            <SectionHeader title="Manajemen Agen" desc="Tambah, lihat, dan hapus akun agen yang bisa login secara mandiri" />
+            <SectionHeader title="Manajemen Tim" desc="Owner mengundang staf agar bisa login & berbagi data agency" />
 
-            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
-              <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
-                <p className="text-sm font-semibold">Tambah Agen Baru</p>
-              </div>
-              <div className="p-4 grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Username</Label>
-                  <Input value={newAgentUsername} onChange={(e) => setNewAgentUsername(e.target.value)} placeholder="cth: agen01" className="h-8 md:h-9 text-[13px] md:text-sm" />
+            {isOwner && (
+              <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+                <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
+                  <p className="text-sm font-semibold">Undang Staf Baru</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                    Akun langsung aktif; password awal dibagikan secara aman ke staf.
+                  </p>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Nama Lengkap</Label>
-                  <Input value={newAgentName} onChange={(e) => setNewAgentName(e.target.value)} placeholder="cth: Ahmad Fauzi" className="h-8 md:h-9 text-[13px] md:text-sm" />
-                </div>
-                <div className="space-y-1 col-span-2">
-                  <Label className="text-xs">Password</Label>
-                  <div className="flex gap-2">
-                    <Input type="password" value={newAgentPass} onChange={(e) => setNewAgentPass(e.target.value)} placeholder="min. 6 karakter" className="h-8 md:h-9 text-[13px] md:text-sm" />
-                    <Button onClick={handleAddAgent} disabled={addingAgent} className="h-9 px-4 rounded-xl gradient-primary text-white shrink-0">
-                      <Plus className="h-4 w-4 mr-1" /> Tambah
-                    </Button>
+                <div className="p-4 grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Email</Label>
+                    <Input type="email" value={newMemberEmail} onChange={(e) => setNewMemberEmail(e.target.value)} placeholder="staf@agency.com" className="h-8 md:h-9 text-[13px] md:text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nama Lengkap</Label>
+                    <Input value={newMemberName} onChange={(e) => setNewMemberName(e.target.value)} placeholder="cth: Ahmad Fauzi" className="h-8 md:h-9 text-[13px] md:text-sm" />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Password Awal (min 8)</Label>
+                    <div className="flex gap-2">
+                      <Input type="password" value={newMemberPass} onChange={(e) => setNewMemberPass(e.target.value)} placeholder="••••••••" className="h-8 md:h-9 text-[13px] md:text-sm" />
+                      <Button onClick={handleInviteMember} disabled={invitingMember} className="h-9 px-4 rounded-xl gradient-primary text-white shrink-0">
+                        <Plus className="h-4 w-4 mr-1" /> {invitingMember ? "Mengundang…" : "Undang"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
               <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
-                <p className="text-sm font-semibold">Daftar Pengguna ({agents.length})</p>
+                <p className="text-sm font-semibold">Anggota Agency ({members.length})</p>
               </div>
               <div className="divide-y divide-[hsl(var(--border))]">
-                {agents.map((a) => (
-                  <div key={a.username} className="flex items-center justify-between px-4 py-3">
+                {members.length === 0 && (
+                  <p className="px-4 py-6 text-center text-xs text-[hsl(var(--muted-foreground))]">Belum ada anggota lain.</p>
+                )}
+                {members.map((m) => (
+                  <div key={m.userId} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium">{a.displayName}</p>
+                      <p className="text-sm font-medium">{m.displayName || m.email}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-[hsl(var(--muted-foreground))] font-mono">@{a.username}</span>
+                        <span className="text-xs text-[hsl(var(--muted-foreground))] font-mono">{m.email}</span>
                         <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                          a.role === "superadmin" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
-                        )}>{a.role}</span>
+                          m.role === "owner" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"
+                        )}>{m.role}</span>
                       </div>
                     </div>
-                    {a.username !== user?.username && a.role !== "superadmin" && (
+                    {isOwner && m.role !== "owner" && m.userId !== user?.id && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-500"
-                        onClick={() => handleRemoveAgent(a.username)}>
+                        onClick={() => handleRemoveMember(m.userId, m.displayName || m.email)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
@@ -844,12 +890,35 @@ export default function Settings() {
                 ))}
               </div>
             </div>
-          </div>
-        )}
 
-        {tab === "agents" && user?.role !== "superadmin" && (
-          <div className="max-w-xl py-8 text-center">
-            <p className="text-[hsl(var(--muted-foreground))] text-sm">Hanya superadmin yang dapat mengelola agen.</p>
+            {isOwner && (
+              <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+                <div className="px-4 py-3 border-b border-[hsl(var(--border))]">
+                  <p className="text-sm font-semibold">Migrasi Penyimpanan</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                    Pindahkan foto & dokumen lama (base64 di DB) ke Supabase Storage. Aman dijalankan ulang.
+                  </p>
+                </div>
+                <div className="p-4 space-y-3">
+                  {migrateProgress && (
+                    <div className="rounded-xl bg-[hsl(var(--accent))] px-3 py-2 text-[12px] text-[hsl(var(--foreground))]">
+                      Phase: <strong>{migrateProgress.phase}</strong> — {migrateProgress.done}/{migrateProgress.total}
+                      {migrateProgress.failed > 0 && <span className="text-red-600"> · gagal: {migrateProgress.failed}</span>}
+                    </div>
+                  )}
+                  <Button onClick={handleMigrate} disabled={migrating} className="h-9 px-4 rounded-xl gradient-primary text-white">
+                    <RefreshCw className={cn("h-4 w-4 mr-1.5", migrating && "animate-spin")} />
+                    {migrating ? "Migrasi berjalan…" : "Mulai Migrasi Storage"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!isOwner && (
+              <p className="text-[12px] text-[hsl(var(--muted-foreground))] text-center pt-2">
+                Hanya owner agency yang dapat mengundang/menghapus anggota & menjalankan migrasi.
+              </p>
+            )}
           </div>
         )}
 

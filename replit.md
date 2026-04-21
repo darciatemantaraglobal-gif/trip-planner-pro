@@ -17,6 +17,31 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
 - **Export Center** (`/exports`): generate Excel Rooming List (2 jamaah/kamar, dipisah gender) & Flight Manifest (data paspor) per trip pakai library `xlsx`.
 - **Security TODO (v2)**: schema sekarang pake open RLS policy (anon key full access). Sebelum production wajib: (a) ganti login authStore ke Supabase Auth, (b) tightening RLS pakai `auth.uid()`.
 
+## Multi-tenant + Storage Security — v2 (Completed)
+Aplikasi sekarang multi-tenant per agency dengan RLS Supabase Auth (file lama tetap dipake, di-overlay sebagai v2):
+- **Tabel baru**: `agencies`, `agency_members` (PK: `(agency_id,user_id)`, role: `owner|staff`), `audit_logs` placeholder.
+- **Kolom `agency_id uuid`** ditambahkan ke 7 tabel domain (trips, jamaah, jamaah_docs, packages, package_calculations, notes, pdf_templates).
+- **Helper SQL**: `is_member(uuid)`, `is_owner(uuid)`, `current_agency_id()` — dipake di policy.
+- **RLS policies** per tabel: SELECT/INSERT/UPDATE/DELETE dibatasin via `is_member(agency_id)`. Policy lama `open_all` dihapus.
+- **Storage policies**: bucket `jamaah-photos`, `jamaah-docs`, `pdf-templates` cuma boleh diakses kalo `(storage.foldername(name))[1]::uuid` ada di agency_members user. Path convention wajib `{agency_id}/{file}`.
+- **Edge Functions** (`supabase/functions/`): `bootstrap` (one-time, bikin owner+agency pertama; refuse kalo udah ada agency), `invite-member` (owner-only, bikin auth user+row member), `remove-member` (owner-only). Deploy via README di folder. Wajib env `SUPABASE_SERVICE_ROLE_KEY`.
+- **Auth store** (`src/store/authStore.ts`): refactor ke `supabase.auth.signInWithPassword`. Tracks session+agency+role. Methods baru: `init`, `inviteMember`, `removeMember`, `listMembers`, `bootstrapFirstOwner` (helper), `requireAgencyId`. Supabase client `persistSession: true`.
+- **Repos**: `tripsRepo.ts`, `packagesRepo.ts`, `cloudSync.ts` inject `agency_id` di insert. RLS handle filter read.
+- **Storage paths**: `src/lib/supabaseStorage.ts` upload prefix `{agency_id}/...`.
+- **Migrasi base64 → Storage**: `src/lib/migrateBase64ToStorage.ts` (idempotent, scan `data:` URLs, upload, update DB). Tombol "Mulai Migrasi Storage" di Settings → tab Tim (owner-only).
+- **UI flow baru**:
+  - `/login` (`src/pages/Login.tsx`) — email + password ke Supabase Auth.
+  - `/bootstrap` (`src/pages/Auth.tsx`) — sekali pake. Cek `count(agencies)`; kalo kosong, form bikin agency+owner pertama (panggil Edge Function `bootstrap`).
+  - `RequireAuth` di `App.tsx` redirect: belum init → loading; unauth → `/login`; auth tanpa agency → `/bootstrap`; full → app.
+  - `<AuthInitBootstrap/>` mount sekali, panggil `useAuthStore.init()`.
+  - Settings tab "Tim" (`src/pages/Settings.tsx`): list members, invite (owner-only), remove (owner-only), tombol Migrasi Storage.
+- **PIN/2FA tetap local** (device-side, ga sync) — keep as-is.
+- **Deploy steps**:
+  1. Run `supabase/schema.sql` di SQL Editor (idempotent).
+  2. `supabase functions deploy bootstrap --no-verify-jwt` lalu `invite-member` & `remove-member` (perlu `SUPABASE_SERVICE_ROLE_KEY` di Functions secrets).
+  3. Buka `/bootstrap` → bikin owner pertama → login → owner invite staf via Settings.
+  4. (Optional) Klik "Mulai Migrasi Storage" di Settings untuk pindahin foto/doc lama base64 ke bucket.
+
 ## Calculator — Batch Update (Completed)
 - `effectiveRates` — kurs override per-form (localRateSAR/localRateUSD), fallback ke rates store
 - `toIDR` menggunakan effectiveRates

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import splashBackground from "@assets/image_1776663921386.png";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [phase, setPhase] = useState<"loading" | "form" | "pin">("loading");
@@ -38,8 +38,8 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    if (!username.trim() || !password.trim()) return;
-    const result = await login(username.trim(), password);
+    if (!email.trim() || !password.trim()) return;
+    const result = await login(email.trim(), password);
     if (result === "ok") navigate("/", { replace: true });
     else if (result === "needs_pin") setPhase("pin");
   };
@@ -136,15 +136,15 @@ export default function Login() {
 
                   <div className="space-y-1.5">
                     <label className="pl-1 text-[11px] font-bold uppercase tracking-widest text-white/70">
-                      Username
+                      Email
                     </label>
                     <input
                       ref={usernameRef}
-                      type="text"
-                      autoComplete="username"
-                      placeholder="admin"
-                      value={username}
-                      onChange={(e) => { setUsername(e.target.value); clearError(); }}
+                      type="email"
+                      autoComplete="email"
+                      placeholder="owner@agency.com"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); clearError(); }}
                       disabled={isLoading}
                       className="h-11 w-full rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-medium text-white placeholder-white/30 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-orange-400/60 disabled:opacity-50"
                     />

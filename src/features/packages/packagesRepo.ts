@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { requireAgencyId } from "@/store/authStore";
 
 export type PackageStatus = "Draft" | "Calculated" | "Confirmed" | "Paid" | "Completed";
 export type HotelLevel = "Bintang 3" | "Bintang 4" | "Bintang 5";
@@ -58,7 +59,7 @@ const fromRow = (r: Record<string, unknown>): Package => ({
   createdAt: String(r.created_at ?? new Date().toISOString()),
   updatedAt: String(r.updated_at ?? new Date().toISOString()),
 });
-const toRow = (p: Package) => ({
+const toRow = (p: Package, agencyId?: string) => ({
   id: p.id, name: p.name, destination: p.destination,
   people: p.people, days: p.days, hpp: p.hpp, total_idr: p.totalIDR,
   status: p.status, emoji: p.emoji, cover_image: p.coverImage ?? null,
@@ -66,6 +67,7 @@ const toRow = (p: Package) => ({
   hotel_level: p.hotelLevel ?? null, notes: p.notes ?? null,
   facilities: p.facilities ?? null,
   created_at: p.createdAt, updated_at: p.updatedAt,
+  ...(agencyId ? { agency_id: agencyId } : {}),
 });
 
 export async function listPackages(): Promise<Package[]> {
@@ -92,7 +94,8 @@ export async function createPackage(draft: PackageDraft): Promise<Package> {
   const now = new Date().toISOString();
   const pkg: Package = { ...draft, id: `p-${Date.now()}`, createdAt: now, updatedAt: now };
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("packages").insert(toRow(pkg));
+    const agencyId = requireAgencyId();
+    const { error } = await supabase!.from("packages").insert(toRow(pkg, agencyId));
     if (error) throw error;
   }
   saveStore([pkg, ...loadStore()]);
@@ -123,6 +126,7 @@ export async function deletePackage(id: string): Promise<void> {
 
 export async function bulkUpsertPackages(items: Package[]) {
   if (!isSupabaseConfigured() || items.length === 0) return;
-  const { error } = await supabase!.from("packages").upsert(items.map(toRow));
+  const agencyId = requireAgencyId();
+  const { error } = await supabase!.from("packages").upsert(items.map((p) => toRow(p, agencyId)));
   if (error) throw error;
 }
