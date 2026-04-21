@@ -215,3 +215,10 @@ src/
 - **Username**: `admin`
 - **Password**: `admin123`
 - **Role**: superadmin
+
+## Production Features (April 2026)
+
+- **#4 Image Compression** (DONE): `browser-image-compression` integrated via `src/lib/imageCompress.ts`. Photos & docs auto-compressed to ~600 KB / max 1800px before upload to Supabase Storage. Skips PDF & GIF, skips files <200 KB. Upload limit raised to 12 MB.
+- **#3 Allotment Control** (DONE): `trips.quota_pax` column. AddTripDialog has optional kuota input. TripDetail header shows `12/40 jamaah` + slot/PENUH badge. AddJamaahDialog blocks insert when full + Add button auto-disabled.
+- **#5 Audit Log** (DONE): SECURITY DEFINER trigger `audit_log_trigger` on trips/jamaah/jamaah_docs/packages/payments. Settings → Audit Log tab shows 100 most-recent activities with INSERT/UPDATE/DELETE badges.
+- **#2 Payment Tracking** (DONE): `payments` table + RLS + realtime. `paymentsRepo.ts` with types dp/installment/final/refund/other. `PaymentSection` in JamaahProfile shows total paid + history with add/delete; refunds subtract from total.

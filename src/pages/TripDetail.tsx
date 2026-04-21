@@ -44,6 +44,10 @@ interface UploadedDoc {
 function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: string; onClose: () => void }) {
   const addJamaah = useJamaahStore((s) => s.addJamaah);
   const addDocument = useDocsStore((s) => s.addDocument);
+  const trips = useTripsStore((s) => s.trips);
+  const jamaahList = useJamaahStore((s) => s.jamaah);
+  const trip = trips.find((t) => t.id === tripId);
+  const quotaFull = trip?.quotaPax != null && jamaahList.length >= trip.quotaPax;
 
   const [form, setForm] = useState({ name: "", phone: "", birthDate: "", passportNumber: "", gender: "" as "L" | "P" | "" });
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>();
@@ -70,7 +74,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Foto maks. 2 MB."); return; }
+    if (file.size > 12 * 1024 * 1024) { toast.error("Foto maks. 12 MB."); return; }
     const dataUrl = await fileToBase64(file);
     setPhotoDataUrl(dataUrl);
     e.target.value = "";
@@ -132,6 +136,10 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) { toast.error("Nama jamaah wajib diisi."); return; }
+    if (trip?.quotaPax != null && jamaahList.length >= trip.quotaPax) {
+      toast.error(`Kuota paket "${trip.name}" sudah penuh (${trip.quotaPax} pax). Tambah kuota dulu di pengaturan paket.`);
+      return;
+    }
     setLoading(true);
     try {
       const j = await addJamaah({ ...form, tripId, photoDataUrl, needsReview: mrzInvalid });
@@ -380,7 +388,7 @@ function JamaahPreviewDialog({
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Foto maks. 2 MB."); return; }
+    if (file.size > 12 * 1024 * 1024) { toast.error("Foto maks. 12 MB."); return; }
     const dataUrl = await fileToBase64(file);
     await patchJamaah(person.id, { photoDataUrl: dataUrl });
     toast.success("Foto diperbarui.");
@@ -686,6 +694,7 @@ export default function TripDetail() {
   const [previewTarget, setPreviewTarget] = useState<Jamaah | null>(null);
 
   const trip = trips.find((t) => t.id === id);
+  const quotaFull = trip?.quotaPax != null && jamaah.length >= trip.quotaPax;
 
   useEffect(() => {
     if (id) fetchJamaah(id);
@@ -723,11 +732,23 @@ export default function TripDetail() {
           <div className="flex flex-wrap gap-3 mt-1.5 text-sm text-[hsl(var(--muted-foreground))]">
             <span className="flex items-center gap-1"><MapPin strokeWidth={1.5} className="h-3.5 w-3.5" /> {trip.destination}</span>
             <span className="flex items-center gap-1"><CalendarDays strokeWidth={1.5} className="h-3.5 w-3.5" /> {trip.startDate ? formatDate(trip.startDate) : "—"} – {trip.endDate ? formatDate(trip.endDate) : "—"}</span>
-            <span className="flex items-center gap-1"><Users strokeWidth={1.5} className="h-3.5 w-3.5" /> {jamaah.length} jamaah</span>
+            <span className="flex items-center gap-1">
+              <Users strokeWidth={1.5} className="h-3.5 w-3.5" />
+              {jamaah.length}{trip.quotaPax ? `/${trip.quotaPax}` : ""} jamaah
+              {trip.quotaPax && (
+                <span className={cn(
+                  "ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                  quotaFull ? "bg-red-100 text-red-700" : jamaah.length / trip.quotaPax >= 0.8 ? "bg-amber-100 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                )}>
+                  {quotaFull ? "PENUH" : `${trip.quotaPax - jamaah.length} slot`}
+                </span>
+              )}
+            </span>
           </div>
         </div>
-        <Button onClick={() => setAddOpen(true)}
-          className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-4 text-sm shrink-0">
+        <Button onClick={() => setAddOpen(true)} disabled={quotaFull}
+          title={quotaFull ? "Kuota penuh" : ""}
+          className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-4 text-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
           <Plus strokeWidth={1.5} className="h-4 w-4 mr-1.5" /> Tambah Jamaah
         </Button>
       </div>

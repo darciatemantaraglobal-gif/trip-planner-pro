@@ -10,6 +10,7 @@ export interface Trip {
   endDate: string;
   emoji: string;
   coverImage?: string;
+  quotaPax?: number;
   createdAt: string;
 }
 
@@ -59,12 +60,15 @@ const tripFromRow = (r: Record<string, unknown>): Trip => ({
   endDate: String(r.end_date ?? ""),
   emoji: String(r.emoji ?? "✈️"),
   coverImage: (r.cover_image as string) ?? undefined,
+  quotaPax: r.quota_pax == null ? undefined : Number(r.quota_pax),
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
 const tripToRow = (t: Trip, agencyId?: string) => ({
   id: t.id, name: t.name, destination: t.destination,
   start_date: t.startDate, end_date: t.endDate, emoji: t.emoji,
-  cover_image: t.coverImage ?? null, created_at: t.createdAt,
+  cover_image: t.coverImage ?? null,
+  quota_pax: t.quotaPax ?? null,
+  created_at: t.createdAt,
   ...(agencyId ? { agency_id: agencyId } : {}),
 });
 

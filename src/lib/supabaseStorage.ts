@@ -4,6 +4,7 @@
  */
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { requireAgencyId } from "@/store/authStore";
+import { compressIfImage } from "./imageCompress";
 
 const PHOTO_BUCKET = "jamaah-photos";
 const DOC_BUCKET = "jamaah-docs";
@@ -41,11 +42,13 @@ export async function uploadJamaahPhoto(
   const parsed = dataUrlToBlob(dataUrl);
   if (!parsed) return dataUrl;
   const agencyId = requireAgencyId();
-  const ext = extFromContentType(parsed.contentType);
+  const compressed = await compressIfImage(parsed.blob, parsed.contentType);
+  const finalContentType = compressed.type || parsed.contentType;
+  const ext = extFromContentType(finalContentType);
   const base = passportNumber ? safeName(passportNumber) : safeName(jamaahId);
   const path = `${agencyId}/${base}_${Date.now()}.${ext}`;
-  const { error } = await supabase!.storage.from(PHOTO_BUCKET).upload(path, parsed.blob, {
-    upsert: true, contentType: parsed.contentType,
+  const { error } = await supabase!.storage.from(PHOTO_BUCKET).upload(path, compressed, {
+    upsert: true, contentType: finalContentType,
   });
   if (error) {
     console.error("[storage] upload photo failed", error);
@@ -67,11 +70,13 @@ export async function uploadJamaahDoc(
   const parsed = dataUrlToBlob(dataUrl);
   if (!parsed) return dataUrl;
   const agencyId = requireAgencyId();
-  const ext = extFromContentType(parsed.contentType);
+  const compressed = await compressIfImage(parsed.blob, parsed.contentType);
+  const finalContentType = compressed.type || parsed.contentType;
+  const ext = extFromContentType(finalContentType);
   const base = `${safeName(jamaahId)}_${safeName(category)}_${safeName(fileName.replace(/\.[^.]+$/, ""))}`;
   const path = `${agencyId}/${base}_${Date.now()}.${ext}`;
-  const { error } = await supabase!.storage.from(DOC_BUCKET).upload(path, parsed.blob, {
-    upsert: true, contentType: parsed.contentType,
+  const { error } = await supabase!.storage.from(DOC_BUCKET).upload(path, compressed, {
+    upsert: true, contentType: finalContentType,
   });
   if (error) {
     console.error("[storage] upload doc failed", error);

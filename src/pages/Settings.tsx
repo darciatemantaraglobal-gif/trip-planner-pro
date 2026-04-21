@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock, History, FileEdit, FileX, FilePlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   type AppearanceTheme,
 } from "@/lib/appearance";
 import { useRatesStore } from "@/store/ratesStore";
+import { listRecentAuditLogs, describeChange, type AuditLog } from "@/features/audit/auditRepo";
 import { useAuthStore, type LoginEvent, type MemberInfo } from "@/store/authStore";
 import { migrateBase64ToStorage, type MigrateProgress } from "@/lib/migrateBase64ToStorage";
 import { useRegionalStore } from "@/store/regionalStore";
@@ -56,6 +57,7 @@ export default function Settings() {
     { key: "regional",      label: t.settings_regional,      icon: Globe },
     { key: "rates",         label: t.settings_rates,         icon: TrendingUp },
     { key: "agents",        label: t.settings_agents,        icon: Users },
+    { key: "audit",         label: "Audit Log",              icon: History },
   ];
 
   const [profile, setProfile] = useState({
@@ -922,12 +924,95 @@ export default function Settings() {
           </div>
         )}
 
+        {tab === "audit" && <AuditLogPanel />}
+
         {/* Save */}
-        <div className="mt-6 pt-4 border-t border-[hsl(var(--border))] max-w-xl">
-          <Button onClick={handleSave} className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-5 text-sm">
-            <Save strokeWidth={1.5} className="h-3.5 w-3.5 mr-2" /> Simpan Perubahan
-          </Button>
-        </div>
+        {tab !== "audit" && (
+          <div className="mt-6 pt-4 border-t border-[hsl(var(--border))] max-w-xl">
+            <Button onClick={handleSave} className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-5 text-sm">
+              <Save strokeWidth={1.5} className="h-3.5 w-3.5 mr-2" /> Simpan Perubahan
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AuditLogPanel() {
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      setLogs(await listRecentAuditLogs(100));
+    } catch (err) {
+      console.error("[audit] load failed", err);
+      toast.error("Gagal memuat audit log.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { reload(); }, []);
+
+  const actionMeta = (a: AuditLog["action"]) => {
+    if (a === "INSERT") return { Icon: FilePlus, color: "bg-emerald-100 text-emerald-700", label: "BUAT" };
+    if (a === "UPDATE") return { Icon: FileEdit, color: "bg-blue-100 text-blue-700", label: "UBAH" };
+    return { Icon: FileX, color: "bg-red-100 text-red-700", label: "HAPUS" };
+  };
+
+  const fmtTime = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      const now = Date.now();
+      const diff = (now - d.getTime()) / 1000;
+      if (diff < 60) return "baru saja";
+      if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+      return d.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+    } catch { return iso; }
+  };
+
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <SectionHeader title="Audit Log" desc="100 aktivitas terakhir di agency-mu (otomatis dicatat oleh sistem)" />
+      <div className="flex items-center justify-end">
+        <Button variant="outline" size="sm" onClick={reload} disabled={loading} className="h-8 rounded-xl">
+          <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
+          {loading ? "Memuat…" : "Muat Ulang"}
+        </Button>
+      </div>
+      <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+        {loading && logs.length === 0 ? (
+          <div className="p-6 text-center text-xs text-[hsl(var(--muted-foreground))]">Memuat audit log…</div>
+        ) : logs.length === 0 ? (
+          <div className="p-6 text-center text-xs text-[hsl(var(--muted-foreground))]">Belum ada aktivitas tercatat.</div>
+        ) : (
+          <ul className="divide-y divide-[hsl(var(--border))]">
+            {logs.map((log) => {
+              const { Icon, color, label } = actionMeta(log.action);
+              return (
+                <li key={log.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center shrink-0", color)}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", color)}>{label}</span>
+                      <p className="text-[13px] font-medium text-[hsl(var(--foreground))] truncate">{describeChange(log)}</p>
+                    </div>
+                    <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                      {fmtTime(log.createdAt)}
+                      {log.userId && <span className="ml-2 font-mono">· user {log.userId.slice(0, 8)}</span>}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

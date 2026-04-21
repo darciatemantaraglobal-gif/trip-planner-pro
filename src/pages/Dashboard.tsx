@@ -119,10 +119,10 @@ function daysUntil(iso: string) {
 // ── ADD TRIP DIALOG ────────────────────────────────────────────────────────────
 function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addTrip = useTripsStore((s) => s.addTrip);
-  const [form, setForm] = useState({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌" });
+  const [form, setForm] = useState({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "" as string });
   const [loading, setLoading] = useState(false);
 
-  const reset = () => setForm({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌" });
+  const reset = () => setForm({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +131,15 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
       return;
     }
     setLoading(true);
-    await addTrip(form);
+    const quotaNum = form.quotaPax.trim() === "" ? undefined : Math.max(1, parseInt(form.quotaPax, 10) || 0);
+    await addTrip({
+      name: form.name,
+      destination: form.destination,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      emoji: form.emoji,
+      quotaPax: quotaNum,
+    });
     toast.success(`Paket "${form.name}" berhasil ditambahkan.`);
     setLoading(false);
     reset();
@@ -200,6 +208,23 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
               <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Pulang *</Label>
               <Input className="h-8 text-[12.5px] rounded-xl" type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
             </div>
+          </div>
+
+          {/* Quota */}
+          <div className="space-y-1">
+            <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Kuota Pax (opsional)</Label>
+            <Input
+              className="h-8 text-[12.5px] rounded-xl"
+              type="number"
+              min={1}
+              inputMode="numeric"
+              placeholder="cth: 40 (kosongkan = tanpa batas)"
+              value={form.quotaPax}
+              onChange={(e) => setForm((f) => ({ ...f, quotaPax: e.target.value }))}
+            />
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-snug">
+              Sistem akan menolak penambahan jamaah baru kalau kuota sudah penuh — cegah overbook seat pesawat.
+            </p>
           </div>
 
           {/* Footer */}

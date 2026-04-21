@@ -6,13 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Camera, Upload, Trash2, FileText, Plane, HeartPulse, ShieldCheck, FolderOpen, ExternalLink, Pencil, Save, X, ScanLine, CheckCircle2, FileKey, CreditCard, Clock,
+  ArrowLeft, Camera, Upload, Trash2, FileText, Plane, HeartPulse, ShieldCheck, FolderOpen, ExternalLink, Pencil, Save, X, ScanLine, CheckCircle2, FileKey, CreditCard, Clock, Plus, Wallet,
 } from "lucide-react";
 import { useTripsStore, useJamaahStore, useDocsStore, type Jamaah, type JamaahDoc, type DocCategory } from "@/store/tripsStore";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { scanPassport, countPassportDataFields, failedChecksumLabels } from "@/lib/ocrPassport";
 import { useRegional } from "@/lib/regional";
+import {
+  listPaymentsByJamaah, createPayment, deletePayment, sumPaid, paymentStatus,
+  PAYMENT_TYPE_LABEL, type Payment, type PaymentType,
+} from "@/features/payments/paymentsRepo";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fileToBase64(file: File): Promise<string> {
@@ -33,6 +37,196 @@ const DOC_CATEGORIES: { key: DocCategory; label: string; icon: React.ElementType
   { key: "medical",  label: "Kesehatan",     icon: HeartPulse,  color: "text-[hsl(var(--primary))]" },
   { key: "other",    label: "Lainnya",       icon: FolderOpen,  color: "text-[hsl(var(--primary))]" },
 ];
+
+// ── Payment section ───────────────────────────────────────────────────────────
+function fmtIDR(n: number) {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+}
+
+function PaymentSection({ jamaahId, tripId }: { jamaahId: string; tripId: string }) {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState<{ type: PaymentType; amount: string; method: string; paidAt: string; notes: string }>({
+    type: "dp", amount: "", method: "Transfer Bank", paidAt: today, notes: "",
+  });
+
+  const reload = async () => {
+    setLoading(true);
+    try { setPayments(await listPaymentsByJamaah(jamaahId)); }
+    catch (err) { console.error(err); toast.error("Gagal memuat pembayaran."); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { reload(); }, [jamaahId]);
+
+  const handleAdd = async () => {
+    const amt = parseFloat(form.amount.replace(/[^0-9.]/g, ""));
+    if (!amt || amt <= 0) { toast.error("Jumlah pembayaran harus lebih dari 0."); return; }
+    if (!form.paidAt) { toast.error("Tanggal pembayaran wajib diisi."); return; }
+    setAdding(true);
+    try {
+      await createPayment({
+        jamaahId, tripId, type: form.type,
+        amount: amt, method: form.method, paidAt: form.paidAt, notes: form.notes,
+      });
+      toast.success("Pembayaran tercatat.");
+      setForm({ type: "dp", amount: "", method: "Transfer Bank", paidAt: today, notes: "" });
+      setShowForm(false);
+      await reload();
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal menyimpan pembayaran.");
+    } finally { setAdding(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deletePayment(deleteId);
+      toast.success("Pembayaran dihapus.");
+      setDeleteId(null);
+      await reload();
+    } catch { toast.error("Gagal menghapus."); }
+  };
+
+  const total = sumPaid(payments);
+  const status = paymentStatus(0, payments); // we don't have trip price; show only paid amount
+
+  const statusBadge = (() => {
+    if (payments.length === 0) return { label: "Belum ada", color: "bg-gray-100 text-gray-600" };
+    if (status === "lunas") return { label: "Lunas", color: "bg-emerald-100 text-emerald-700" };
+    return { label: "Sebagian", color: "bg-amber-100 text-amber-700" };
+  })();
+
+  const typeBadge = (t: PaymentType) => {
+    const map: Record<PaymentType, string> = {
+      dp: "bg-blue-100 text-blue-700",
+      installment: "bg-indigo-100 text-indigo-700",
+      final: "bg-emerald-100 text-emerald-700",
+      refund: "bg-red-100 text-red-700",
+      other: "bg-gray-100 text-gray-700",
+    };
+    return map[t];
+  };
+
+  return (
+    <div className="rounded-2xl border border-[hsl(var(--border))] bg-white overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-[hsl(var(--border))] flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Wallet className="h-4 w-4 text-[hsl(var(--primary))]" />
+          <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">Pembayaran</h3>
+          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", statusBadge.color)}>
+            {statusBadge.label}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">Total dibayar</p>
+            <p className="text-sm font-bold text-[hsl(var(--primary))] leading-tight">{fmtIDR(total)}</p>
+          </div>
+          <Button size="sm" onClick={() => setShowForm((s) => !s)} variant={showForm ? "outline" : "default"}
+            className={cn("h-8 text-xs rounded-xl", !showForm && "gradient-primary text-white hover:opacity-90")}>
+            {showForm ? <><X className="h-3 w-3 mr-1" /> Batal</> : <><Plus className="h-3 w-3 mr-1" /> Tambah</>}
+          </Button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="px-5 py-4 border-b border-[hsl(var(--border))] grid gap-3 sm:grid-cols-2 bg-orange-50/40">
+          <div className="space-y-1">
+            <Label className="text-xs">Jenis</Label>
+            <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as PaymentType }))}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent style={{ background: "#fff" }}>
+                {(Object.keys(PAYMENT_TYPE_LABEL) as PaymentType[]).map((k) => (
+                  <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABEL[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Jumlah (IDR)</Label>
+            <Input type="number" min={0} inputMode="numeric" placeholder="cth: 5000000"
+              value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="h-9" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Metode</Label>
+            <Input value={form.method} onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))}
+              placeholder="Transfer / Cash / QRIS" className="h-9" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Tanggal</Label>
+            <Input type="date" value={form.paidAt}
+              onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))} className="h-9" />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label className="text-xs">Catatan (opsional)</Label>
+            <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="cth: Bukti transfer no. 12345" className="h-9" />
+          </div>
+          <div className="sm:col-span-2 flex justify-end">
+            <Button size="sm" onClick={handleAdd} disabled={adding}
+              className="h-9 rounded-xl gradient-primary text-white hover:opacity-90">
+              <Save className="h-3 w-3 mr-1" /> {adding ? "Menyimpan…" : "Simpan Pembayaran"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="divide-y divide-[hsl(var(--border))]">
+        {loading ? (
+          <p className="px-5 py-6 text-center text-xs text-[hsl(var(--muted-foreground))]">Memuat…</p>
+        ) : payments.length === 0 ? (
+          <p className="px-5 py-6 text-center text-xs text-[hsl(var(--muted-foreground))]">
+            Belum ada pembayaran tercatat.
+          </p>
+        ) : payments.map((p) => (
+          <div key={p.id} className="px-5 py-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", typeBadge(p.type))}>
+                  {PAYMENT_TYPE_LABEL[p.type]}
+                </span>
+                <span className={cn(
+                  "text-sm font-bold",
+                  p.type === "refund" ? "text-red-600" : "text-[hsl(var(--card-foreground))]"
+                )}>
+                  {p.type === "refund" ? "-" : ""}{fmtIDR(p.amount)}
+                </span>
+              </div>
+              <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                {p.paidAt} · {p.method || "—"}{p.notes ? ` · ${p.notes}` : ""}
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-500"
+              onClick={() => setDeleteId(p.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialogContent style={{ background: "#fff" }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus pembayaran?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Catatan pembayaran ini akan dihapus permanen. Aksi ini akan tercatat di Audit Log.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white">Hapus</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
 
 // ── Doc item ──────────────────────────────────────────────────────────────────
 function DocItem({ doc, onDelete }: { doc: JamaahDoc; onDelete: () => void }) {
@@ -230,7 +424,7 @@ export default function JamaahProfile() {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !jamaahId) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Foto terlalu besar (maks 2 MB)."); return; }
+    if (file.size > 12 * 1024 * 1024) { toast.error("Foto terlalu besar (maks 12 MB)."); return; }
     const dataUrl = await fileToBase64(file);
     await patchJamaah(jamaahId, { photoDataUrl: dataUrl });
     toast.success("Foto profil diperbarui.");
@@ -438,6 +632,11 @@ export default function JamaahProfile() {
           </div>
         );
       })()}
+
+      {/* Payments */}
+      {jamaahId && trip && (
+        <PaymentSection jamaahId={jamaahId} tripId={trip.id} />
+      )}
 
       {/* Document sections */}
       <div>
