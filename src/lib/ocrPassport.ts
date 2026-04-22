@@ -1,4 +1,5 @@
 import { createWorker } from "tesseract.js";
+import { supabase } from "./supabase";
 
 export interface PassportData {
   name?: string;
@@ -14,6 +15,8 @@ export interface PassportData {
     composite: boolean;
   };
   mrzValid?: boolean;
+  /** "tesseract" (gratis, lokal) atau "openai" (fallback AI berbayar) */
+  source?: "tesseract" | "openai";
 }
 
 /* ────────────────────────────── ICAO 9303 helpers ────────────────────────────── */
@@ -380,16 +383,81 @@ function scoreResult(p: PassportData): number {
   return score;
 }
 
+/* ────────────────────────────── AI fallback (OpenAI via Edge Function) ────────────────────────────── */
+
+/**
+ * Compress an image data URL down so the OpenAI call stays cheap & fast.
+ * Targets ~1280px on the long edge as JPEG q=0.85 — plenty for MRZ.
+ */
+async function compressForAI(dataUrl: string, maxEdge = 1280): Promise<string> {
+  const img = await loadImage(dataUrl);
+  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(img, 0, 0, w, h);
+  return c.toDataURL("image/jpeg", 0.85);
+}
+
+/**
+ * Call the Supabase Edge Function `ocr-passport` which proxies to OpenAI gpt-4o-mini.
+ * Returns null if Supabase isn't configured or the call fails — caller should fall back.
+ */
+export async function scanPassportAI(imageSource: string | File): Promise<PassportData | null> {
+  if (!supabase) return null;
+  try {
+    const rawDataUrl =
+      imageSource instanceof File || imageSource instanceof Blob
+        ? await fileToDataUrl(imageSource)
+        : imageSource;
+    const dataUrl = await compressForAI(rawDataUrl);
+
+    const { data, error } = await supabase.functions.invoke<{
+      name?: string;
+      passportNumber?: string;
+      nationality?: string;
+      birthDate?: string;
+      expiryDate?: string;
+      gender?: "L" | "P";
+      mrzValid?: boolean;
+      error?: string;
+    }>("ocr-passport", { body: { imageDataUrl: dataUrl } });
+
+    if (error || !data || data.error) return null;
+    return {
+      name: data.name,
+      passportNumber: data.passportNumber,
+      nationality: data.nationality,
+      birthDate: data.birthDate,
+      expiryDate: data.expiryDate,
+      gender: data.gender,
+      mrzValid: data.mrzValid === true,
+      source: "openai",
+    };
+  } catch {
+    return null;
+  }
+}
+
 /* ────────────────────────────── Main entry ────────────────────────────── */
 
 /**
  * OCR a passport image. Tries multiple preprocessing variants and PSM modes
  * and picks the result with the highest checksum/field score.
+ *
+ * Hybrid mode (default): if Tesseract result fails MRZ checksums, automatically
+ * fall back to OpenAI gpt-4o-mini via the Supabase Edge Function. Set
+ * `useAIFallback=false` to force Tesseract-only.
  */
 export async function scanPassport(
   imageSource: string | File,
   onProgress?: (pct: number) => void,
+  opts?: { useAIFallback?: boolean },
 ): Promise<PassportData> {
+  const useAIFallback = opts?.useAIFallback !== false;
   const dataUrl =
     imageSource instanceof File || imageSource instanceof Blob
       ? await fileToDataUrl(imageSource)
@@ -437,7 +505,7 @@ export async function scanPassport(
       // Short-circuit if all checksums passed already
       if (parsed.mrzValid) {
         if (onProgress) onProgress(100);
-        return parsed;
+        return { ...parsed, source: "tesseract" };
       }
     }
 
@@ -465,8 +533,18 @@ export async function scanPassport(
       }
     }
 
+    // Tesseract done. If MRZ checksums failed and AI fallback enabled, try OpenAI.
+    if (useAIFallback && !best.mrzValid) {
+      if (onProgress) onProgress(96);
+      const ai = await scanPassportAI(dataUrl);
+      if (ai && (ai.mrzValid || countPassportDataFields(ai) > countPassportDataFields(best))) {
+        if (onProgress) onProgress(100);
+        return ai;
+      }
+    }
+
     if (onProgress) onProgress(100);
-    return best;
+    return { ...best, source: best.source ?? "tesseract" };
   } finally {
     await worker.terminate();
   }

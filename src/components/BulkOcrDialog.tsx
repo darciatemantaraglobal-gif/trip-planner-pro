@@ -17,6 +17,7 @@ interface ScanRow {
   errorMsg?: string;
   mrzValid?: boolean;
   failedChecks?: string[];
+  source?: "tesseract" | "openai";
   data: {
     name: string;
     passportNumber: string;
@@ -118,6 +119,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                       progress: 100,
                       mrzValid: result.mrzValid,
                       failedChecks: failedChecksumLabels(result),
+                      source: result.source,
                       data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", phone: "" },
                     }
                   : r
@@ -315,8 +317,8 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                           row.status === "error" && "bg-red-100 text-red-600",
                         )}>
                           {row.status === "queued" && "Antri"}
-                          {row.status === "scanning" && (row.progress < 35 ? "AI…" : `${row.progress}%`)}
-                          {row.status === "done" && "✓ Selesai"}
+                          {row.status === "scanning" && (row.progress >= 96 ? "AI…" : row.progress < 28 ? "Init…" : `${row.progress}%`)}
+                          {row.status === "done" && (row.source === "openai" ? "✓ AI" : "✓ Selesai")}
                           {row.status === "error" && "✗ Gagal"}
                         </span>
                       </div>

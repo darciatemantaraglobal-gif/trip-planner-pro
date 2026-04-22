@@ -9,6 +9,7 @@ Tiga function buat manage user/agency. Semua butuh `SUPABASE_SERVICE_ROLE_KEY` y
 | `bootstrap`      | Public   | Sekali jalan: bikin user pertama + agency + owner          |
 | `invite-member`  | User JWT | Owner invite staff baru                                    |
 | `remove-member`  | User JWT | Owner hapus staff                                          |
+| `ocr-passport`   | User JWT | AI fallback OCR MRZ paspor (OpenAI gpt-4o-mini)            |
 
 ## Deploy
 
@@ -25,9 +26,16 @@ Deploy semua function:
 supabase functions deploy bootstrap --no-verify-jwt
 supabase functions deploy invite-member
 supabase functions deploy remove-member
+supabase functions deploy ocr-passport
 ```
 
 `bootstrap` pake `--no-verify-jwt` karena dipanggil sebelum ada user.
+
+Buat `ocr-passport`, set OpenAI key sebagai secret di Supabase:
+
+```bash
+supabase secrets set OPENAI_API_KEY=sk-...
+```
 
 ## Setup Awal
 
