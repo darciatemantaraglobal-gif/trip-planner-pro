@@ -43,7 +43,6 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
     {
       label: t.nav_group_tools,
       items: [
-        { title: t.nav_pdf, url: "/pdf-generator", icon: FileText, end: false },
         { title: t.nav_notes, url: "/notes", icon: StickyNote, end: false },
         { title: t.nav_exports ?? "Export Center", url: "/exports", icon: FileSpreadsheet, end: false },
       ],

@@ -19,7 +19,6 @@ import Login from "./pages/Login";
 import PublicCheck from "./pages/PublicCheck";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
-import PdfGenerator from "./pages/PdfGenerator";
 import Notes from "./pages/Notes";
 import ExportCenter from "./pages/ExportCenter";
 import { useRatesStore } from "@/store/ratesStore";
@@ -155,7 +154,6 @@ function AnimatedRoutes() {
       <Route path="/packages" element={<RequireAuth><DashboardLayout><Packages /></DashboardLayout></RequireAuth>} />
       <Route path="/packages/:id" element={<RequireAuth><DashboardLayout><PackageDetail /></DashboardLayout></RequireAuth>} />
       <Route path="/progress" element={<RequireAuth><DashboardLayout><ProgressTracker /></DashboardLayout></RequireAuth>} />
-      <Route path="/pdf-generator" element={<RequireAuth><DashboardLayout><PdfGenerator /></DashboardLayout></RequireAuth>} />
       <Route path="/trips/:id" element={<RequireAuth><DashboardLayout><TripDetail /></DashboardLayout></RequireAuth>} />
       <Route path="/trips/:id/jamaah/:jamaahId" element={<RequireAuth><DashboardLayout><JamaahProfile /></DashboardLayout></RequireAuth>} />
       <Route path="/notes" element={<RequireAuth><DashboardLayout><Notes /></DashboardLayout></RequireAuth>} />

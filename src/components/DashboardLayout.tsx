@@ -19,7 +19,6 @@ const primaryNavItems = [
 // Secondary items live inside the "Lainnya" bottom sheet
 const moreNavItems = [
   { title: "Catatan", url: "/notes", icon: StickyNote, desc: "Catatan & memo cepat" },
-  { title: "PDF Generator", url: "/pdf-generator", icon: FileText, desc: "Buat PDF penawaran" },
   { title: "Export Center", url: "/exports", icon: FileSpreadsheet, desc: "Rooming & manifest Excel" },
   { title: "Pengaturan", url: "/settings", icon: Settings, desc: "Akun, tim, kurs, tampilan" },
 ];
