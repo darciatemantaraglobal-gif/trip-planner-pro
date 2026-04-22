@@ -1,10 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane, ImagePlus, X as XIcon } from "lucide-react";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane, ImagePlus, X as XIcon, Sparkles, Edit3, Plus as PlusIcon, Copy as CopyIcon } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
+import { useTemplateStore } from "@/features/pdfTemplate/templateStore";
+import { CanvasTemplateEditor } from "@/features/pdfTemplate/CanvasTemplateEditor";
+import { CanvasTemplateView } from "@/features/pdfTemplate/renderHtml";
+import type { BindingContext } from "@/features/pdfTemplate/dataBinding";
+import { makeDefaultStarterTemplate } from "@/features/pdfTemplate/types";
 import { useTripsStore } from "@/store/tripsStore";
 import {
   computeProfessionalQuote,
@@ -478,6 +483,60 @@ export default function Calculator() {
   const [showSummary, setShowSummary] = useState(true);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [creatingTrip, setCreatingTrip] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+
+  const templates = useTemplateStore((s) => s.templates);
+  const activeTemplateId = useTemplateStore((s) => s.activeTemplateId);
+  const setActiveTemplateId = useTemplateStore((s) => s.setActiveTemplateId);
+  const addTemplate = useTemplateStore((s) => s.addTemplate);
+  const updateTemplate = useTemplateStore((s) => s.updateTemplate);
+  const duplicateTemplate = useTemplateStore((s) => s.duplicateTemplate);
+  const deleteTemplate = useTemplateStore((s) => s.deleteTemplate);
+  const hydrateTemplates = useTemplateStore((s) => s.hydrateFromCloud);
+  const ensureDefaultTemplate = useTemplateStore((s) => s.ensureDefaultTemplate);
+
+  useEffect(() => {
+    void hydrateTemplates();
+    ensureDefaultTemplate();
+  }, [hydrateTemplates, ensureDefaultTemplate]);
+
+  const activeTemplate = useMemo(
+    () => templates.find((t) => t.id === activeTemplateId) ?? null,
+    [templates, activeTemplateId]
+  );
+
+  function openTemplateEditor(id: string | null) {
+    setEditingTemplateId(id);
+    setEditorOpen(true);
+  }
+  function handleTemplateSave(t: Parameters<typeof addTemplate>[0]) {
+    if (editingTemplateId) {
+      updateTemplate(editingTemplateId, t);
+    } else {
+      const newId = addTemplate(t);
+      setActiveTemplateId(newId);
+    }
+  }
+  function handleDuplicateActive() {
+    if (!activeTemplateId) return;
+    const newId = duplicateTemplate(activeTemplateId);
+    if (newId) setActiveTemplateId(newId);
+  }
+  function handleDeleteActive() {
+    if (!activeTemplateId) return;
+    if (templates.length <= 1) {
+      toast.error("Minimal harus ada 1 template.");
+      return;
+    }
+    if (!confirm("Hapus template ini?")) return;
+    deleteTemplate(activeTemplateId);
+  }
+  function handleResetToStarter() {
+    const id = addTemplate(makeDefaultStarterTemplate());
+    setActiveTemplateId(id);
+    toast.success("Template default dibuat ulang.");
+  }
   const navigate = useNavigate();
   const addTrip = useTripsStore((s) => s.addTrip);
 
@@ -700,6 +759,36 @@ export default function Calculator() {
       marginScale: calc.pdfMarginScale,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calc, quote]);
+
+  // ── Binding context untuk template canvas (preview & PDF) ──
+  const bindingCtx = useMemo<BindingContext>(() => {
+    const makkahHotel = calc.hotels.find((h) => /makk?ah/i.test(h.label));
+    const madinahHotel = calc.hotels.find((h) => /madin/i.test(h.label));
+    const ppx = quote?.perPaxFinal ?? 0;
+    const pax = calc.pax || 0;
+    return {
+      quoteNumber: calc.quoteNumber || "001",
+      tier: calc.tier || "",
+      title: calc.title || calc.packageName || (calc.customerName ? `Umroh ${calc.customerName}` : "Penawaran Paket"),
+      subtitle: calc.subtitle || "",
+      dateRange: calc.dateRange || "",
+      customerName: calc.customerName || "—",
+      hotelMakkah: calc.hotelMakkahName || makkahHotel?.label || "",
+      hotelMadinah: calc.hotelMadinahName || madinahHotel?.label || "",
+      makkahNights: makkahHotel?.days || 0,
+      madinahNights: madinahHotel?.days || 0,
+      pax,
+      pricePerPax: ppx,
+      priceTotal: ppx * pax,
+      updateDate: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
+      website: calc.website || "",
+      contactPhone: calc.contactPhone || "",
+      contactName: calc.contactName || "",
+      included: calc.includedItems.filter((s) => s.trim()),
+      excluded: calc.excludedItems.filter((s) => s.trim()),
+      agencyLogo: calc.customPdfImage || undefined,
+    };
   }, [calc, quote]);
 
   // ── Buat Trip otomatis dari hasil kalkulasi ──
@@ -1774,71 +1863,79 @@ export default function Calculator() {
           <div className="p-3 md:p-4 grid md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-start">
             {/* Inline preview thumbnail */}
             <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/40 p-3 overflow-hidden">
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700 mb-2" style={M}>
-                Preview
-              </div>
-              <div className="relative mx-auto rounded-lg border border-orange-200 shadow-sm overflow-hidden bg-white"
-                   style={{ width: "100%", maxWidth: 360, aspectRatio: "210/297" }}>
-                {simplePdfData.customBgImage && (
-                  <img src={simplePdfData.customBgImage} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-                )}
-                <div className="relative h-full flex flex-col">
-                  <div className="px-3 pt-2.5 pb-1 flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[7px] font-bold text-[#666]">#{simplePdfData.quoteNumber}</div>
-                      <h3 className="font-extrabold leading-tight mt-1 truncate" style={{ color: "#102463", fontSize: 12 }}>
-                        {simplePdfData.title}
-                      </h3>
-                      <p className="text-[7px] font-medium mt-1" style={{ color: "#3a2f22" }}>{simplePdfData.dateRange || "—"}</p>
-                    </div>
-                    <img src="/logo-igh-tour.png" alt="IGH" className="h-5 object-contain shrink-0" />
-                  </div>
-                  <div className="px-3 mt-1 grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Makkah", name: simplePdfData.hotelMakkah, n: simplePdfData.makkahNights },
-                      { label: "Madinah", name: simplePdfData.hotelMadinah, n: simplePdfData.madinahNights },
-                    ].map((h) => (
-                      <div key={h.label}>
-                        <p className="text-[6px] text-[#888] uppercase">{h.label}</p>
-                        <p className="text-[8px] font-extrabold leading-tight truncate" style={{ color: "#102463" }}>{h.name || "—"}</p>
-                        <span className="inline-block mt-0.5 text-[6px] font-extrabold px-1.5 py-0.5 rounded-full"
-                              style={{ background: "#f3e2af", color: "#c99841" }}>
-                          {h.n} MALAM
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="px-3 mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-[6px] text-[#888] uppercase">Jumlah Pax</p>
-                      <p className="text-[11px] font-extrabold" style={{ color: "#102463" }}>{simplePdfData.pax}</p>
-                    </div>
-                    <div>
-                      <p className="text-[6px] text-[#888] uppercase">Harga / Pax</p>
-                      <p className="text-[10px] font-extrabold leading-tight" style={{ color: "#ea580c" }}>
-                        Rp {Math.round(simplePdfData.pricePerPaxIDR).toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="px-3 mt-1.5 flex-1 grid grid-cols-2 gap-2 overflow-hidden">
-                    <div>
-                      <p className="text-[6px] font-extrabold text-emerald-700 uppercase">Termasuk</p>
-                      <ul className="mt-0.5 text-[6px] text-[#3a2f22] list-disc pl-2.5 leading-tight space-y-0">
-                        {simplePdfData.included.slice(0, 5).map((it, i) => <li key={i} className="truncate">{it}</li>)}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-[6px] font-extrabold text-rose-700 uppercase">Tidak Termasuk</p>
-                      <ul className="mt-0.5 text-[6px] text-[#3a2f22] list-disc pl-2.5 leading-tight space-y-0">
-                        {simplePdfData.excluded.slice(0, 5).map((it, i) => <li key={i} className="truncate">{it}</li>)}
-                      </ul>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700" style={M}>
+                  {activeTemplate ? "Template Aktif" : "Preview"}
+                </div>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={activeTemplateId ?? ""}
+                    onChange={(e) => setActiveTemplateId(e.target.value || null)}
+                    className="h-7 max-w-[180px] text-[11px] border border-orange-200 rounded px-2 bg-white"
+                  >
+                    {templates.length === 0 ? (
+                      <option value="">— belum ada —</option>
+                    ) : (
+                      templates.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))
+                    )}
+                  </select>
+                  <button
+                    onClick={() => openTemplateEditor(activeTemplateId)}
+                    disabled={!activeTemplate}
+                    title="Edit template aktif"
+                    className="h-7 w-7 rounded bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white flex items-center justify-center"
+                  >
+                    <Edit3 className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => openTemplateEditor(null)}
+                    title="Buat template baru"
+                    className="h-7 w-7 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+                  >
+                    <PlusIcon className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={handleDuplicateActive}
+                    disabled={!activeTemplate}
+                    title="Duplikat"
+                    className="h-7 w-7 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-40 flex items-center justify-center"
+                  >
+                    <CopyIcon className="h-3 w-3" />
+                  </button>
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground text-center mt-2" style={M}>
-                Klik <span className="font-bold">Lihat & Ekspor PDF</span> untuk preview ukuran penuh.
-              </p>
+
+              {activeTemplate ? (
+                <>
+                  <div className="mx-auto" style={{ maxWidth: 360 }}>
+                    <CanvasTemplateView template={activeTemplate} ctx={bindingCtx} />
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[10px] text-muted-foreground" style={M}>
+                      <Sparkles className="h-2.5 w-2.5 inline mr-0.5 text-orange-500" />
+                      1:1 dengan PDF
+                    </p>
+                    <button
+                      onClick={handleDeleteActive}
+                      className="text-[10px] text-rose-600 hover:underline"
+                    >
+                      Hapus template
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-[11px] text-slate-500 mb-2">Belum ada template aktif.</p>
+                  <button
+                    onClick={handleResetToStarter}
+                    className="h-7 px-3 rounded-lg text-[11px] bg-orange-500 text-white hover:bg-orange-600"
+                  >
+                    Buat Template Default
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Action buttons + uploader */}
@@ -2061,7 +2158,17 @@ export default function Calculator() {
           perPerson: quote.perPaxFinal,
           offer: offerData,
           simple: simplePdfData,
+          canvasTemplate: activeTemplate ?? undefined,
+          bindingCtx,
         }}
+      />
+
+      <CanvasTemplateEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        initial={editingTemplateId ? templates.find((t) => t.id === editingTemplateId) ?? null : null}
+        ctx={bindingCtx}
+        onSave={handleTemplateSave}
       />
     </div>
   );
