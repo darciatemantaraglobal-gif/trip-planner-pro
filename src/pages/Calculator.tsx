@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
-import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
+import { useTripsStore } from "@/store/tripsStore";
 import {
   computeProfessionalQuote,
   computeGeneralQuote,
@@ -462,6 +465,9 @@ export default function Calculator() {
   const [calc, setCalc] = useState<CalcState>(() => loadState(makeDefault()));
   const [showSummary, setShowSummary] = useState(true);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [creatingTrip, setCreatingTrip] = useState(false);
+  const navigate = useNavigate();
+  const addTrip = useTripsStore((s) => s.addTrip);
 
   function update(value: CalcState) {
     setCalc(value);
@@ -652,6 +658,71 @@ export default function Calculator() {
       contactName: calc.contactName,
     };
   }, [calc, groupMatrix, groupTiers]);
+
+  // ── Buat Trip otomatis dari hasil kalkulasi ──
+  function parseDateRange(s: string): { start?: string; end?: string } {
+    if (!s) return {};
+    const parts = s.split(/\s*(?:-|–|s\/d|sd|sampai)\s*/i);
+    const tryParse = (raw: string) => {
+      if (!raw) return undefined;
+      const months: Record<string, number> = {
+        jan: 0, feb: 1, mar: 2, apr: 3, mei: 4, may: 4, jun: 5, jul: 6,
+        agu: 7, agt: 7, aug: 7, sep: 8, okt: 9, oct: 9, nov: 10, des: 11, dec: 11,
+      };
+      const m = raw.trim().match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{2,4})/);
+      if (m) {
+        const day = Number(m[1]);
+        const mon = months[m[2].slice(0, 3).toLowerCase()];
+        let year = Number(m[3]);
+        if (year < 100) year += 2000;
+        if (Number.isFinite(day) && mon != null) {
+          return new Date(Date.UTC(year, mon, day)).toISOString().slice(0, 10);
+        }
+      }
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? undefined : d.toISOString().slice(0, 10);
+    };
+    return { start: tryParse(parts[0]), end: tryParse(parts[1] ?? parts[0]) };
+  }
+
+  async function handleCreateTrip() {
+    if (creatingTrip) return;
+    setCreatingTrip(true);
+    try {
+      const today = new Date();
+      const totalDays =
+        (calc.hotels.find((h) => /makk?ah/i.test(h.label))?.days || 0) +
+        (calc.hotels.find((h) => /madin/i.test(h.label))?.days || 0);
+      const fallbackEnd = new Date(today.getTime() + Math.max(totalDays, 7) * 86400000);
+      const parsed = parseDateRange(calc.dateRange);
+
+      const name =
+        calc.title?.trim() ||
+        calc.packageName?.trim() ||
+        (calc.customerName ? `Umroh ${calc.customerName}` : "Trip Baru IGH Tour");
+      const destination =
+        calc.destination?.trim() ||
+        (calc.mode === "umroh_group" || calc.mode === "umroh_pro" ? "Makkah & Madinah" : "Trip");
+      const emoji = /umroh|umrah|haji|hajj|makkah|madinah/i.test(name + " " + destination) ? "🕋" : "✈️";
+
+      const trip = await addTrip({
+        name,
+        destination,
+        startDate: parsed.start || today.toISOString().slice(0, 10),
+        endDate: parsed.end || fallbackEnd.toISOString().slice(0, 10),
+        emoji,
+        quotaPax: calc.pax || undefined,
+        pricePerPax: Math.round(quote.perPaxFinal) || undefined,
+      });
+      toast.success(`Trip "${trip.name}" berhasil dibuat`);
+      navigate(`/trips/${trip.id}`);
+    } catch (err) {
+      console.error("create trip failed", err);
+      toast.error("Gagal membuat Trip. Coba lagi.");
+    } finally {
+      setCreatingTrip(false);
+    }
+  }
 
   return (
     <div className="pwa-compact-form space-y-2.5 md:space-y-5 max-w-5xl mx-auto" style={M}>
@@ -1514,14 +1585,26 @@ export default function Calculator() {
                     </p>
                   </div>
 
-                  <Button
-                    onClick={() => setPdfOpen(true)}
-                    disabled={quote.finalPrice === 0}
-                    className="w-full h-9 md:h-11 rounded-xl gradient-primary text-white text-sm"
-                    style={M}
-                  >
-                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Ekspor PDF
-                  </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => setPdfOpen(true)}
+                      disabled={quote.finalPrice === 0}
+                      className="w-full h-9 md:h-11 rounded-xl gradient-primary text-white text-sm"
+                      style={M}
+                    >
+                      <FileText className="h-3.5 w-3.5 mr-1.5" /> Ekspor PDF
+                    </Button>
+                    <Button
+                      onClick={handleCreateTrip}
+                      disabled={creatingTrip || quote.finalPrice === 0}
+                      variant="outline"
+                      className="w-full h-9 md:h-11 rounded-xl border-orange-300 text-orange-700 hover:bg-orange-50 text-sm"
+                      style={M}
+                    >
+                      <Plane className="h-3.5 w-3.5 mr-1.5" />
+                      {creatingTrip ? "Membuat Trip…" : "Buat Trip"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
