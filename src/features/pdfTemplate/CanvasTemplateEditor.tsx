@@ -21,6 +21,7 @@ import {
 } from "./types";
 import { CanvasTemplateView } from "./renderHtml";
 import { PLACEHOLDER_CTX, type BindingContext } from "./dataBinding";
+import { pdfFirstPageToImage } from "@/lib/pdfToImage";
 
 interface Props {
   open: boolean;
@@ -471,17 +472,40 @@ export function CanvasTemplateEditor({
     reader.readAsDataURL(file);
   }
 
-  /* ─── Background image ─── */
+  /* ─── Background image / PDF ─── */
   const bgFileRef = useRef<HTMLInputElement>(null);
-  function setBgImageFromFile(file: File) {
+  const [bgLoading, setBgLoading] = useState(false);
+
+  function applyBgDataUrl(dataUrl: string, opts?: { orientation?: "portrait" | "landscape" }) {
+    setTemplate((t) => {
+      const newT = {
+        ...t,
+        backgroundImage: dataUrl,
+        ...(opts?.orientation ? { orientation: opts.orientation } : {}),
+      };
+      commitToHistory(newT);
+      return newT;
+    });
+  }
+
+  async function setBgImageFromFile(file: File) {
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (isPdf) {
+      try {
+        setBgLoading(true);
+        const buf = await file.arrayBuffer();
+        const info = await pdfFirstPageToImage(buf, 2);
+        applyBgDataUrl(info.dataUrl, { orientation: info.orientation });
+      } catch (err) {
+        console.error(err);
+        alert("Gagal baca PDF. Coba file lain atau export halaman jadi gambar dulu ya.");
+      } finally {
+        setBgLoading(false);
+      }
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      setTemplate((t) => {
-        const newT = { ...t, backgroundImage: ev.target?.result as string };
-        commitToHistory(newT);
-        return newT;
-      });
-    };
+    reader.onload = (ev) => applyBgDataUrl(ev.target?.result as string);
     reader.readAsDataURL(file);
   }
 
@@ -565,14 +589,17 @@ export function CanvasTemplateEditor({
               onDrop={(e) => {
                 e.preventDefault();
                 e.currentTarget.classList.remove("ring-2", "ring-orange-400", "bg-orange-100");
-                const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+                const f = Array.from(e.dataTransfer.files).find(
+                  (x) => x.type.startsWith("image/") || x.type === "application/pdf" || /\.pdf$/i.test(x.name)
+                );
                 if (f) setBgImageFromFile(f);
               }}
-              className="h-7 px-2 rounded text-[11px] bg-slate-100 hover:bg-slate-200 flex items-center gap-1"
-              title="Klik atau drop gambar latar di sini"
+              disabled={bgLoading}
+              className="h-7 px-2 rounded text-[11px] bg-slate-100 hover:bg-slate-200 flex items-center gap-1 disabled:opacity-50"
+              title="Klik atau drop gambar / PDF buat dijadiin latar"
             >
               <Upload className="h-3 w-3" />
-              {template.backgroundImage ? "Ganti" : "Latar"}
+              {bgLoading ? "Memuat..." : template.backgroundImage ? "Ganti" : "Latar (PDF/IMG)"}
             </button>
             {template.backgroundImage && (
               <button
@@ -585,7 +612,7 @@ export function CanvasTemplateEditor({
             <input
               ref={bgFileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
