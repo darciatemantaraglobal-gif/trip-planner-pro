@@ -23,9 +23,10 @@ export interface HotelRow {
 
 export interface TransportRow {
   id: string;
-  label: string;
-  fleet: number;
-  pricePerFleet: number; // currency total per fleet unit
+  label: string;          // Jenis (e.g. "Hiace", "Bus 50 seat")
+  route?: string;         // Rute (e.g. "JED-MED")
+  fleet: number;          // Jumlah
+  pricePerFleet: number;  // Harga per unit (in selected currency)
   currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 

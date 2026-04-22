@@ -1024,9 +1024,10 @@ export default function PackageDetail() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <Th>Nama Armada</Th>
-                    <Th right>Jumlah Armada</Th>
-                    <Th right>Harga/Armada</Th>
+                    <Th>Jenis</Th>
+                    <Th>Rute</Th>
+                    <Th right>Jumlah</Th>
+                    <Th right>Harga</Th>
                     <Th right>Total Asing</Th>
                     <Th right>Total IDR (Grup)</Th>
                     <Th right>Per Pax IDR</Th>
@@ -1041,7 +1042,8 @@ export default function PackageDetail() {
                     const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={t.id} className="hover:bg-orange-50/30 transition-colors">
-                        <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Bus Lokal" /></Td>
+                        <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Hiace" /></Td>
+                        <Td><TextCell value={t.route ?? ""} onChange={(v) => updateTransport(t.id, { route: v })} placeholder="cth: JED-MED" /></Td>
                         <Td right><NumCell value={t.fleet} onChange={(v) => updateTransport(t.id, { fleet: v })} /></Td>
                         <Td right>
                           <div className="flex items-center gap-1">
