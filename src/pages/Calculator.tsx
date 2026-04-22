@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass } from "lucide-react";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
@@ -60,7 +60,12 @@ function loadState(fallback: CalcState): CalcState {
     return {
       ...fallback,
       ...stored,
-      mode: (stored.mode === "umum" || stored.mode === "umroh") ? stored.mode : fallback.mode,
+      mode:
+        stored.mode === "umum" || stored.mode === "umroh_private" || stored.mode === "umroh_group"
+          ? stored.mode
+          : (stored.mode as unknown) === "umroh"
+            ? "umroh_private"
+            : fallback.mode,
       hotels: stored.hotels ?? fallback.hotels,
       transports: stored.transports ?? fallback.transports,
       tickets: stored.tickets ?? fallback.tickets,
@@ -87,7 +92,7 @@ const DEFAULT_GENERAL_COSTS: GeneralCostRow[] = [
 
 function makeDefault(): CalcState {
   return {
-    mode: "umroh",
+    mode: "umroh_private",
     packageName: "",
     destination: "",
     pax: 1,
@@ -491,23 +496,25 @@ export default function Calculator() {
       </div>
 
       {/* ── Mode switcher ── */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200 bg-orange-50/50 self-start">
-        {(["umroh", "umum"] as CalcMode[]).map((m) => (
+      <div className="flex items-center gap-1 p-1 rounded-xl border border-orange-200 bg-orange-50/50 self-start flex-wrap">
+        {([
+          { mode: "umroh_private" as CalcMode, label: "Umroh Private", icon: Moon },
+          { mode: "umroh_group"   as CalcMode, label: "Umroh Group",   icon: Users },
+          { mode: "umum"          as CalcMode, label: "Umum",          icon: Compass },
+        ]).map(({ mode, label, icon: Icon }) => (
           <button
-            key={m}
-            onClick={() => setField("mode", m)}
+            key={mode}
+            onClick={() => setField("mode", mode)}
             style={M}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all inline-flex items-center gap-1.5",
-              calc.mode === m
+              "px-2.5 py-1.5 rounded-lg text-[10.5px] md:text-[11.5px] font-bold transition-all inline-flex items-center gap-1.5 whitespace-nowrap",
+              calc.mode === mode
                 ? "bg-orange-500 text-white shadow-sm"
                 : "text-orange-600 hover:bg-orange-100"
             )}
           >
-            {m === "umroh"
-              ? <Moon className="h-3.5 w-3.5" strokeWidth={2} />
-              : <Compass className="h-3.5 w-3.5" strokeWidth={2} />}
-            {m === "umroh" ? "Umroh" : "Umum"}
+            <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+            {label}
           </button>
         ))}
       </div>
@@ -606,7 +613,7 @@ export default function Calculator() {
 
       {/* ══ MODE-SPECIFIC SECTION ══ */}
 
-      {calc.mode === "umroh" && (<>
+      {calc.mode !== "umum" && (<>
 
         {/* ── HOTEL TABLE ── */}
         <div className="overflow-hidden rounded-xl border border-orange-200">

@@ -1,14 +1,15 @@
 /**
  * Professional pricing engine for IGH Tour package calculator.
- * Supports two modes:
- *   - "umroh" : structured hotel/transport/ticket/visa/destination/fnb/staff tables
- *   - "umum"  : flexible row-based calculator for any trip type
+ * Supports three modes:
+ *   - "umroh_private" : structured umroh calc, private/family group
+ *   - "umroh_group"   : structured umroh calc, large group / open trip
+ *   - "umum"          : flexible row-based calculator for any trip type
  */
 
 import { type Rates } from "@/lib/exchangeRates";
 
 export type CalcCurrency = "IDR" | "SAR" | "USD";
-export type CalcMode = "umroh" | "umum";
+export type CalcMode = "umroh_private" | "umroh_group" | "umum";
 
 // ── Umroh Mode Input Structures ───────────────────────────────────────────────
 

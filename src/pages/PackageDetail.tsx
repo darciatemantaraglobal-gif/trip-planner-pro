@@ -74,7 +74,12 @@ function loadPackageCalc(packageId: string, fallback: ProfessionalCalcState): Pr
   return {
     ...fallback,
     ...stored,
-    mode: (stored.mode === "umum" || stored.mode === "umroh") ? stored.mode : fallback.mode,
+    mode:
+      stored.mode === "umum" || stored.mode === "umroh_private" || stored.mode === "umroh_group"
+        ? stored.mode
+        : (stored.mode as unknown) === "umroh"
+          ? "umroh_private"
+          : fallback.mode,
     hotels: stored.hotels ?? fallback.hotels,
     transports: stored.transports ?? fallback.transports,
     tickets: stored.tickets ?? fallback.tickets,
@@ -108,7 +113,7 @@ const DEFAULT_GENERAL_COSTS: GeneralCostRow[] = [
 
 function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcState {
   return {
-    mode: "umroh",
+    mode: "umroh_private",
     packageName: name,
     destination: dest,
     pax,
@@ -846,20 +851,24 @@ export default function PackageDetail() {
 
           {/* ── Mode switcher + kurs strip (combined row on mobile) ── */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200 bg-orange-50/50">
-              {(["umroh", "umum"] as CalcMode[]).map((m) => (
+            <div className="flex items-center gap-1 p-1 rounded-xl border border-orange-200 bg-orange-50/50 flex-wrap">
+              {([
+                { mode: "umroh_private" as CalcMode, label: "🕌 Umroh Private" },
+                { mode: "umroh_group"   as CalcMode, label: "👥 Umroh Group"   },
+                { mode: "umum"          as CalcMode, label: "🗺️ Umum"          },
+              ]).map(({ mode, label }) => (
                 <button
-                  key={m}
-                  onClick={() => setField("mode", m)}
+                  key={mode}
+                  onClick={() => setField("mode", mode)}
                   style={M}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-[11px] md:text-[12px] font-bold transition-all",
-                    calc.mode === m
+                    "px-2.5 py-1.5 rounded-lg text-[10.5px] md:text-[11.5px] font-bold transition-all whitespace-nowrap",
+                    calc.mode === mode
                       ? "bg-orange-500 text-white shadow-sm"
                       : "text-orange-600 hover:bg-orange-100"
                   )}
                 >
-                  {m === "umroh" ? "🕌 Umroh" : "🗺️ Umum"}
+                  {label}
                 </button>
               ))}
             </div>
@@ -959,7 +968,7 @@ export default function PackageDetail() {
           </div>
 
           {/* ══ MODE-SPECIFIC INPUT SECTION ══ */}
-          {calc.mode === "umroh" && (<>
+          {calc.mode !== "umum" && (<>
 
           {/* ── HOTEL TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
