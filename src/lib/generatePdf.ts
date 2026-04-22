@@ -31,6 +31,9 @@ export interface LandArrangementOfferData {
   contactPhone: string;
   contactName: string;
   customBgImage?: string; // data URL — full-page background image
+  pageSize?: "a4" | "a5" | "letter";
+  orientation?: "portrait" | "landscape";
+  marginScale?: number; // 0.5–1.5 multiplier on default margins
 }
 
 export interface RateMeta {
@@ -55,6 +58,9 @@ export interface SimplePackagePdfData {
   ratesUSD?: number;
   ratesSAR?: number;
   customBgImage?: string; // data URL — full-page background image
+  pageSize?: "a4" | "a5" | "letter";
+  orientation?: "portrait" | "landscape";
+  marginScale?: number; // 0.5–1.5 multiplier on default margins
 }
 
 export interface QuotationData {
@@ -239,10 +245,14 @@ async function generateLandArrangementPdf(data: QuotationData) {
   const offer = data.offer;
   if (!offer) return;
 
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
-  const pageW = doc.internal.pageSize.getWidth();   // 595
-  const pageH = doc.internal.pageSize.getHeight();  // 842
-  const margin = 36;
+  const doc = new jsPDF({
+    unit: "pt",
+    format: offer.pageSize ?? "a4",
+    orientation: offer.orientation ?? "portrait",
+  });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 36 * (offer.marginScale ?? 1);
 
   // Brand palette — IGH/Arrahmah inspired
   const navy: [number, number, number]   = [16, 36, 99];     // deep blue (title + footer)
@@ -527,10 +537,14 @@ function fmtIDR(n: number): string {
 }
 
 export async function generateSimplePackagePdf(data: SimplePackagePdfData) {
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const doc = new jsPDF({
+    unit: "pt",
+    format: data.pageSize ?? "a4",
+    orientation: data.orientation ?? "portrait",
+  });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 56;
+  const margin = 56 * (data.marginScale ?? 1);
 
   const dark: [number, number, number] = [33, 27, 22];
   const muted: [number, number, number] = [120, 110, 102];

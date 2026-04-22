@@ -70,6 +70,9 @@ interface CalcState {
   contactPhone: string;
   contactName: string;
   customPdfImage: string; // data URL — PDF background image
+  pdfPageSize: "a4" | "a5" | "letter";
+  pdfOrientation: "portrait" | "landscape";
+  pdfMarginScale: number; // 0.5–1.5
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -120,6 +123,9 @@ function loadState(fallback: CalcState): CalcState {
       contactPhone: stored.contactPhone ?? fallback.contactPhone,
       contactName: stored.contactName ?? fallback.contactName,
       customPdfImage: stored.customPdfImage ?? fallback.customPdfImage,
+      pdfPageSize: stored.pdfPageSize ?? fallback.pdfPageSize,
+      pdfOrientation: stored.pdfOrientation ?? fallback.pdfOrientation,
+      pdfMarginScale: stored.pdfMarginScale ?? fallback.pdfMarginScale,
     };
   } catch { return fallback; }
 }
@@ -202,6 +208,9 @@ function makeDefault(): CalcState {
     contactPhone: "+62 812-8955-2018",
     contactName: "M. FARUQ AL ISLAM",
     customPdfImage: "",
+    pdfPageSize: "a4",
+    pdfOrientation: "portrait",
+    pdfMarginScale: 1,
   };
 }
 
@@ -660,6 +669,9 @@ export default function Calculator() {
       contactPhone: calc.contactPhone,
       contactName: calc.contactName,
       customBgImage: calc.customPdfImage || undefined,
+      pageSize: calc.pdfPageSize,
+      orientation: calc.pdfOrientation,
+      marginScale: calc.pdfMarginScale,
     };
   }, [calc, groupMatrix, groupTiers]);
 
@@ -683,6 +695,9 @@ export default function Calculator() {
       included: calc.includedItems.filter((s) => s.trim()),
       excluded: calc.excludedItems.filter((s) => s.trim()),
       customBgImage: calc.customPdfImage || undefined,
+      pageSize: calc.pdfPageSize,
+      orientation: calc.pdfOrientation,
+      marginScale: calc.pdfMarginScale,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calc, quote]);
@@ -771,6 +786,96 @@ export default function Calculator() {
     reader.onerror = () => toast.error("Gagal membaca file gambar.");
     reader.readAsDataURL(file);
   };
+
+  // ── Reusable PDF layout settings card UI ──
+  const renderPdfLayoutSettings = (key: string) => (
+    <div className="rounded-xl bg-white border border-orange-200 p-3 space-y-2.5" key={key}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700" style={M}>
+        Layout PDF
+      </p>
+
+      <div>
+        <p className="text-[9px] font-bold text-muted-foreground uppercase mb-1" style={M}>Ukuran</p>
+        <div className="grid grid-cols-3 gap-1">
+          {(["a4", "a5", "letter"] as const).map((sz) => (
+            <button
+              key={sz}
+              type="button"
+              onClick={() => setCalc((c) => ({ ...c, pdfPageSize: sz }))}
+              className={cn(
+                "h-7 rounded-lg text-[10px] font-bold uppercase transition-colors",
+                calc.pdfPageSize === sz
+                  ? "bg-orange-500 text-white"
+                  : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+              )}
+              style={M}
+            >
+              {sz}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[9px] font-bold text-muted-foreground uppercase mb-1" style={M}>Orientasi</p>
+        <div className="grid grid-cols-2 gap-1">
+          {(["portrait", "landscape"] as const).map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => setCalc((c) => ({ ...c, pdfOrientation: o }))}
+              className={cn(
+                "h-7 rounded-lg text-[10px] font-bold capitalize transition-colors",
+                calc.pdfOrientation === o
+                  ? "bg-orange-500 text-white"
+                  : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+              )}
+              style={M}
+            >
+              {o === "portrait" ? "Portrait" : "Landscape"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[9px] font-bold text-muted-foreground uppercase mb-1" style={M}>
+          Margin · {Math.round(calc.pdfMarginScale * 100)}%
+        </p>
+        <div className="grid grid-cols-3 gap-1">
+          {[
+            { label: "Compact", v: 0.6 },
+            { label: "Normal", v: 1 },
+            { label: "Lebar", v: 1.4 },
+          ].map((m) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={() => setCalc((c) => ({ ...c, pdfMarginScale: m.v }))}
+              className={cn(
+                "h-7 rounded-lg text-[10px] font-bold transition-colors",
+                Math.abs(calc.pdfMarginScale - m.v) < 0.05
+                  ? "bg-orange-500 text-white"
+                  : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+              )}
+              style={M}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <input
+          type="range"
+          min={0.5}
+          max={1.5}
+          step={0.05}
+          value={calc.pdfMarginScale}
+          onChange={(e) => setCalc((c) => ({ ...c, pdfMarginScale: Number(e.target.value) }))}
+          className="w-full mt-1.5 accent-orange-500"
+        />
+      </div>
+    </div>
+  );
 
   // ── Reusable PDF image upload card UI ──
   const renderPdfImageUploader = (key: string) => (
@@ -1625,6 +1730,7 @@ export default function Calculator() {
                       Step {calc.groupSettings.step} · {offerData.rows.length} baris harga
                     </p>
                   </div>
+                  {renderPdfLayoutSettings("group-pdf-layout")}
                   {renderPdfImageUploader("group-pdf-img")}
                   <Button
                     onClick={() => setPdfOpen(true)}
@@ -1746,6 +1852,7 @@ export default function Calculator() {
                   {formatCurrency(quote.perPaxFinal)}/pax · {simplePdfData.pax} pax
                 </p>
               </div>
+              {renderPdfLayoutSettings("private-pdf-layout")}
               {renderPdfImageUploader("private-pdf-img")}
               <Button
                 onClick={() => setPdfOpen(true)}
