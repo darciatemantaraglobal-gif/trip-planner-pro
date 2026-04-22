@@ -401,7 +401,7 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
     setOcrLoading(true);
     setOcrProgress(0);
     try {
-      const result = await scanPassport(file, setOcrProgress);
+      const result = await scanPassport(file, setOcrProgress, { aiOnly: true });
       if (result.checksums && !result.mrzValid) {
         toast.warning(`MRZ checksum gagal: ${failedChecksumLabels(result).join(", ")}. Cek ulang manual sebelum simpan.`, { duration: 6000 });
       }
@@ -416,8 +416,8 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
       const found = countPassportDataFields(result);
       if (found > 0) toast.success(`OCR berhasil, ${found} field terisi.`);
       else toast.warning("MRZ paspor belum kebaca. Coba foto yang lebih jelas.");
-    } catch {
-      toast.error("Gagal scan paspor.");
+    } catch (e) {
+      toast.error(`Gagal scan paspor: ${(e as Error).message}`, { duration: 7000 });
     } finally {
       setOcrLoading(false);
       event.target.value = "";

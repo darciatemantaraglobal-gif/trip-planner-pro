@@ -87,7 +87,7 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
     setOcrLoading(true);
     setOcrProgress(0);
     try {
-      const result = await scanPassport(file, setOcrProgress);
+      const result = await scanPassport(file, setOcrProgress, { aiOnly: true });
       if (result.checksums && !result.mrzValid) {
         toast.warning(`MRZ checksum gagal: ${failedChecksumLabels(result).join(", ")}. Cek ulang manual sebelum simpan.`, { duration: 6000 });
       }
@@ -102,8 +102,8 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
       const fieldsFound = countPassportDataFields(result);
       if (fieldsFound > 0) toast.success(`OCR berhasil! ${fieldsFound} field terisi otomatis.`);
       else toast.warning("Teks MRZ tidak terbaca. Pastikan foto paspor jelas dan terbuka.");
-    } catch {
-      toast.error("Gagal memproses gambar paspor.");
+    } catch (err) {
+      toast.error(`Gagal memproses paspor: ${(err as Error).message}`, { duration: 7000 });
     } finally {
       setOcrLoading(false);
       e.target.value = "";

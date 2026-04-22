@@ -1,17 +1,30 @@
 // Edge Function: ocr-passport
-// AI fallback OCR untuk MRZ paspor — dipanggil hanya kalau Tesseract gagal.
-// Pakai OpenAI gpt-4o-mini (model paling murah dgn vision).
+// AI OCR untuk paspor — pakai OpenAI gpt-4o-mini (vision).
 //
 // POST /functions/v1/ocr-passport
 // Headers: Authorization: Bearer <user-jwt>
 // Body: { imageDataUrl: string }   // data:image/...;base64,...
-// Response: { name, passportNumber, nationality, birthDate, expiryDate, gender, mrzValid }
+// Response: { name, passportNumber, nationality, birthDate, expiryDate, gender, mrzValid, source }
 //
 // Deploy: supabase functions deploy ocr-passport
 // Set secret: supabase secrets set OPENAI_API_KEY=sk-...
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+
+// ── CORS (inlined biar bisa di-deploy via dashboard tanpa folder _shared) ──
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 const SYSTEM_PROMPT = `You are an OCR engine specialized in reading the Machine Readable Zone (MRZ) of international passports (ICAO 9303 TD3 format, two lines of 44 characters each).
 
@@ -53,7 +66,7 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) return jsonResponse({ error: "OPENAI_API_KEY belum di-set di Supabase" }, 500);
+    if (!openaiKey) return jsonResponse({ error: "OPENAI_API_KEY belum di-set di Supabase Functions secrets" }, 500);
 
     // Auth check — caller harus user yang valid & member di sebuah agency
     const authHeader = req.headers.get("Authorization");

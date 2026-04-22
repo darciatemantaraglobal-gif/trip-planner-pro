@@ -404,10 +404,22 @@ async function compressForAI(dataUrl: string, maxEdge = 1280): Promise<string> {
 
 /**
  * Call the Supabase Edge Function `ocr-passport` which proxies to OpenAI gpt-4o-mini.
- * Returns null if Supabase isn't configured or the call fails — caller should fall back.
+ *
+ * Behaviour:
+ * - `throwOnError=false` (default, dipake oleh hybrid fallback) → return null kalo gagal
+ *   biar caller bisa fallback ke Tesseract tanpa nampilin error.
+ * - `throwOnError=true` (dipake oleh AI-only mode) → throw Error dengan pesan jelas
+ *   biar UI bisa nampilin alasan kenapa OCR gagal.
  */
-export async function scanPassportAI(imageSource: string | File): Promise<PassportData | null> {
-  if (!supabase) return null;
+export async function scanPassportAI(
+  imageSource: string | File,
+  opts?: { throwOnError?: boolean },
+): Promise<PassportData | null> {
+  const throwOnError = opts?.throwOnError === true;
+  if (!supabase) {
+    if (throwOnError) throw new Error("Supabase belum dikonfigurasi (VITE_SUPABASE_URL/ANON_KEY).");
+    return null;
+  }
   try {
     const rawDataUrl =
       imageSource instanceof File || imageSource instanceof Blob
@@ -426,7 +438,18 @@ export async function scanPassportAI(imageSource: string | File): Promise<Passpo
       error?: string;
     }>("ocr-passport", { body: { imageDataUrl: dataUrl } });
 
-    if (error || !data || data.error) return null;
+    if (error) {
+      if (throwOnError) throw new Error(error.message || "Gagal panggil Edge Function ocr-passport.");
+      return null;
+    }
+    if (!data) {
+      if (throwOnError) throw new Error("Edge Function tidak mengembalikan data.");
+      return null;
+    }
+    if (data.error) {
+      if (throwOnError) throw new Error(data.error);
+      return null;
+    }
     return {
       name: data.name,
       passportNumber: data.passportNumber,
@@ -437,7 +460,8 @@ export async function scanPassportAI(imageSource: string | File): Promise<Passpo
       mrzValid: data.mrzValid === true,
       source: "openai",
     };
-  } catch {
+  } catch (e) {
+    if (throwOnError) throw e;
     return null;
   }
 }
@@ -455,13 +479,24 @@ export async function scanPassportAI(imageSource: string | File): Promise<Passpo
 export async function scanPassport(
   imageSource: string | File,
   onProgress?: (pct: number) => void,
-  opts?: { useAIFallback?: boolean },
+  opts?: { useAIFallback?: boolean; aiOnly?: boolean },
 ): Promise<PassportData> {
   const useAIFallback = opts?.useAIFallback !== false;
+  const aiOnly = opts?.aiOnly === true;
   const dataUrl =
     imageSource instanceof File || imageSource instanceof Blob
       ? await fileToDataUrl(imageSource)
       : imageSource;
+
+  // AI-only mode: skip Tesseract sepenuhnya, langsung ke OpenAI Edge Function.
+  // Throws kalo gagal supaya UI bisa nampilin alasan jelas.
+  if (aiOnly) {
+    if (onProgress) onProgress(20);
+    const ai = await scanPassportAI(dataUrl, { throwOnError: true });
+    if (onProgress) onProgress(100);
+    if (!ai) throw new Error("AI OCR tidak mengembalikan hasil.");
+    return ai;
+  }
 
   const img = await loadImage(dataUrl);
 

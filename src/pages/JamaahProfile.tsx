@@ -484,7 +484,7 @@ export default function JamaahProfile() {
     setOcrProgress(0);
     setEditing(true);
     try {
-      const result = await scanPassport(file, setOcrProgress);
+      const result = await scanPassport(file, setOcrProgress, { aiOnly: true });
       if (result.checksums && !result.mrzValid) {
         toast.warning(`MRZ checksum gagal: ${failedChecksumLabels(result).join(", ")}. Cek ulang manual sebelum simpan.`, { duration: 6000 });
       } else if (result.mrzValid) {
@@ -503,8 +503,8 @@ export default function JamaahProfile() {
       } else {
         toast.warning("Teks MRZ tidak terbaca. Pastikan foto paspor jelas dan terbuka.");
       }
-    } catch {
-      toast.error("Gagal memproses gambar paspor.");
+    } catch (err) {
+      toast.error(`Gagal memproses paspor: ${(err as Error).message}`, { duration: 7000 });
     }
     setOcrLoading(false);
     if (ocrInputRef.current) ocrInputRef.current.value = "";
