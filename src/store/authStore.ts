@@ -95,21 +95,47 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
   const session = sess.session;
   if (!session) return null;
 
-  const { data: membership } = await supabase
-    .from("agency_members").select("agency_id, role").eq("user_id", session.user.id).maybeSingle();
-  if (!membership) return null;
+  // Single round-trip: fetch membership + nested agency via FK relationship.
+  // Falls back to a 2-query path if the embedded select fails (e.g. FK belum
+  // diset di schema atau hint-nya beda).
+  let agencyId: string | null = null;
+  let agencyName = "Agency";
+  let role: UserRole = "staff";
 
-  const { data: agency } = await supabase
-    .from("agencies").select("id, name").eq("id", membership.agency_id).maybeSingle();
+  const { data: joined, error: joinErr } = await supabase
+    .from("agency_members")
+    .select("agency_id, role, agencies(id, name)")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (!joinErr && joined) {
+    agencyId = (joined as { agency_id: string }).agency_id;
+    role = ((joined as { role: string }).role as UserRole) ?? "staff";
+    const a = (joined as { agencies?: { id: string; name: string } | { id: string; name: string }[] }).agencies;
+    const agencyRow = Array.isArray(a) ? a[0] : a;
+    if (agencyRow?.name) agencyName = agencyRow.name;
+  } else {
+    // Fallback ke 2-query path
+    const { data: membership } = await supabase
+      .from("agency_members").select("agency_id, role").eq("user_id", session.user.id).maybeSingle();
+    if (!membership) return null;
+    agencyId = membership.agency_id;
+    role = (membership.role as UserRole) ?? "staff";
+    const { data: agency } = await supabase
+      .from("agencies").select("id, name").eq("id", membership.agency_id).maybeSingle();
+    if (agency?.name) agencyName = agency.name;
+  }
+
+  if (!agencyId) return null;
 
   const meta = (session.user.user_metadata ?? {}) as { display_name?: string };
   return {
     id: session.user.id,
     email: session.user.email ?? "",
     displayName: meta.display_name ?? session.user.email?.split("@")[0] ?? "User",
-    role: (membership.role as UserRole) ?? "staff",
-    agencyId: membership.agency_id,
-    agencyName: agency?.name ?? "Agency",
+    role,
+    agencyId,
+    agencyName,
   };
 }
 
@@ -166,7 +192,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     if (!supabase) { set({ error: "Supabase belum dikonfigurasi" }); return false; }
     set({ isLoading: true, error: null });
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Hard timeout: kalau koneksi hang >10 detik, kasih error biar gak stuck.
+    const loginPromise = supabase.auth.signInWithPassword({ email, password });
+    const timeout = new Promise<{ data: { session: null }; error: { message: string } }>((res) =>
+      setTimeout(() => res({ data: { session: null }, error: { message: "Koneksi lambat — coba lagi." } }), 10000),
+    );
+    const { data, error } = (await Promise.race([loginPromise, timeout])) as Awaited<typeof loginPromise>;
     if (error || !data.session) {
       set({ isLoading: false, error: error?.message ?? "Email/password salah." });
       return false;

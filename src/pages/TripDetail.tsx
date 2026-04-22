@@ -381,13 +381,20 @@ function JamaahPreviewDialog({
 
   const passportDocs = docs.filter((d) => d.jamaahId === person.id && d.category === "passport");
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.name) { toast.error("Nama wajib diisi."); return; }
-    setSaving(true);
-    await patchJamaah(person.id, form);
-    toast.success("Data diperbarui.");
-    setSaving(false);
+    const snapshot = { ...form };
+    const personId = person.id;
+    // Keluar mode edit langsung — save di background
     setEditing(false);
+    void (async () => {
+      try {
+        await patchJamaah(personId, snapshot);
+        toast.success("Data diperbarui.");
+      } catch {
+        toast.error("Gagal memperbarui data.");
+      }
+    })();
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
