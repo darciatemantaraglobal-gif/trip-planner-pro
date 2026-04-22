@@ -133,11 +133,6 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
           })
           .finally(() => {
             activeScans.current--;
-            setRows((cur) => {
-              const allDone = cur.every((r) => r.status === "done" || r.status === "error");
-              if (allDone) setPhase("review");
-              return cur;
-            });
             runNext();
           });
       }
@@ -306,42 +301,76 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                     row.status === "error" && "border-red-200 bg-red-50",
                     row.status === "queued" && "border-[hsl(var(--border))] bg-white opacity-50",
                   )}>
-                    <img src={row.previewUrl} alt="" className="h-9 w-7 object-cover rounded-lg shrink-0" />
+                    <img src={row.previewUrl} alt="" className="h-12 w-9 object-cover rounded-lg shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-[11px] font-semibold truncate">File {idx + 1}: {row.file.name}</p>
-                        <span className={cn(
-                          "text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0",
-                          row.status === "queued" && "bg-gray-100 text-gray-500",
-                          row.status === "scanning" && "bg-orange-100 text-orange-700",
-                          row.status === "done" && "bg-green-100 text-green-700",
-                          row.status === "error" && "bg-red-100 text-red-600",
-                        )}>
-                          {row.status === "queued" && "Antri"}
-                          {row.status === "scanning" && (row.progress >= 96 ? "AI…" : row.progress < 28 ? "Init…" : `${row.progress}%`)}
-                          {row.status === "done" && (row.source === "openai" ? "✓ AI" : "✓ Selesai")}
-                          {row.status === "error" && "✗ Gagal"}
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className={cn(
+                            "text-[9.5px] font-bold px-1.5 py-0.5 rounded-full",
+                            row.status === "queued" && "bg-gray-100 text-gray-500",
+                            row.status === "scanning" && "bg-orange-100 text-orange-700",
+                            row.status === "done" && "bg-green-100 text-green-700",
+                            row.status === "error" && "bg-red-100 text-red-600",
+                          )}>
+                            {row.status === "queued" && "Antri"}
+                            {row.status === "scanning" && (row.progress >= 96 ? "AI…" : row.progress < 28 ? "Init…" : `${row.progress}%`)}
+                            {row.status === "done" && (row.source === "openai" ? "✓ AI" : "✓ Selesai")}
+                            {row.status === "error" && "✗ Gagal"}
+                          </span>
+                          {(row.status === "done" || row.status === "error") && (
+                            <button type="button" onClick={() => removeRow(row.id)}
+                              className="h-5 w-5 rounded-md flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {row.status === "scanning" && (
                         <div className="mt-1 h-1 rounded-full bg-orange-100 overflow-hidden">
                           <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${row.progress}%` }} />
                         </div>
                       )}
-                      {row.status === "done" && row.data.name && (
-                        <p className="text-[9.5px] text-green-700 mt-0.5 truncate">
-                          {row.data.name} · {row.data.passportNumber || "No. paspor belum terbaca"}
-                          {row.data.expiryDate ? ` · exp ${row.data.expiryDate}` : ""}
-                        </p>
-                      )}
-                      {row.status === "done" && row.mrzValid === false && row.failedChecks && row.failedChecks.length > 0 && (
-                        <p className="text-[9.5px] text-red-600 mt-0.5 flex items-center gap-1">
-                          <AlertTriangle className="h-2.5 w-2.5" />
-                          MRZ checksum gagal: {row.failedChecks.join(", ")} — cek manual
-                        </p>
-                      )}
-                      {row.status === "error" && (
-                        <p className="text-[9.5px] text-red-600 mt-0.5">Gagal baca MRZ — bisa diisi manual di review</p>
+                      {(row.status === "done" || row.status === "error") && (
+                        <>
+                          <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-12 gap-1.5">
+                            <Input
+                              value={row.data.name}
+                              onChange={(e) => updateRowData(row.id, "name", e.target.value)}
+                              placeholder="Nama (sesuai paspor) *"
+                              className={cn("h-7 text-[11px] rounded-lg sm:col-span-5", !row.data.name.trim() && "border-red-300 bg-red-50/40")}
+                            />
+                            <Input
+                              value={row.data.passportNumber}
+                              onChange={(e) => updateRowData(row.id, "passportNumber", e.target.value)}
+                              placeholder="No. Paspor *"
+                              className={cn("h-7 text-[11px] rounded-lg font-mono sm:col-span-3", !row.data.passportNumber.trim() && "border-orange-300 bg-orange-50/30")}
+                            />
+                            <Input
+                              type="date"
+                              value={row.data.birthDate}
+                              onChange={(e) => updateRowData(row.id, "birthDate", e.target.value)}
+                              title="Tgl. Lahir"
+                              className="h-7 text-[11px] rounded-lg sm:col-span-2"
+                            />
+                            <Input
+                              type="date"
+                              value={row.data.expiryDate}
+                              onChange={(e) => updateRowData(row.id, "expiryDate", e.target.value)}
+                              title="Tgl. Expired"
+                              className="h-7 text-[11px] rounded-lg sm:col-span-2"
+                            />
+                          </div>
+                          {row.status === "done" && row.mrzValid === false && row.failedChecks && row.failedChecks.length > 0 && (
+                            <p className="text-[9.5px] text-red-600 mt-1 flex items-center gap-1">
+                              <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                              MRZ checksum gagal: {row.failedChecks.join(", ")} — cek manual
+                            </p>
+                          )}
+                          {row.status === "error" && (
+                            <p className="text-[9.5px] text-red-600 mt-1">Gagal baca MRZ — isi manual di kolom atas</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -462,6 +491,30 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                 Mulai Scan ({rows.length} foto)
               </button>
             )}
+            {phase === "scanning" && (() => {
+              const allFinished = rows.length > 0 && rows.every((r) => r.status === "done" || r.status === "error");
+              return (
+                <button
+                  type="button"
+                  onClick={() => setPhase("review")}
+                  disabled={!allFinished || validCount === 0}
+                  className="h-8 px-4 rounded-xl text-[12px] font-bold text-white flex items-center gap-1.5 transition-all disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
+                >
+                  {allFinished ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Lanjut ke Review ({validCount}/{rows.length})
+                    </>
+                  ) : (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Menunggu scan selesai…
+                    </>
+                  )}
+                </button>
+              );
+            })()}
             {phase === "review" && (
               <button type="button" onClick={handleSaveAll} disabled={saving || validCount === 0}
                 className="h-8 px-4 rounded-xl text-[12px] font-bold text-white flex items-center gap-1.5 transition-all disabled:opacity-40"
