@@ -102,8 +102,15 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
       onOpenChange(false);
     } catch (err) {
       console.error("Gagal simpan paket:", err);
-      // Surface the failure so user knows
-      setErrors((p) => ({ ...p, name: err instanceof Error ? err.message : "Gagal menyimpan paket" }));
+      // Surface the failure so user knows. Supabase errors are plain objects
+      // with .message/.hint/.details — extract the most useful piece.
+      const msg =
+        (err as { message?: string; hint?: string; details?: string })?.message ||
+        (err as { hint?: string })?.hint ||
+        (err as { details?: string })?.details ||
+        (typeof err === "string" ? err : "") ||
+        "Gagal menyimpan paket";
+      setErrors((p) => ({ ...p, name: msg }));
     } finally {
       setSaving(false);
     }
