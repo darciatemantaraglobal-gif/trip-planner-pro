@@ -51,6 +51,7 @@ export function CanvasTemplateEditor({
   const [template, setTemplate] = useState<CanvasTemplate>(() => emptyTemplate());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragMode | null>(null);
+  const [fileDragOver, setFileDragOver] = useState<null | "element" | "background">(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const previewCtx = ctx ?? PLACEHOLDER_CTX;
 
@@ -245,12 +246,16 @@ export function CanvasTemplateEditor({
       maxItems: 12,
     });
   }
-  function addImageFromFile(file: File) {
+  function addImageFromFile(file: File, atX = 10, atY = 10) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
+      const w = 25, h = 15;
       addElement({
-        id: uid("img"), type: "image", x: 10, y: 10, w: 25, h: 15, z: 0,
+        id: uid("img"), type: "image",
+        x: Math.max(0, Math.min(100 - w, atX - w / 2)),
+        y: Math.max(0, Math.min(100 - h, atY - h / 2)),
+        w, h, z: 0,
         src: dataUrl, fit: "contain",
       });
     };
@@ -334,8 +339,24 @@ export function CanvasTemplateEditor({
             />
             <button
               onClick={() => bgFileRef.current?.click()}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("Files")) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  e.currentTarget.classList.add("ring-2", "ring-orange-400", "bg-orange-100");
+                }
+              }}
+              onDragLeave={(e) =>
+                e.currentTarget.classList.remove("ring-2", "ring-orange-400", "bg-orange-100")
+              }
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove("ring-2", "ring-orange-400", "bg-orange-100");
+                const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+                if (f) setBgImageFromFile(f);
+              }}
               className="h-7 px-2 rounded text-[11px] bg-slate-100 hover:bg-slate-200 flex items-center gap-1"
-              title="Upload gambar latar"
+              title="Klik atau drop gambar latar di sini"
             >
               <Upload className="h-3 w-3" />
               {template.backgroundImage ? "Ganti" : "Latar"}
@@ -410,7 +431,50 @@ export function CanvasTemplateEditor({
           </div>
 
           {/* Center: canvas */}
-          <div className="bg-slate-200 overflow-auto flex items-center justify-center p-6" onClick={() => setSelectedId(null)}>
+          <div
+            className={`bg-slate-200 overflow-auto flex items-center justify-center p-6 relative transition-colors ${
+              fileDragOver ? "bg-orange-100" : ""
+            }`}
+            onClick={() => setSelectedId(null)}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes("Files")) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+              setFileDragOver(e.shiftKey ? "background" : "element");
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget === e.target) setFileDragOver(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const wasBg = fileDragOver === "background" || e.shiftKey;
+              setFileDragOver(null);
+              const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+              if (!f) return;
+              if (wasBg) {
+                setBgImageFromFile(f);
+              } else {
+                const rect = pageRef.current?.getBoundingClientRect();
+                if (rect && rect.width > 0 && rect.height > 0) {
+                  const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+                  const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+                  addImageFromFile(f, xPct, yPct);
+                } else {
+                  addImageFromFile(f);
+                }
+              }
+            }}
+          >
+            {fileDragOver && (
+              <div className="absolute inset-4 pointer-events-none rounded-2xl border-2 border-dashed border-orange-500 bg-orange-50/60 flex items-center justify-center z-10">
+                <div className="bg-white px-4 py-2 rounded-xl shadow text-sm font-semibold text-orange-700 flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  {fileDragOver === "background"
+                    ? "Lepas untuk jadi gambar latar"
+                    : "Lepas untuk tambah gambar (tahan Shift = jadi latar)"}
+                </div>
+              </div>
+            )}
             <div
               className="relative"
               style={{ width: "min(100%, 880px)" }}
@@ -528,11 +592,31 @@ function FileToolButton({
   accept: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
   return (
     <>
       <button
         onClick={() => ref.current?.click()}
-        className="flex flex-col items-center justify-center gap-1 py-2 rounded text-[10px] font-medium bg-white border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-colors"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setOver(true);
+          }
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+          if (f) onPick(f);
+        }}
+        className={`flex flex-col items-center justify-center gap-1 py-2 rounded text-[10px] font-medium bg-white border transition-colors ${
+          over
+            ? "border-orange-500 bg-orange-100 ring-2 ring-orange-300"
+            : "border-slate-200 hover:border-orange-300 hover:bg-orange-50"
+        }`}
+        title="Klik atau drop gambar di sini"
       >
         {icon}
         <span>{label}</span>
@@ -753,6 +837,12 @@ function ImageFields({
   onChange: (u: Partial<CanvasElement>) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  function handleFile(f: File) {
+    const r = new FileReader();
+    r.onload = (ev) => onChange({ src: ev.target?.result as string });
+    r.readAsDataURL(f);
+  }
   return (
     <>
       <FieldGroup label="Mode">
@@ -770,9 +860,28 @@ function ImageFields({
       </FieldGroup>
       <button
         onClick={() => ref.current?.click()}
-        className="w-full h-8 rounded text-[11px] bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1.5"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setOver(true);
+          }
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+          if (f) handleFile(f);
+        }}
+        className={`w-full h-8 rounded text-[11px] flex items-center justify-center gap-1.5 border-2 border-dashed transition-colors ${
+          over
+            ? "border-orange-500 bg-orange-100 text-orange-700"
+            : "border-transparent bg-slate-100 hover:bg-slate-200"
+        }`}
+        title="Klik atau drop gambar di sini"
       >
-        <Upload className="h-3 w-3" /> Ganti gambar
+        <Upload className="h-3 w-3" /> {over ? "Lepas untuk ganti" : "Ganti / drop gambar"}
       </button>
       <input
         ref={ref}
