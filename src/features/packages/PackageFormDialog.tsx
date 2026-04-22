@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Camera, Trash2, NotebookPen, ImagePlus, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -137,13 +138,19 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
   // user bisa langsung simpan paket draft & lengkapi detail belakangan.
   const canSave = !!draft.name.trim() && !!draft.destination.trim();
 
-  return (
+  // Render via portal so the dialog sits on document.body, escaping any
+  // transformed ancestor (e.g. <motion.main>) that would otherwise trap a
+  // `position: fixed` element — this is what was hiding the footer behind
+  // the bottom nav on mobile.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -152,7 +159,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
           />
 
           {/* Dialog */}
-          <motion.div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
+          <motion.div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 pointer-events-none">
             <motion.div
               className="relative w-full md:max-w-lg pointer-events-auto rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col bg-white border border-[hsl(var(--border))]"
               style={{
@@ -439,6 +446,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
