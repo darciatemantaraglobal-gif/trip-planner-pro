@@ -233,18 +233,36 @@ function NumCell({ value, onChange, placeholder }: {
   );
 }
 
-function TextCell({ value, onChange, placeholder }: {
+const TRANSPORT_TYPES = ["Camry", "GMC", "Staria", "Hiace", "Coaster", "Bus", "HHR Train"];
+const ROUTE_OPTIONS = [
+  "JED-MEK", "MEK-JED",
+  "JED-MED", "MED-JED",
+  "MED-MEK", "MEK-MED",
+  "MED-MED",
+  "THAIF",
+];
+
+function TextCell({ value, onChange, placeholder, suggestions, listId }: {
   value: string; onChange: (v: string) => void; placeholder?: string;
+  suggestions?: string[]; listId?: string;
 }) {
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder ?? ""}
-      style={M}
-      className="w-full h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
-    />
+    <>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? ""}
+        list={suggestions && listId ? listId : undefined}
+        style={M}
+        className="w-full h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
+      />
+      {suggestions && listId && (
+        <datalist id={listId}>
+          {suggestions.map((s) => <option key={s} value={s} />)}
+        </datalist>
+      )}
+    </>
   );
 }
 
@@ -1055,8 +1073,8 @@ export default function PackageDetail() {
                     const totalIDR = foreignAmount * rate;
                     return (
                       <tr key={t.id} className="hover:bg-orange-50/30 transition-colors">
-                        <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Hiace" /></Td>
-                        <Td><TextCell value={t.route ?? ""} onChange={(v) => updateTransport(t.id, { route: v })} placeholder="cth: JED-MED" /></Td>
+                        <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Hiace" suggestions={TRANSPORT_TYPES} listId="dl-transport-types-pkg" /></Td>
+                        <Td><TextCell value={t.route ?? ""} onChange={(v) => updateTransport(t.id, { route: v })} placeholder="cth: JED-MED" suggestions={ROUTE_OPTIONS} listId="dl-routes-pkg" /></Td>
                         <Td right><NumCell value={t.fleet} onChange={(v) => updateTransport(t.id, { fleet: v })} /></Td>
                         <Td right>
                           <div className="flex items-center gap-1">
