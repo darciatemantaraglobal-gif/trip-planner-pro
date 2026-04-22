@@ -21,6 +21,36 @@ function getImgFormat(dataUrl: string): string {
   return "JPEG";
 }
 
+/** Returns {w, h} of an image data-URL by reading it synchronously from the browser cache. */
+function getNaturalDims(src: string): { w: number; h: number } | null {
+  try {
+    const img = new Image();
+    img.src = src;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      return { w: img.naturalWidth, h: img.naturalHeight };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/** Compute letterboxed (contain) rect so the image fills the box without distortion. */
+function containRect(
+  boxX: number, boxY: number, boxW: number, boxH: number,
+  naturalW: number, naturalH: number
+): { x: number; y: number; w: number; h: number } {
+  const scale = Math.min(boxW / naturalW, boxH / naturalH);
+  const w = naturalW * scale;
+  const h = naturalH * scale;
+  return {
+    x: boxX + (boxW - w) / 2,
+    y: boxY + (boxH - h) / 2,
+    w,
+    h,
+  };
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec((hex || "").trim());
   if (!m) return [0, 0, 0];
@@ -136,7 +166,11 @@ function drawSmartEl(doc: jsPDF, el: SmartElement, box: BoxPt, ctx: BindingConte
   if (el.smartKey === "agencyLogo") {
     if (ctx.agencyLogo) {
       try {
-        doc.addImage(ctx.agencyLogo, getImgFormat(ctx.agencyLogo), box.x, box.y, box.w, box.h);
+        const dims = getNaturalDims(ctx.agencyLogo);
+        const rect = dims
+          ? containRect(box.x, box.y, box.w, box.h, dims.w, dims.h)
+          : { x: box.x, y: box.y, w: box.w, h: box.h };
+        doc.addImage(ctx.agencyLogo, getImgFormat(ctx.agencyLogo), rect.x, rect.y, rect.w, rect.h);
       } catch (err) {
         console.warn("Failed to render logo:", err);
       }
@@ -160,14 +194,12 @@ function drawImageEl(doc: jsPDF, el: ImageElement, box: BoxPt, ctx: BindingConte
   const src = el.src || ctx.agencyLogo;
   if (!src) return;
   try {
+    let rect = { x: box.x, y: box.y, w: box.w, h: box.h };
     if (el.fit === "contain") {
-      const img = new Image();
-      img.src = src;
-      // Best-effort: jsPDF renders synchronously from data URL; addImage will stretch.
-      // For "contain" we approximate by using the box; if image dims known, we'd
-      // letterbox here. Keeping it simple to avoid async needs in PDF render.
+      const dims = getNaturalDims(src);
+      if (dims) rect = containRect(box.x, box.y, box.w, box.h, dims.w, dims.h);
     }
-    doc.addImage(src, getImgFormat(src), box.x, box.y, box.w, box.h);
+    doc.addImage(src, getImgFormat(src), rect.x, rect.y, rect.w, rect.h);
   } catch (err) {
     console.warn("Failed to render image element:", err);
   }
