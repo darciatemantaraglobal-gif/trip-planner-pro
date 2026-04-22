@@ -21,14 +21,14 @@ export function SplashScreen() {
   /* Loading phase → form phase */
   useEffect(() => {
     if (!visible) return;
-    const t = setTimeout(() => setPhase("form"), 1800);
+    const t = setTimeout(() => setPhase("form"), 600);
     return () => clearTimeout(t);
   }, [visible]);
 
   /* Focus username field when form appears */
   useEffect(() => {
     if (phase === "form") {
-      setTimeout(() => usernameRef.current?.focus(), 350);
+      setTimeout(() => usernameRef.current?.focus(), 80);
     }
   }, [phase]);
 

@@ -31,7 +31,7 @@ export default function Auth() {
         const result = await Promise.race([
           query,
           new Promise<{ count: null; error: { message: string } }>((res) =>
-            setTimeout(() => res({ count: null, error: { message: "timeout" } }), 4000),
+            setTimeout(() => res({ count: null, error: { message: "timeout" } }), 2500),
           ),
         ]);
         if (!active) return;
@@ -73,9 +73,9 @@ export default function Auth() {
       // Auto login
       const result = await login(email.trim(), password);
       if (result === "ok") {
-        setTimeout(() => navigate("/", { replace: true }), 600);
+        navigate("/", { replace: true });
       } else {
-        setTimeout(() => navigate("/login", { replace: true }), 600);
+        navigate("/login", { replace: true });
       }
     } catch (err) {
       setError((err as Error).message);

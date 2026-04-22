@@ -22,16 +22,16 @@ export default function Login() {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setPhase("form"), 900);
+    const timer = setTimeout(() => setPhase("form"), 200);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (phase === "form") {
-      setTimeout(() => usernameRef.current?.focus(), 250);
+      setTimeout(() => usernameRef.current?.focus(), 80);
     }
     if (phase === "pin") {
-      setTimeout(() => pinRef.current?.focus(), 250);
+      setTimeout(() => pinRef.current?.focus(), 80);
     }
   }, [phase]);
 

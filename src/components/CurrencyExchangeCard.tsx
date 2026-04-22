@@ -28,9 +28,11 @@ export function CurrencyExchangeCard() {
 
   useEffect(() => {
     if (!lastUpdated) refresh();
-    const interval = setInterval(refresh, 30000);
+    // Cache TTL di lib = 5 menit, jadi polling lebih sering cuma buang resource.
+    const interval = setInterval(refresh, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [lastUpdated, refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh]);
 
   const display = lastUpdated ? buildDisplayRates(rates) : null;
 
@@ -89,7 +91,7 @@ export function CurrencyExchangeCard() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
           </span>
-          <span className="text-xs text-muted-foreground">Auto-refresh every 30s</span>
+          <span className="text-xs text-muted-foreground">Auto-refresh every 5 min</span>
         </div>
       </CardContent>
     </Card>
