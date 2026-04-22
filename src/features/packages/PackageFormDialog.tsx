@@ -48,16 +48,33 @@ const empty: PackageDraft = {
   facilities: [],
 };
 
-const lbl = "text-[10.5px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wide";
-const inp = "h-9 text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
-const sel = "h-9 text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
+const lbl = "text-[10px] md:text-[10.5px] font-bold text-[hsl(var(--muted-foreground))] uppercase tracking-wide";
+const inp = "h-8 md:h-9 text-[12.5px] md:text-[13px] rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white placeholder:text-gray-400 focus:border-orange-400 focus:ring-orange-400/20 transition-all";
+const sel = "h-8 md:h-9 text-[12.5px] md:text-[13px] rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white focus:border-orange-400 transition-all";
 
 export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Props) {
   const [draft, setDraft] = useState<PackageDraft>(empty);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof PackageDraft, string>>>({});
   const [coverHover, setCoverHover] = useState(false);
+  const [vvHeight, setVvHeight] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Track visual viewport so the dialog shrinks when the soft keyboard opens.
+  // Without this, on mobile the footer (with the "Tambah Paket" button) sits
+  // hidden underneath the keyboard whenever an input is focused.
+  useEffect(() => {
+    if (!open || typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const update = () => setVvHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [open]);
 
   const toggleFacility = (fac: string) => {
     const current = draft.facilities ?? [];
@@ -138,45 +155,47 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
           <motion.div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
             <motion.div
               className="relative w-full md:max-w-lg pointer-events-auto rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col bg-white border border-[hsl(var(--border))]"
-              style={{ maxHeight: "92dvh" }}
+              style={{
+                maxHeight: vvHeight ? `${Math.max(280, vvHeight - 8)}px` : "92dvh",
+              }}
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
               transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             >
               {/* ── Header ── */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[hsl(var(--border))] shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+              <div className="flex items-center justify-between px-4 md:px-5 pt-3.5 md:pt-5 pb-3 md:pb-4 border-b border-[hsl(var(--border))] shrink-0">
+                <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
+                  <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl flex items-center justify-center shrink-0"
                     style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
-                    <Package strokeWidth={1.8} className="h-4.5 w-4.5 text-white" />
+                    <Package strokeWidth={1.8} className="h-4 w-4 md:h-4.5 md:w-4.5 text-white" />
                   </div>
-                  <div>
-                    <h2 className="text-[14.5px] font-bold text-[hsl(var(--foreground))] leading-tight">
+                  <div className="min-w-0">
+                    <h2 className="text-[13.5px] md:text-[14.5px] font-bold text-[hsl(var(--foreground))] leading-tight truncate">
                       {initial ? "Edit Paket Trip" : "Tambah Paket Trip"}
                     </h2>
-                    <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                    <p className="hidden md:block text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
                       Isi informasi lengkap paket perjalanan
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => onOpenChange(false)}
-                  className="h-8 w-8 rounded-full bg-[hsl(var(--secondary))] flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0 ml-3"
+                  className="h-7 w-7 md:h-8 md:w-8 rounded-full bg-[hsl(var(--secondary))] flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0 ml-3"
                 >
                   <X strokeWidth={2} className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
                 </button>
               </div>
 
               {/* ── Body ── */}
-              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              <div className="overflow-y-auto flex-1 px-4 md:px-5 py-3 md:py-4 space-y-3 md:space-y-4">
 
                 {/* Cover Photo */}
                 <div className="space-y-1.5">
                   <p className={lbl}>Foto Cover <span className="normal-case font-normal text-gray-400">· opsional</span></p>
                   {draft.coverImage ? (
                     <div
-                      className="relative h-32 rounded-2xl overflow-hidden border border-[hsl(var(--border))] cursor-pointer"
+                      className="relative h-24 md:h-32 rounded-xl md:rounded-2xl overflow-hidden border border-[hsl(var(--border))] cursor-pointer"
                       onMouseEnter={() => setCoverHover(true)}
                       onMouseLeave={() => setCoverHover(false)}
                     >
@@ -214,10 +233,10 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <button
                       type="button"
                       onClick={() => fileRef.current?.click()}
-                      className="w-full h-24 rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50/40 transition-all group"
+                      className="w-full h-16 md:h-24 rounded-xl md:rounded-2xl border-2 border-dashed border-[hsl(var(--border))] flex flex-col items-center justify-center gap-1 md:gap-2 hover:border-orange-400 hover:bg-orange-50/40 transition-all group"
                     >
-                      <ImagePlus strokeWidth={1.5} className="h-5 w-5 text-gray-300 group-hover:text-orange-400 transition-colors" />
-                      <span className="text-[11.5px] text-gray-400 group-hover:text-orange-500 transition-colors">Klik untuk unggah foto cover</span>
+                      <ImagePlus strokeWidth={1.5} className="h-4 w-4 md:h-5 md:w-5 text-gray-300 group-hover:text-orange-400 transition-colors" />
+                      <span className="text-[11px] md:text-[11.5px] text-gray-400 group-hover:text-orange-500 transition-colors">Klik untuk unggah foto cover</span>
                     </button>
                   )}
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
@@ -231,7 +250,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 1: Nama + Tanggal Berangkat */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Nama Paket <span className="text-red-400 normal-case font-bold">*</span></p>
                     <Input
@@ -256,7 +275,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 2: Destinasi + Durasi */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Destinasi <span className="text-red-400 normal-case font-bold">*</span></p>
                     <Input
@@ -281,7 +300,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 3: Status + Kuota */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Status</p>
                     <Select value={draft.status} onValueChange={(v) => set("status", v as PackageStatus)}>
@@ -305,7 +324,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 </div>
 
                 {/* Row 4: Hotel + Maskapai */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Level Hotel <span className="text-red-400 normal-case font-bold">*</span></p>
                     <Select
@@ -351,7 +370,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <NotebookPen strokeWidth={1.8} className="h-3.5 w-3.5 text-orange-500" />
                     <p className={lbl}>Fasilitas yang Tersedia</p>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1 md:gap-1.5">
                     {FACILITIES_LIST.map((fac) => {
                       const active = (draft.facilities ?? []).includes(fac);
                       return (
@@ -359,7 +378,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                           key={fac}
                           type="button"
                           onClick={() => toggleFacility(fac)}
-                          className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${
+                          className={`text-[10.5px] md:text-[11px] font-semibold px-2.5 md:px-3 py-0.5 md:py-1 rounded-full border transition-all ${
                             active
                               ? "bg-orange-500 text-white border-orange-500 shadow-sm"
                               : "bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:text-orange-600"
@@ -380,19 +399,19 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     onChange={(e) => set("notes", e.target.value)}
                     rows={2}
                     placeholder="Catatan khusus untuk paket ini..."
-                    className="w-full text-[13px] rounded-xl border border-[hsl(var(--border))] bg-white px-3.5 py-2.5 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all resize-none"
+                    className="w-full text-[12.5px] md:text-[13px] rounded-lg md:rounded-xl border border-[hsl(var(--border))] bg-white px-3 md:px-3.5 py-2 md:py-2.5 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all resize-none"
                   />
                 </div>
 
               </div>
 
-              {/* ── Footer ── */}
-              <div className="px-5 py-3.5 border-t border-[hsl(var(--border))] flex gap-2.5 shrink-0 bg-white pb-[max(14px,env(safe-area-inset-bottom))]">
+              {/* ── Footer (always visible — keyboard-safe via vvHeight) ── */}
+              <div className="px-4 md:px-5 py-2.5 md:py-3.5 border-t border-[hsl(var(--border))] flex gap-2 md:gap-2.5 shrink-0 bg-white shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.08)] pb-[max(10px,env(safe-area-inset-bottom))]">
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
                   disabled={saving}
-                  className="flex-1 h-10 rounded-xl text-[13px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  className="flex-1 h-10 md:h-10 rounded-xl text-[13px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-gray-100 transition-colors disabled:opacity-50"
                 >
                   Batal
                 </button>
@@ -400,7 +419,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                   type="button"
                   onClick={handleSave}
                   disabled={saving || !canSave}
-                  className="flex-1 h-10 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                  className="flex-[1.4] md:flex-1 h-10 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
                   style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
                 >
                   {saving ? (
