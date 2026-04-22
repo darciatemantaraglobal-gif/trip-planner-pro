@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Camera, Trash2, NotebookPen, ImagePlus, Package } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -115,19 +116,23 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
+    // Hard timeout so the spinner never gets stuck forever if the network
+    // request hangs (e.g. expired auth token, slow Supabase, offline).
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timeout — periksa koneksi internet")), 15000)
+    );
     try {
-      await onSubmit(draft);
+      await Promise.race([Promise.resolve(onSubmit(draft)), timeout]);
       onOpenChange(false);
     } catch (err) {
       console.error("Gagal simpan paket:", err);
-      // Surface the failure so user knows. Supabase errors are plain objects
-      // with .message/.hint/.details — extract the most useful piece.
       const msg =
         (err as { message?: string; hint?: string; details?: string })?.message ||
         (err as { hint?: string })?.hint ||
         (err as { details?: string })?.details ||
         (typeof err === "string" ? err : "") ||
         "Gagal menyimpan paket";
+      toast.error(msg, { duration: 6000 });
       setErrors((p) => ({ ...p, name: msg }));
     } finally {
       setSaving(false);
