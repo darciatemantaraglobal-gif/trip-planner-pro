@@ -7,26 +7,17 @@ export interface PassportData {
   birthDate?: string;
   expiryDate?: string;
   gender?: "L" | "P";
-  /**
-   * MRZ checksum validation results (ICAO 9303).
-   * Each flag is `true` when the corresponding check digit matches.
-   * `composite` is the overall composite check covering passport#, DOB, expiry, and personal#.
-   * Missing when the MRZ couldn't be read at all.
-   */
   checksums?: {
     passportNumber: boolean;
     birthDate: boolean;
     expiryDate: boolean;
     composite: boolean;
   };
-  /** True when every checksum above passed. */
   mrzValid?: boolean;
 }
 
-/**
- * ICAO 9303 MRZ check-digit calculator.
- * Weights cycle 7,3,1. Letters A–Z = 10–35, '<' = 0, digits = themselves.
- */
+/* ────────────────────────────── ICAO 9303 helpers ────────────────────────────── */
+
 function mrzCheckDigit(field: string): number {
   const weights = [7, 3, 1];
   let sum = 0;
@@ -35,7 +26,7 @@ function mrzCheckDigit(field: string): number {
     let v = 0;
     if (ch >= "0" && ch <= "9") v = ch.charCodeAt(0) - 48;
     else if (ch >= "A" && ch <= "Z") v = ch.charCodeAt(0) - 55;
-    else v = 0; // '<' and anything unexpected
+    else v = 0;
     sum += v * weights[i % 3];
   }
   return sum % 10;
@@ -46,7 +37,6 @@ function checkField(field: string, expectedChar: string): boolean {
   return mrzCheckDigit(field) === Number(expectedChar);
 }
 
-/** Count only data fields (excludes checksum metadata). */
 export function countPassportDataFields(p: PassportData): number {
   const dataKeys: (keyof PassportData)[] = [
     "name",
@@ -59,7 +49,6 @@ export function countPassportDataFields(p: PassportData): number {
   return dataKeys.filter((k) => p[k] != null && p[k] !== "").length;
 }
 
-/** Human-readable list of failed checksum field names (Indonesian). */
 export function failedChecksumLabels(p: PassportData): string[] {
   if (!p.checksums) return [];
   const labels: Record<keyof NonNullable<PassportData["checksums"]>, string> = {
@@ -73,35 +62,28 @@ export function failedChecksumLabels(p: PassportData): string[] {
     .map((k) => labels[k]);
 }
 
-/**
- * Progress phases — mapped to a continuous 0-100 range:
- *   0-10%  : loading tesseract core
- *  10-15%  : initializing tesseract
- *  15-30%  : loading language traineddata
- *  30-35%  : initializing api
- *  35-100% : recognizing text
- */
+/* ────────────────────────────── Progress mapping ────────────────────────────── */
+
 function mapProgress(status: string, rawProgress: number): number {
   const p = Math.max(0, Math.min(1, rawProgress));
   switch (status) {
     case "loading tesseract core":
-      return Math.round(p * 10);
+      return Math.round(p * 8);
     case "initializing tesseract":
-      return Math.round(10 + p * 5);
+      return Math.round(8 + p * 4);
     case "loading language traineddata":
-      return Math.round(15 + p * 15);
+      return Math.round(12 + p * 12);
     case "initializing api":
-      return Math.round(30 + p * 5);
+      return Math.round(24 + p * 4);
     case "recognizing text":
-      return Math.round(35 + p * 65);
+      return Math.round(28 + p * 70);
     default:
-      return Math.round(p * 35);
+      return Math.round(p * 28);
   }
 }
 
-/**
- * Convert File/Blob to a base64 data URL.
- */
+/* ────────────────────────────── File → DataURL ────────────────────────────── */
+
 function fileToDataUrl(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -111,115 +93,182 @@ function fileToDataUrl(file: File | Blob): Promise<string> {
   });
 }
 
-/**
- * Preprocess the passport image for better MRZ OCR:
- * - Crop the bottom 32% where the MRZ strip lives
- * - Scale up 2× for finer detail
- * - Convert to high-contrast black-and-white
- */
-function preprocessForMRZ(dataUrl: string): Promise<string> {
-  return new Promise((resolve) => {
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
-      try {
-        // --- Step 1: Crop bottom 32% ---
-        const cropH = Math.round(img.height * 0.32);
-        const cropY = img.height - cropH;
-
-        const crop = document.createElement("canvas");
-        crop.width = img.width;
-        crop.height = cropH;
-        const cCtx = crop.getContext("2d")!;
-        cCtx.drawImage(img, 0, cropY, img.width, cropH, 0, 0, img.width, cropH);
-
-        // --- Step 2: Grayscale + contrast stretch + binary threshold ---
-        const id = cCtx.getImageData(0, 0, crop.width, crop.height);
-        const d = id.data;
-
-        // Find min/max brightness for contrast stretch
-        let minB = 255, maxB = 0;
-        for (let i = 0; i < d.length; i += 4) {
-          const b = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          if (b < minB) minB = b;
-          if (b > maxB) maxB = b;
-        }
-        const range = maxB - minB || 1;
-
-        for (let i = 0; i < d.length; i += 4) {
-          const b = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          const stretched = ((b - minB) / range) * 255;
-          const val = stretched > 127 ? 255 : 0;
-          d[i] = d[i + 1] = d[i + 2] = val;
-          d[i + 3] = 255;
-        }
-        cCtx.putImageData(id, 0, 0);
-
-        // --- Step 3: Scale up 2× (crisper text for Tesseract) ---
-        const out = document.createElement("canvas");
-        out.width = crop.width * 2;
-        out.height = crop.height * 2;
-        const oCtx = out.getContext("2d")!;
-        oCtx.imageSmoothingEnabled = false;
-        oCtx.drawImage(crop, 0, 0, out.width, out.height);
-
-        resolve(out.toDataURL("image/png"));
-      } catch {
-        resolve(dataUrl);
-      }
-    };
-    img.onerror = () => resolve(dataUrl);
+    img.onload = () => resolve(img);
+    img.onerror = reject;
     img.src = dataUrl;
   });
 }
 
+/* ────────────────────────────── Image preprocessing ────────────────────────────── */
+
 /**
- * Fix common OCR character confusions in MRZ numeric positions.
- * O→0, I→1, S→5, Z→2, B→8
+ * Otsu's method — finds the optimal threshold from the image histogram.
+ * Far more robust than a fixed 127 cutoff for varied lighting.
  */
-function fixNumericZone(s: string): string {
-  return s
-    .replace(/O/g, "0")
-    .replace(/I/g, "1")
-    .replace(/S/g, "5")
-    .replace(/Z/g, "2")
-    .replace(/B/g, "8");
+function otsuThreshold(gray: Uint8ClampedArray): number {
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  const total = gray.length;
+  let sum = 0;
+  for (let t = 0; t < 256; t++) sum += t * hist[t];
+
+  let sumB = 0;
+  let wB = 0;
+  let maxVar = 0;
+  let threshold = 127;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (wB === 0) continue;
+    const wF = total - wB;
+    if (wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > maxVar) {
+      maxVar = between;
+      threshold = t;
+    }
+  }
+  return threshold;
 }
 
 /**
- * Clean a raw OCR line to only contain valid MRZ characters.
+ * Crop bottom `cropFrac` of the image, binarize with Otsu, scale 2×.
+ * Returns a high-contrast PNG ideal for Tesseract MRZ recognition.
  */
+async function preprocessForMRZ(
+  img: HTMLImageElement,
+  cropFrac: number,
+  thresholdOffset = 0
+): Promise<string> {
+  const cropH = Math.round(img.height * cropFrac);
+  const cropY = img.height - cropH;
+
+  const crop = document.createElement("canvas");
+  crop.width = img.width;
+  crop.height = cropH;
+  const cCtx = crop.getContext("2d", { willReadFrequently: true })!;
+  cCtx.drawImage(img, 0, cropY, img.width, cropH, 0, 0, img.width, cropH);
+
+  const id = cCtx.getImageData(0, 0, crop.width, crop.height);
+  const d = id.data;
+
+  // Build grayscale buffer for Otsu
+  const gray = new Uint8ClampedArray(d.length / 4);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    gray[j] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+  }
+
+  const t = Math.max(0, Math.min(255, otsuThreshold(gray) + thresholdOffset));
+
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    const v = gray[j] > t ? 255 : 0;
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  cCtx.putImageData(id, 0, 0);
+
+  const out = document.createElement("canvas");
+  out.width = crop.width * 2;
+  out.height = crop.height * 2;
+  const oCtx = out.getContext("2d")!;
+  oCtx.imageSmoothingEnabled = false;
+  oCtx.drawImage(crop, 0, 0, out.width, out.height);
+
+  return out.toDataURL("image/png");
+}
+
+/* ────────────────────────────── MRZ parsing ────────────────────────────── */
+
+/** Char correction for numeric MRZ zones. */
+function fixNumericZone(s: string): string {
+  return s
+    .replace(/O/g, "0")
+    .replace(/D/g, "0")
+    .replace(/Q/g, "0")
+    .replace(/I/g, "1")
+    .replace(/L/g, "1")
+    .replace(/S/g, "5")
+    .replace(/Z/g, "2")
+    .replace(/B/g, "8")
+    .replace(/G/g, "6");
+}
+
+/** Char correction for alpha MRZ zones. */
+function fixAlphaZone(s: string): string {
+  return s
+    .replace(/0/g, "O")
+    .replace(/1/g, "I")
+    .replace(/5/g, "S")
+    .replace(/8/g, "B");
+}
+
 function cleanLine(raw: string): string {
   return raw
     .toUpperCase()
-    .replace(/\s/g, "")
+    .replace(/[\s\u00A0]/g, "")
     .replace(/[^A-Z0-9<]/g, "<");
 }
 
 /**
- * Extract the two MRZ lines from raw OCR text.
- * TD3 passport: each line is exactly 44 characters.
+ * Pad/truncate to exactly 44 chars.
+ * If line is too short, pad with `<` at the end (filler positions).
+ */
+function normalizeLine(l: string): string {
+  if (l.length >= 44) return l.slice(0, 44);
+  return l.padEnd(44, "<");
+}
+
+/**
+ * Find the two MRZ lines from raw OCR output.
+ * Looks for line 1 starting with `P<` and line 2 matching the data pattern,
+ * then falls back to "two longest plausible lines".
  */
 function extractMRZLines(text: string): [string, string] | null {
-  const lines = text
-    .split("\n")
+  const all = text
+    .split(/\r?\n/)
     .map(cleanLine)
-    .filter((l) => l.length >= 36);
+    .filter((l) => l.length >= 30);
+  if (all.length === 0) return null;
 
-  const candidates = lines
-    .map((l) => (l.length < 44 ? l.padEnd(44, "<") : l.slice(0, 44)))
-    .filter((l) => /^[A-Z0-9<]{44}$/.test(l));
+  const padded = all.map(normalizeLine);
 
-  if (candidates.length >= 2) {
-    const l1idx = candidates.findIndex((l) => l.startsWith("P"));
-    if (l1idx !== -1 && l1idx + 1 < candidates.length) {
-      return [candidates[l1idx], candidates[l1idx + 1]];
+  // Strategy 1: find a P-starting line followed by another long line
+  for (let i = 0; i < padded.length - 1; i++) {
+    if (padded[i].startsWith("P") && padded[i + 1].length === 44) {
+      return [padded[i], padded[i + 1]];
     }
-    return [candidates[0], candidates[1]];
   }
 
-  const fallback = lines
-    .map((l) => (l.length < 44 ? l.padEnd(44, "<") : l.slice(0, 44)));
-  if (fallback.length >= 2) return [fallback[0], fallback[1]];
+  // Strategy 2: find any line where positions [10..12] look like a 3-letter
+  // country code AND [0..8] look like passport-numbery → that's line 2.
+  // The line above should be line 1.
+  for (let i = 1; i < padded.length; i++) {
+    const l = padded[i];
+    const nat = l.slice(10, 13);
+    const pn = l.slice(0, 9);
+    if (/^[A-Z<]{3}$/.test(nat) && /^[A-Z0-9<]{9}$/.test(pn) && /\d/.test(pn)) {
+      return [padded[i - 1], l];
+    }
+  }
+
+  // Strategy 3: just two longest lines
+  const sorted = [...padded].sort((a, b) => {
+    const aScore = a.replace(/</g, "").length;
+    const bScore = b.replace(/</g, "").length;
+    return bScore - aScore;
+  });
+  if (sorted.length >= 2) {
+    // Make sure we return them in correct order (line1 before line2 in source)
+    const idxA = padded.indexOf(sorted[0]);
+    const idxB = padded.indexOf(sorted[1]);
+    if (idxA < idxB) return [sorted[0], sorted[1]];
+    return [sorted[1], sorted[0]];
+  }
 
   return null;
 }
@@ -228,19 +277,21 @@ function parseMRZ(text: string): PassportData {
   const pair = extractMRZLines(text);
   if (!pair) return {};
 
-  const [line1, line2] = pair;
+  const [rawLine1, rawLine2] = pair;
+  const line1 = rawLine1;
+  const line2 = rawLine2;
   const result: PassportData = {};
 
   try {
-    // ── Passport number (line2 [0..8]) ──
+    // Passport number — alpha+digit zone, no aggressive numeric fix
     const passportRaw = line2.slice(0, 9).replace(/</g, "");
     if (passportRaw.length >= 5) result.passportNumber = passportRaw;
 
-    // ── Nationality (line2 [10..12]) ──
-    const nat = line2.slice(10, 13).replace(/</g, "");
+    // Nationality — pure alpha
+    const nat = fixAlphaZone(line2.slice(10, 13)).replace(/</g, "");
     if (nat.length >= 2) result.nationality = nat;
 
-    // ── Date of birth (line2 [13..18]) ──
+    // DOB — pure numeric
     const dobRaw = fixNumericZone(line2.slice(13, 19));
     if (/^\d{6}$/.test(dobRaw)) {
       const yy = parseInt(dobRaw.slice(0, 2));
@@ -250,12 +301,12 @@ function parseMRZ(text: string): PassportData {
       result.birthDate = `${yyyy}-${mm}-${dd}`;
     }
 
-    // ── Sex (line2 [20]) ──
+    // Sex
     const sex = line2[20];
     if (sex === "M") result.gender = "L";
     else if (sex === "F") result.gender = "P";
 
-    // ── Expiry date (line2 [21..26]) ──
+    // Expiry date — pure numeric
     const expRaw = fixNumericZone(line2.slice(21, 27));
     if (/^\d{6}$/.test(expRaw)) {
       const yy = parseInt(expRaw.slice(0, 2));
@@ -265,8 +316,8 @@ function parseMRZ(text: string): PassportData {
       result.expiryDate = `${yyyy}-${mm}-${dd}`;
     }
 
-    // ── Name (line1 [5..43]) ──
-    const namePart = line1.slice(5, 44);
+    // Name — pure alpha
+    const namePart = fixAlphaZone(line1.slice(5, 44));
     const sepIdx = namePart.indexOf("<<");
     let fullName = "";
     if (sepIdx !== -1) {
@@ -276,17 +327,15 @@ function parseMRZ(text: string): PassportData {
     } else {
       fullName = namePart.replace(/</g, " ").trim();
     }
-
     if (fullName.length > 2) result.name = fullName;
 
-    // ── ICAO 9303 checksum validation ──
+    // Checksums — use the corrected fields
     const passportField = line2.slice(0, 9);
     const passportCheckChar = line2[9];
     const dobField = fixNumericZone(line2.slice(13, 19));
     const dobCheckChar = line2[19];
     const expField = fixNumericZone(line2.slice(21, 27));
     const expCheckChar = line2[27];
-    // Composite covers passport# + cd, DOB + cd, expiry + cd, personal# + cd
     const compositeField =
       line2.slice(0, 10) +
       line2.slice(13, 20) +
@@ -295,40 +344,74 @@ function parseMRZ(text: string): PassportData {
       line2[42];
     const compositeCheckChar = line2[43];
 
-    const checksums = {
+    result.checksums = {
       passportNumber: checkField(passportField, passportCheckChar),
       birthDate: checkField(dobField, dobCheckChar),
       expiryDate: checkField(expField, expCheckChar),
       composite: checkField(compositeField, compositeCheckChar),
     };
-    result.checksums = checksums;
     result.mrzValid =
-      checksums.passportNumber &&
-      checksums.birthDate &&
-      checksums.expiryDate &&
-      checksums.composite;
+      result.checksums.passportNumber &&
+      result.checksums.birthDate &&
+      result.checksums.expiryDate &&
+      result.checksums.composite;
   } catch {
-    // ignore parse errors
+    /* swallow */
   }
 
   return result;
 }
 
+/* ────────────────────────────── Result scoring ────────────────────────────── */
+
+/**
+ * Score a parse result so we can pick the best candidate from multiple OCR passes.
+ * Checksum passes are weighted highest, then number of fields extracted.
+ */
+function scoreResult(p: PassportData): number {
+  let score = 0;
+  if (p.checksums) {
+    if (p.checksums.passportNumber) score += 30;
+    if (p.checksums.birthDate) score += 25;
+    if (p.checksums.expiryDate) score += 25;
+    if (p.checksums.composite) score += 40;
+  }
+  score += countPassportDataFields(p) * 5;
+  return score;
+}
+
+/* ────────────────────────────── Main entry ────────────────────────────── */
+
+/**
+ * OCR a passport image. Tries multiple preprocessing variants and PSM modes
+ * and picks the result with the highest checksum/field score.
+ */
 export async function scanPassport(
   imageSource: string | File,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
 ): Promise<PassportData> {
   const dataUrl =
     imageSource instanceof File || imageSource instanceof Blob
       ? await fileToDataUrl(imageSource)
       : imageSource;
 
-  const processed = await preprocessForMRZ(dataUrl);
+  const img = await loadImage(dataUrl);
+
+  // Build several preprocessed variants (different crop heights & threshold offsets).
+  // More variants → higher chance one of them yields a clean MRZ.
+  const variants = await Promise.all([
+    preprocessForMRZ(img, 0.32, 0),
+    preprocessForMRZ(img, 0.28, 0),
+    preprocessForMRZ(img, 0.38, 0),
+    preprocessForMRZ(img, 0.32, -15), // slightly darker → connects broken strokes
+  ]);
 
   const worker = await createWorker("eng", 1, {
     logger: (m) => {
       if (onProgress && m.progress !== undefined) {
-        onProgress(mapProgress(m.status, m.progress));
+        // Compress per-pass progress into the overall 28-95% band.
+        const base = mapProgress(m.status, m.progress);
+        onProgress(Math.min(95, base));
       }
     },
   });
@@ -339,19 +422,51 @@ export async function scanPassport(
       tessedit_pageseg_mode: "6" as never,
     });
 
-    const { data: r1 } = await worker.recognize(processed);
-    let result = parseMRZ(r1.text);
+    let best: PassportData = {};
+    let bestScore = -1;
 
-    if (!result.passportNumber && !result.name) {
-      await worker.setParameters({
-        tessedit_pageseg_mode: "11" as never,
-      });
-      const { data: r2 } = await worker.recognize(dataUrl);
-      result = parseMRZ(r2.text);
+    // Pass 1-N: each variant with PSM 6 (uniform block of text)
+    for (const v of variants) {
+      const { data } = await worker.recognize(v);
+      const parsed = parseMRZ(data.text);
+      const s = scoreResult(parsed);
+      if (s > bestScore) {
+        bestScore = s;
+        best = parsed;
+      }
+      // Short-circuit if all checksums passed already
+      if (parsed.mrzValid) {
+        if (onProgress) onProgress(100);
+        return parsed;
+      }
+    }
+
+    // Pass: PSM 7 (single text line) on the strongest crop
+    if (bestScore < 80) {
+      await worker.setParameters({ tessedit_pageseg_mode: "7" as never });
+      const { data } = await worker.recognize(variants[0]);
+      const parsed = parseMRZ(data.text);
+      const s = scoreResult(parsed);
+      if (s > bestScore) {
+        bestScore = s;
+        best = parsed;
+      }
+    }
+
+    // Final fallback: PSM 11 (sparse text) on the original full image —
+    // sometimes the MRZ strip has context (like rotation) the crop misses.
+    if (bestScore < 50) {
+      await worker.setParameters({ tessedit_pageseg_mode: "11" as never });
+      const { data } = await worker.recognize(dataUrl);
+      const parsed = parseMRZ(data.text);
+      const s = scoreResult(parsed);
+      if (s > bestScore) {
+        best = parsed;
+      }
     }
 
     if (onProgress) onProgress(100);
-    return result;
+    return best;
   } finally {
     await worker.terminate();
   }
