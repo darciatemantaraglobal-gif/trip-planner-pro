@@ -632,6 +632,134 @@
       max-width: calc(100vw - 1rem);
     }
 
+    /* ─── Auto-compact forms (mobile/PWA, semua halaman) ──────────────────────
+       Tujuan: form jadi rapat tapi input tetep tap-able (≥44px), no iOS zoom.
+       Jangan ngecilin font input <16px. Yang dirapatkan: label, gap field,
+       dialog padding, footer buttons, helper text. */
+
+    /* Form labels — uppercase micro-label style */
+    .mobile-compact label,
+    .mobile-compact [data-form-label],
+    .mobile-compact [role="heading"][aria-level="2"] + label {
+      font-size: 0.7rem;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.2rem;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+
+    /* Standardize input height (44px tap target tetap) tapi padding lebih rapat */
+    .mobile-compact input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+    .mobile-compact textarea,
+    .mobile-compact select,
+    .mobile-compact [role="combobox"] {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      padding-left: 0.65rem;
+      padding-right: 0.65rem;
+      border-radius: 0.625rem;
+    }
+
+    /* Color picker tetap kotak kecil */
+    .mobile-compact input[type="color"] {
+      min-height: unset !important;
+      min-width: unset !important;
+      height: 2rem;
+      width: 2.5rem;
+    }
+
+    /* Inline button "ghost"/outline lebih ramping di toolbar form */
+    .mobile-compact .form-toolbar button,
+    .mobile-compact [data-form-toolbar] button {
+      min-height: 2.25rem;
+      padding-left: 0.55rem;
+      padding-right: 0.55rem;
+    }
+
+    /* Field row group — kurangi vertical rhythm */
+    .mobile-compact form .space-y-4 > :not([hidden]) ~ :not([hidden]),
+    .mobile-compact [role="dialog"] .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 0.55rem;
+    }
+    .mobile-compact form .space-y-3 > :not([hidden]) ~ :not([hidden]),
+    .mobile-compact [role="dialog"] .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 0.45rem;
+    }
+    .mobile-compact form .space-y-2 > :not([hidden]) ~ :not([hidden]),
+    .mobile-compact [role="dialog"] .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 0.3rem;
+    }
+
+    /* Dialog content padding — biar form lebih luas area input-nya */
+    .mobile-compact [role="dialog"] > [data-state],
+    .mobile-compact [data-radix-dialog-content],
+    .mobile-compact [data-radix-alert-dialog-content] {
+      padding: 0.875rem !important;
+    }
+    .mobile-compact [role="dialog"] [data-radix-dialog-header],
+    .mobile-compact [role="dialog"] [data-radix-dialog-footer] {
+      padding-top: 0.4rem;
+      padding-bottom: 0.4rem;
+    }
+
+    /* Dialog title/description rapat */
+    .mobile-compact [role="dialog"] h2,
+    .mobile-compact [data-radix-dialog-title] {
+      font-size: 1rem;
+      line-height: 1.3;
+      margin-bottom: 0.15rem;
+    }
+    .mobile-compact [role="dialog"] [data-radix-dialog-description] {
+      font-size: 0.75rem;
+      line-height: 1.35;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Footer button group jadi full-width stack di mobile */
+    .mobile-compact [role="dialog"] .DialogFooter,
+    .mobile-compact [data-radix-dialog-footer] {
+      gap: 0.4rem !important;
+    }
+
+    /* Form 2-column grid → tetap 2-col tapi gap rapat */
+    .mobile-compact form .grid.grid-cols-2,
+    .mobile-compact [role="dialog"] .grid.grid-cols-2 {
+      gap: 0.5rem;
+    }
+
+    /* Helper text di bawah field */
+    .mobile-compact .field-hint,
+    .mobile-compact [data-field-hint],
+    .mobile-compact form p.text-xs,
+    .mobile-compact form p.text-\[10px\],
+    .mobile-compact form p.text-\[11px\] {
+      font-size: 0.65rem;
+      line-height: 1.3;
+      margin-top: 0.2rem;
+    }
+
+    /* Switch/toggle tap area sedikit dirapatkan */
+    .mobile-compact [role="switch"] {
+      min-width: 2.5rem !important;
+      min-height: 1.5rem !important;
+    }
+
+    /* Number-spinner / inline +/- tombol tetap nyaman */
+    .mobile-compact .num-spinner button,
+    .mobile-compact [data-num-spinner] button {
+      min-height: 2rem !important;
+      min-width: 2rem !important;
+      padding: 0;
+    }
+
+    /* Calendar picker compact */
+    .mobile-compact [role="grid"] td button,
+    .mobile-compact .rdp-day {
+      min-height: 2.25rem !important;
+      min-width: 2.25rem !important;
+      font-size: 0.8125rem !important;
+    }
+
     /* ─── Compact-page mode (per-route) ──────────────────────────────────────
        Aktif untuk halaman: /calculator, /packages*, /progress, /trips*,
        /notes, /exports, /settings. Beranda ("/") tetap pakai layout default. */

@@ -246,7 +246,7 @@ function PackageTrackerSection() {
                             isCurrent ? "text-[hsl(var(--primary))]" : isComplete ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]")}>
                             {step.label}
                           </div>
-                          <div className="text-[9px] text-[hsl(var(--muted-foreground))] hidden sm:block mt-0.5">{step.desc}</div>
+                          <div className="text-[9px] text-[hsl(var(--muted-foreground))] mt-0.5">{step.desc}</div>
                         </div>
                       </button>
                     );
@@ -311,7 +311,7 @@ export default function ProgressTracker() {
           <TrendingUp strokeWidth={1.5} className="h-4 w-4 md:h-5 md:w-5 text-[hsl(var(--primary))]" />
           Progress Tracker
         </h1>
-        <p className="hidden md:block text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+        <p className="text-xs md:text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
           Pantau kelengkapan dokumen & status jamaah dan paket trip secara real-time.
         </p>
       </motion.div>
@@ -355,7 +355,7 @@ export default function ProgressTracker() {
             {JAMAAH_STEPS.map((s) => (
               <div key={s.key} className="flex flex-col items-center gap-0.5">
                 <div className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
-                <span className="text-[8px] text-[hsl(var(--muted-foreground))] hidden sm:block">{s.label}</span>
+                <span className="text-[8px] text-[hsl(var(--muted-foreground))] block">{s.label}</span>
               </div>
             ))}
           </div>

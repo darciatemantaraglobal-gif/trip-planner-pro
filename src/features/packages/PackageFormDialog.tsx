@@ -196,7 +196,7 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                     <h2 className="text-[13.5px] md:text-[14.5px] font-bold text-[hsl(var(--foreground))] leading-tight truncate">
                       {initial ? "Edit Paket Trip" : "Tambah Paket Trip"}
                     </h2>
-                    <p className="hidden md:block text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                    <p className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
                       Isi informasi lengkap paket perjalanan
                     </p>
                   </div>

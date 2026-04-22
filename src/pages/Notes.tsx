@@ -445,7 +445,7 @@ export default function Notes() {
                 </div>
               </div>
               <div className="flex justify-between items-center gap-2">
-                <p className="text-[10px] text-muted-foreground hidden sm:block">
+                <p className="text-[10px] text-muted-foreground">
                   {t.notes_ctrl_enter}
                 </p>
                 <div className="flex gap-2 ml-auto">

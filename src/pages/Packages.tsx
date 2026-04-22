@@ -194,7 +194,7 @@ export default function Packages() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-base md:text-2xl font-bold text-[hsl(var(--foreground))] leading-tight">Paket Trip</h1>
-          <p className="hidden md:block text-xs text-[hsl(var(--muted-foreground))] mt-0.5">Kelola semua paket perjalanan kamu.</p>
+          <p className="text-[11px] md:text-xs text-[hsl(var(--muted-foreground))] mt-0.5">Kelola semua paket perjalanan kamu.</p>
         </div>
         <Button
           onClick={openCreate}

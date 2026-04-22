@@ -789,7 +789,7 @@ export default function PackageDetail() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="rounded-xl h-8 px-2.5 md:h-10 md:px-3 border-orange-200 text-orange-600 hover:bg-orange-50" title="Sinkron ke kalender">
                   <CalendarPlus className="h-3.5 w-3.5 md:mr-1" />
-                  <span className="hidden md:inline text-xs">Kalender</span>
+                  <span className="text-xs">Kalender</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
