@@ -159,48 +159,68 @@ export const SMART_KEY_LABELS: Record<SmartKey, string> = {
 
 export function makeDefaultStarterTemplate(): Omit<CanvasTemplate, "id" | "createdAt" | "updatedAt"> {
   return {
-    name: "Default IGH Tour",
+    name: "IGH Tour — Premium",
     pageSize: "a4",
     orientation: "portrait",
     backgroundColor: "#ffffff",
     elements: [
-      // Header band
-      { id: "hdr", type: "shape", shape: "rect", x: 0, y: 0, w: 100, h: 8, z: 1, fill: "#ea580c", stroke: "transparent", strokeWidth: 0 },
-      { id: "hdr-title", type: "text", text: "PENAWARAN PAKET", x: 4, y: 1.5, w: 60, h: 5, z: 2, fontSize: 14, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#ffffff" },
-      { id: "hdr-quote", type: "smart", smartKey: "quoteNumber", x: 70, y: 1.5, w: 26, h: 5, z: 2, fontSize: 11, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#ffffff", prefix: "Quote #" },
+      /* ── HEADER (minimal, biar background lo bisa keliatan) ─────────── */
+      // Aksen oranye tipis kiri-atas
+      { id: "accent-bar", type: "shape", shape: "rect", x: 5, y: 5.5, w: 6, h: 0.45, z: 1, fill: "#ea580c", stroke: "transparent", strokeWidth: 0, borderRadius: 0.3 },
+      { id: "hdr-eyebrow", type: "text", text: "PENAWARAN PAKET", x: 5, y: 6.3, w: 50, h: 3, z: 2, fontSize: 9, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#6b7280", lineHeight: 1.1 },
+      // Quote # pill kanan-atas
+      { id: "hdr-quote-bg", type: "shape", shape: "rect", x: 70, y: 5.3, w: 25, h: 4.2, z: 1, fill: "#ffffff", stroke: "#e5d9c4", strokeWidth: 0.5, borderRadius: 2.1 },
+      { id: "hdr-quote", type: "smart", smartKey: "quoteNumber", x: 70, y: 5.3, w: 25, h: 4.2, z: 2, fontSize: 9, fontWeight: "bold", fontStyle: "normal", align: "center", color: "#0b1f4d", prefix: "Quote #" },
 
-      // Title block
-      { id: "title", type: "smart", smartKey: "title", x: 4, y: 11, w: 70, h: 7, z: 2, fontSize: 20, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#102463" },
-      { id: "subtitle", type: "smart", smartKey: "dateRange", x: 4, y: 18, w: 70, h: 4, z: 2, fontSize: 11, fontWeight: "normal", fontStyle: "normal", align: "left", color: "#666666" },
+      /* ── TITLE BLOCK ─────────────────────────────────────────────── */
+      { id: "title", type: "smart", smartKey: "title", x: 5, y: 12, w: 64, h: 8.5, z: 2, fontSize: 22, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#0b1f4d", lineHeight: 1.15 },
+      { id: "subtitle", type: "smart", smartKey: "dateRange", x: 5, y: 21, w: 64, h: 4, z: 2, fontSize: 10.5, fontWeight: "normal", fontStyle: "italic", align: "left", color: "#6b7280" },
 
-      // Customer
-      { id: "cust-lbl", type: "text", text: "Customer:", x: 76, y: 11, w: 20, h: 3, z: 2, fontSize: 8, fontWeight: "normal", fontStyle: "normal", align: "right", color: "#888888" },
-      { id: "cust", type: "smart", smartKey: "customerName", x: 76, y: 14, w: 20, h: 5, z: 2, fontSize: 11, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#102463" },
+      // Customer label kanan
+      { id: "cust-lbl", type: "text", text: "DITUJUKAN UNTUK", x: 70, y: 12, w: 25, h: 3, z: 2, fontSize: 7.5, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#c99841" },
+      { id: "cust", type: "smart", smartKey: "customerName", x: 70, y: 15.5, w: 25, h: 5, z: 2, fontSize: 12, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#0b1f4d" },
 
-      // Hotels row
-      { id: "h-mak-lbl", type: "text", text: "MAKKAH", x: 4, y: 26, w: 30, h: 3, z: 2, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#888888" },
-      { id: "h-mak", type: "smart", smartKey: "hotelMakkah", x: 4, y: 29, w: 44, h: 5, z: 2, fontSize: 13, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#102463" },
-      { id: "h-mak-n", type: "smart", smartKey: "makkahNights", x: 4, y: 34.5, w: 22, h: 4, z: 2, fontSize: 9, fontWeight: "bold", fontStyle: "normal", align: "center", color: "#c99841", backgroundColor: "#f3e2af", suffix: " MALAM" },
+      // Divider tipis emas
+      { id: "div-top", type: "shape", shape: "rect", x: 5, y: 27, w: 90, h: 0.18, z: 1, fill: "#c99841", stroke: "transparent", strokeWidth: 0 },
 
-      { id: "h-mad-lbl", type: "text", text: "MADINAH", x: 52, y: 26, w: 30, h: 3, z: 2, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#888888" },
-      { id: "h-mad", type: "smart", smartKey: "hotelMadinah", x: 52, y: 29, w: 44, h: 5, z: 2, fontSize: 13, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#102463" },
-      { id: "h-mad-n", type: "smart", smartKey: "madinahNights", x: 52, y: 34.5, w: 22, h: 4, z: 2, fontSize: 9, fontWeight: "bold", fontStyle: "normal", align: "center", color: "#c99841", backgroundColor: "#f3e2af", suffix: " MALAM" },
+      /* ── HOTEL CARDS (Makkah & Madinah) ──────────────────────────── */
+      // Makkah card
+      { id: "mak-card", type: "shape", shape: "rect", x: 5, y: 30, w: 43, h: 16, z: 1, fill: "#ffffff", stroke: "#e5d9c4", strokeWidth: 0.6, borderRadius: 3 },
+      { id: "mak-tab", type: "shape", shape: "rect", x: 5, y: 30, w: 1, h: 16, z: 2, fill: "#c99841", stroke: "transparent", strokeWidth: 0, borderRadius: 3 },
+      { id: "mak-lbl", type: "text", text: "MAKKAH", x: 8, y: 32, w: 25, h: 3, z: 3, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#c99841" },
+      { id: "mak", type: "smart", smartKey: "hotelMakkah", x: 8, y: 35.5, w: 38, h: 5.5, z: 3, fontSize: 13, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#0b1f4d", lineHeight: 1.1 },
+      { id: "mak-n", type: "smart", smartKey: "makkahNights", x: 8, y: 41.5, w: 18, h: 3.6, z: 3, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "center", color: "#7c5a18", backgroundColor: "#f7e9bf", suffix: " MALAM", paddingY: 1, paddingX: 4 },
 
-      // Pax + price
-      { id: "pax-lbl", type: "text", text: "JUMLAH PAX", x: 4, y: 41, w: 30, h: 3, z: 2, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#888888" },
-      { id: "pax", type: "smart", smartKey: "pax", x: 4, y: 44, w: 30, h: 7, z: 2, fontSize: 22, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#102463" },
+      // Madinah card
+      { id: "mad-card", type: "shape", shape: "rect", x: 52, y: 30, w: 43, h: 16, z: 1, fill: "#ffffff", stroke: "#e5d9c4", strokeWidth: 0.6, borderRadius: 3 },
+      { id: "mad-tab", type: "shape", shape: "rect", x: 52, y: 30, w: 1, h: 16, z: 2, fill: "#c99841", stroke: "transparent", strokeWidth: 0, borderRadius: 3 },
+      { id: "mad-lbl", type: "text", text: "MADINAH", x: 55, y: 32, w: 25, h: 3, z: 3, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#c99841" },
+      { id: "mad", type: "smart", smartKey: "hotelMadinah", x: 55, y: 35.5, w: 38, h: 5.5, z: 3, fontSize: 13, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#0b1f4d", lineHeight: 1.1 },
+      { id: "mad-n", type: "smart", smartKey: "madinahNights", x: 55, y: 41.5, w: 18, h: 3.6, z: 3, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "center", color: "#7c5a18", backgroundColor: "#f7e9bf", suffix: " MALAM", paddingY: 1, paddingX: 4 },
 
-      { id: "price-lbl", type: "text", text: "HARGA / PAX", x: 52, y: 41, w: 44, h: 3, z: 2, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#888888" },
-      { id: "price", type: "smart", smartKey: "pricePerPax", x: 52, y: 44, w: 44, h: 7, z: 2, fontSize: 18, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#ea580c", format: "currency-idr" },
+      /* ── PRICE HIGHLIGHT (navy card premium) ─────────────────────── */
+      { id: "price-card", type: "shape", shape: "rect", x: 5, y: 49.5, w: 90, h: 14, z: 1, fill: "#0b1f4d", stroke: "transparent", strokeWidth: 0, borderRadius: 3 },
+      { id: "price-tab", type: "shape", shape: "rect", x: 5, y: 49.5, w: 1, h: 14, z: 2, fill: "#ea580c", stroke: "transparent", strokeWidth: 0, borderRadius: 3 },
+      // Pax kiri
+      { id: "pax-lbl", type: "text", text: "JUMLAH PAX", x: 8, y: 52, w: 30, h: 3, z: 3, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#c99841" },
+      { id: "pax", type: "smart", smartKey: "pax", x: 8, y: 55.5, w: 30, h: 7, z: 3, fontSize: 22, fontWeight: "bold", fontStyle: "normal", align: "left", color: "#ffffff", suffix: " pax" },
+      // Garis pembatas vertikal tipis
+      { id: "price-sep", type: "shape", shape: "rect", x: 47, y: 52, w: 0.15, h: 9, z: 3, fill: "#c99841", stroke: "transparent", strokeWidth: 0 },
+      // Price kanan
+      { id: "price-lbl", type: "text", text: "HARGA / PAX", x: 50, y: 52, w: 42, h: 3, z: 3, fontSize: 8, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#c99841" },
+      { id: "price", type: "smart", smartKey: "pricePerPax", x: 50, y: 55.5, w: 42, h: 7, z: 3, fontSize: 22, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#ffffff", format: "currency-idr" },
 
-      // Bullets
-      { id: "inc", type: "bullet", source: "included", x: 4, y: 54, w: 44, h: 36, z: 2, fontSize: 9, fontWeight: "normal", color: "#3a2f22", bulletColor: "#10b981", title: "TERMASUK", titleBg: "#ecfdf5", titleColor: "#047857", maxItems: 14 },
-      { id: "exc", type: "bullet", source: "excluded", x: 52, y: 54, w: 44, h: 36, z: 2, fontSize: 9, fontWeight: "normal", color: "#3a2f22", bulletColor: "#ef4444", title: "TIDAK TERMASUK", titleBg: "#fef2f2", titleColor: "#b91c1c", maxItems: 14 },
+      /* ── INCLUSIONS / EXCLUSIONS ─────────────────────────────────── */
+      { id: "inc-card", type: "shape", shape: "rect", x: 5, y: 67, w: 43, h: 22, z: 1, fill: "#ffffff", stroke: "#d1fae5", strokeWidth: 0.6, borderRadius: 3 },
+      { id: "inc", type: "bullet", source: "included", x: 6, y: 68, w: 41, h: 20, z: 2, fontSize: 9, fontWeight: "normal", color: "#1f2937", bulletColor: "#10b981", title: "TERMASUK", titleBg: "#ecfdf5", titleColor: "#047857", maxItems: 12 },
 
-      // Footer
-      { id: "ftr", type: "shape", shape: "rect", x: 0, y: 93, w: 100, h: 7, z: 1, fill: "#102463", stroke: "transparent", strokeWidth: 0 },
-      { id: "ftr-web", type: "smart", smartKey: "website", x: 4, y: 95, w: 50, h: 4, z: 2, fontSize: 10, fontWeight: "normal", fontStyle: "normal", align: "left", color: "#ffffff" },
-      { id: "ftr-phn", type: "smart", smartKey: "contactPhone", x: 56, y: 95, w: 40, h: 4, z: 2, fontSize: 10, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#ffffff" },
+      { id: "exc-card", type: "shape", shape: "rect", x: 52, y: 67, w: 43, h: 22, z: 1, fill: "#ffffff", stroke: "#fee2e2", strokeWidth: 0.6, borderRadius: 3 },
+      { id: "exc", type: "bullet", source: "excluded", x: 53, y: 68, w: 41, h: 20, z: 2, fontSize: 9, fontWeight: "normal", color: "#1f2937", bulletColor: "#ef4444", title: "TIDAK TERMASUK", titleBg: "#fef2f2", titleColor: "#b91c1c", maxItems: 12 },
+
+      /* ── FOOTER (garis emas + kontak, no full bar) ───────────────── */
+      { id: "ftr-line", type: "shape", shape: "rect", x: 5, y: 92.5, w: 90, h: 0.18, z: 1, fill: "#c99841", stroke: "transparent", strokeWidth: 0 },
+      { id: "ftr-web", type: "smart", smartKey: "website", x: 5, y: 94, w: 50, h: 3.5, z: 2, fontSize: 9, fontWeight: "normal", fontStyle: "normal", align: "left", color: "#0b1f4d" },
+      { id: "ftr-phn", type: "smart", smartKey: "contactPhone", x: 55, y: 94, w: 40, h: 3.5, z: 2, fontSize: 9, fontWeight: "bold", fontStyle: "normal", align: "right", color: "#0b1f4d" },
     ],
   };
 }
