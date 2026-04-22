@@ -21,7 +21,7 @@ import {
 } from "./types";
 import { CanvasTemplateView } from "./renderHtml";
 import { PLACEHOLDER_CTX, type BindingContext } from "./dataBinding";
-import { pdfFirstPageToImage } from "@/lib/pdfToImage";
+import { pdfFirstPageToEditable, type PdfTextItem } from "@/lib/pdfToImage";
 
 interface Props {
   open: boolean;
@@ -488,14 +488,66 @@ export function CanvasTemplateEditor({
     });
   }
 
+  function textItemsToElements(
+    items: PdfTextItem[],
+    widthPt: number,
+    heightPt: number
+  ): CanvasElement[] {
+    return items.map((it, i) => {
+      const xPct = (it.xPt / widthPt) * 100;
+      const yPct = (it.yPt / heightPt) * 100;
+      const wPct = Math.max(2, (it.widthPt / widthPt) * 100 + 1.5);
+      const hPct = Math.max(1.5, (it.fontSizePt * 1.25 / heightPt) * 100);
+      return {
+        id: uid(`pdftxt-${i}`),
+        type: "text",
+        text: it.str,
+        x: Math.max(0, Math.min(100, xPct)),
+        y: Math.max(0, Math.min(100, yPct)),
+        w: Math.min(100, wPct),
+        h: hPct,
+        z: 5,
+        fontSize: it.fontSizePt,
+        fontWeight: it.bold ? "bold" : "normal",
+        fontStyle: it.italic ? "italic" : "normal",
+        align: "left",
+        color: it.color || "#000000",
+        lineHeight: 1,
+      } as CanvasElement;
+    });
+  }
+
   async function setBgImageFromFile(file: File) {
     const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
     if (isPdf) {
       try {
         setBgLoading(true);
         const buf = await file.arrayBuffer();
-        const info = await pdfFirstPageToImage(buf, 2);
-        applyBgDataUrl(info.dataUrl, { orientation: info.orientation });
+        const editable = await pdfFirstPageToEditable(buf, 2);
+        const wantEditable =
+          editable.textItems.length > 0 &&
+          window.confirm(
+            `Ditemuin ${editable.textItems.length} potongan teks di PDF ini.\n\n` +
+              `Klik OK biar teks-teksnya jadi element yang bisa lo edit langsung (latar di-bersihin dari teks asli).\n` +
+              `Klik Batal kalo lo cuma mau pake PDF sebagai gambar latar aja.`
+          );
+        if (wantEditable) {
+          setTemplate((t) => {
+            const newT = {
+              ...t,
+              backgroundImage: editable.cleanedDataUrl,
+              orientation: editable.orientation,
+              elements: [
+                ...t.elements,
+                ...textItemsToElements(editable.textItems, editable.widthPt, editable.heightPt),
+              ],
+            };
+            commitToHistory(newT);
+            return newT;
+          });
+        } else {
+          applyBgDataUrl(editable.dataUrl, { orientation: editable.orientation });
+        }
       } catch (err) {
         console.error(err);
         alert("Gagal baca PDF. Coba file lain atau export halaman jadi gambar dulu ya.");
