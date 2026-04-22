@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock, History, FileEdit, FileX, FilePlus } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock, History, FileEdit, FileX, FilePlus, Activity, XCircle, AlertCircle, Database, Cloud, HardDrive, UserCheck } from "lucide-react";
+import { supabase, isSupabaseConfigured, SUPABASE_URL } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export default function Settings() {
     { key: "rates",         label: t.settings_rates,         icon: TrendingUp },
     { key: "agents",        label: t.settings_agents,        icon: Users },
     { key: "audit",         label: "Audit Log",              icon: History },
+    { key: "status",        label: "Status",                 icon: Activity },
   ];
 
   const [profile, setProfile] = useState({
@@ -926,8 +928,10 @@ export default function Settings() {
 
         {tab === "audit" && <AuditLogPanel />}
 
+        {tab === "status" && <ConnectionHealthPanel />}
+
         {/* Save */}
-        {tab !== "audit" && (
+        {tab !== "audit" && tab !== "status" && (
           <div className="mt-6 pt-4 border-t border-[hsl(var(--border))] max-w-xl">
             <Button onClick={handleSave} className="gradient-primary text-white shadow-glow hover:opacity-90 rounded-xl h-9 px-5 text-sm">
               <Save strokeWidth={1.5} className="h-3.5 w-3.5 mr-2" /> Simpan Perubahan
@@ -937,6 +941,240 @@ export default function Settings() {
       </div>
     </div>
   );
+}
+
+type CheckStatus = "idle" | "running" | "ok" | "warn" | "fail";
+interface HealthCheck {
+  key: string;
+  label: string;
+  desc: string;
+  Icon: typeof Database;
+  status: CheckStatus;
+  message?: string;
+  detail?: string;
+  durationMs?: number;
+}
+
+function ConnectionHealthPanel() {
+  const user = useAuthStore((s) => s.user);
+  const [checks, setChecks] = useState<HealthCheck[]>([]);
+  const [running, setRunning] = useState(false);
+  const [lastRun, setLastRun] = useState<Date | null>(null);
+
+  const runChecks = async () => {
+    setRunning(true);
+    const initial: HealthCheck[] = [
+      { key: "config",  label: "Konfigurasi Env", desc: "VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY", Icon: Cloud,     status: "running" },
+      { key: "auth",    label: "Sesi Login",      desc: "Token aktif & user info dari Supabase Auth", Icon: UserCheck, status: "running" },
+      { key: "agency",  label: "Agency Member",   desc: "User ter-link ke agency di tabel agency_members", Icon: Users, status: "running" },
+      { key: "db",      label: "Database Read",   desc: "SELECT dari tabel packages (uji RLS)",       Icon: Database,  status: "running" },
+      { key: "storage", label: "Storage",         desc: "List bucket jamaah-photos",                  Icon: HardDrive, status: "running" },
+    ];
+    setChecks(initial);
+
+    const upd = (key: string, patch: Partial<HealthCheck>) =>
+      setChecks((prev) => prev.map((c) => (c.key === key ? { ...c, ...patch } : c)));
+
+    const time = async <T,>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> => {
+      const t0 = performance.now();
+      const result = await fn();
+      return { result, ms: Math.round(performance.now() - t0) };
+    };
+
+    // 1. Env config
+    if (!isSupabaseConfigured()) {
+      upd("config", { status: "fail", message: "Supabase belum dikonfigurasi", detail: "VITE_SUPABASE_URL atau VITE_SUPABASE_ANON_KEY kosong di environment." });
+      ["auth", "agency", "db", "storage"].forEach((k) => upd(k, { status: "warn", message: "Skip — Supabase tidak aktif" }));
+      setRunning(false);
+      setLastRun(new Date());
+      return;
+    }
+    upd("config", { status: "ok", message: SUPABASE_URL.replace(/^https?:\/\//, "") });
+
+    // 2. Auth session
+    let authedUserId: string | null = null;
+    try {
+      const { result, ms } = await time(() => supabase!.auth.getSession());
+      const session = result.data.session;
+      if (!session) {
+        upd("auth", { status: "fail", message: "Belum login", detail: "Tidak ada session aktif. Silakan login ulang.", durationMs: ms });
+      } else {
+        authedUserId = session.user.id;
+        upd("auth", { status: "ok", message: session.user.email ?? "Logged in", detail: `User ID: ${session.user.id.slice(0, 8)}…`, durationMs: ms });
+      }
+    } catch (e) {
+      upd("auth", { status: "fail", message: extractErr(e) });
+    }
+
+    // 3. Agency membership
+    if (!authedUserId) {
+      upd("agency", { status: "warn", message: "Skip — perlu login dulu" });
+    } else {
+      try {
+        const { result, ms } = await time(() =>
+          supabase!.from("agency_members").select("agency_id, role").eq("user_id", authedUserId!).maybeSingle()
+        );
+        if (result.error) {
+          upd("agency", { status: "fail", message: extractErr(result.error), detail: "Cek RLS policy untuk tabel agency_members.", durationMs: ms });
+        } else if (!result.data) {
+          upd("agency", { status: "fail", message: "User belum ter-link ke agency manapun", detail: "Insert row di tabel agency_members atau buat agency baru.", durationMs: ms });
+        } else {
+          upd("agency", { status: "ok", message: `Role: ${result.data.role}`, detail: `Agency ID: ${String(result.data.agency_id).slice(0, 8)}…`, durationMs: ms });
+        }
+      } catch (e) {
+        upd("agency", { status: "fail", message: extractErr(e) });
+      }
+    }
+
+    // 4. DB read (packages)
+    try {
+      const { result, ms } = await time(() =>
+        supabase!.from("packages").select("id", { count: "exact", head: true })
+      );
+      if (result.error) {
+        upd("db", { status: "fail", message: extractErr(result.error), detail: "Kemungkinan masalah RLS, schema, atau jaringan.", durationMs: ms });
+      } else {
+        upd("db", { status: "ok", message: `OK · ${result.count ?? 0} paket`, durationMs: ms });
+      }
+    } catch (e) {
+      upd("db", { status: "fail", message: extractErr(e) });
+    }
+
+    // 5. Storage
+    try {
+      const { result, ms } = await time(() =>
+        supabase!.storage.from("jamaah-photos").list("", { limit: 1 })
+      );
+      if (result.error) {
+        upd("storage", { status: "fail", message: extractErr(result.error), detail: "Cek bucket & storage policy.", durationMs: ms });
+      } else {
+        upd("storage", { status: "ok", message: "Bucket jamaah-photos accessible", durationMs: ms });
+      }
+    } catch (e) {
+      upd("storage", { status: "fail", message: extractErr(e) });
+    }
+
+    setLastRun(new Date());
+    setRunning(false);
+  };
+
+  useEffect(() => { runChecks(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const overall: CheckStatus = checks.some((c) => c.status === "fail")
+    ? "fail"
+    : checks.some((c) => c.status === "warn")
+    ? "warn"
+    : checks.every((c) => c.status === "ok")
+    ? "ok"
+    : "running";
+
+  const overallMeta = {
+    ok:      { color: "from-emerald-500 to-emerald-600", text: "Semua sistem normal", Icon: CheckCircle2 },
+    warn:    { color: "from-amber-500 to-amber-600",     text: "Ada peringatan",       Icon: AlertCircle },
+    fail:    { color: "from-red-500 to-red-600",         text: "Ada masalah",          Icon: XCircle },
+    running: { color: "from-slate-400 to-slate-500",     text: "Mengecek…",            Icon: RefreshCw },
+    idle:    { color: "from-slate-400 to-slate-500",     text: "Belum dicek",          Icon: Activity },
+  }[overall];
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <SectionHeader title="Status Koneksi" desc="Diagnostik realtime untuk Supabase, Auth, Database, dan Storage." />
+
+      {/* Overall card */}
+      <div className={cn("rounded-2xl bg-gradient-to-br text-white p-4 shadow-lg", overallMeta.color)}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+              <overallMeta.Icon className={cn("h-5 w-5", overall === "running" && "animate-spin")} />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">Status Keseluruhan</p>
+              <p className="text-[15px] font-bold leading-tight">{overallMeta.text}</p>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={runChecks}
+            disabled={running}
+            className="h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", running && "animate-spin")} />
+            {running ? "Cek…" : "Cek Ulang"}
+          </Button>
+        </div>
+        {lastRun && (
+          <p className="text-[10.5px] opacity-80 mt-2 ml-13">
+            Terakhir dicek: {lastRun.toLocaleTimeString("id-ID")}
+            {user?.agencyName && <span> · Agency: {user.agencyName}</span>}
+          </p>
+        )}
+      </div>
+
+      {/* Individual checks */}
+      <ul className="space-y-2">
+        {checks.map((c) => (
+          <CheckRow key={c.key} check={c} />
+        ))}
+      </ul>
+
+      <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-[11.5px] text-slate-700 leading-relaxed">
+        <p className="font-semibold text-blue-900 mb-1 flex items-center gap-1.5">
+          <AlertCircle className="h-3.5 w-3.5" /> Tips Diagnostik
+        </p>
+        <ul className="space-y-1 list-disc pl-4">
+          <li><b>Sesi Login gagal:</b> token expired — logout & login ulang.</li>
+          <li><b>Agency Member gagal:</b> user belum punya row di tabel <code className="font-mono bg-white px-1 rounded">agency_members</code>.</li>
+          <li><b>Database Read gagal:</b> biasanya RLS policy belum di-apply atau env vars salah.</li>
+          <li><b>Storage gagal:</b> bucket belum dibuat atau policy salah.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function CheckRow({ check }: { check: HealthCheck }) {
+  const meta = {
+    ok:      { ring: "ring-emerald-200", bg: "bg-emerald-50", dot: "bg-emerald-500", text: "text-emerald-700", label: "OK" },
+    warn:    { ring: "ring-amber-200",   bg: "bg-amber-50",   dot: "bg-amber-500",   text: "text-amber-700",   label: "WARN" },
+    fail:    { ring: "ring-red-200",     bg: "bg-red-50",     dot: "bg-red-500",     text: "text-red-700",     label: "FAIL" },
+    running: { ring: "ring-slate-200",   bg: "bg-slate-50",   dot: "bg-slate-400 animate-pulse", text: "text-slate-600", label: "…" },
+    idle:    { ring: "ring-slate-200",   bg: "bg-white",      dot: "bg-slate-300",   text: "text-slate-500",   label: "—" },
+  }[check.status];
+
+  return (
+    <li className={cn("rounded-xl ring-1 bg-white p-3", meta.ring)}>
+      <div className="flex items-start gap-3">
+        <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", meta.bg)}>
+          <check.Icon className={cn("h-4 w-4", meta.text)} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-[13px] font-bold text-slate-900">{check.label}</p>
+            <span className={cn("inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded-md", meta.bg, meta.text)}>
+              <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+              {meta.label}
+            </span>
+            {check.durationMs != null && (
+              <span className="text-[10px] text-slate-400 font-mono">{check.durationMs}ms</span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-500 mt-0.5">{check.desc}</p>
+          {check.message && (
+            <p className={cn("text-[12px] font-medium mt-1.5", meta.text)}>{check.message}</p>
+          )}
+          {check.detail && (
+            <p className="text-[11px] text-slate-500 mt-0.5 font-mono break-words">{check.detail}</p>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function extractErr(e: unknown): string {
+  const err = e as { message?: string; hint?: string; details?: string; code?: string };
+  return err?.message || err?.hint || err?.details || (typeof e === "string" ? e : "Unknown error");
 }
 
 function AuditLogPanel() {
