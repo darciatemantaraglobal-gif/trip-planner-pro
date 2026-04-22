@@ -22,6 +22,8 @@ export interface Jamaah {
   phone: string;
   birthDate: string;
   passportNumber: string;
+  /** ISO date YYYY-MM-DD — passport expiry (from MRZ field 2 cols 21-27) */
+  passportExpiry?: string;
   gender: "L" | "P" | "";
   photoDataUrl?: string;
   needsReview?: boolean;
@@ -90,6 +92,7 @@ const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
   phone: String(r.phone ?? ""),
   birthDate: String(r.birth_date ?? ""),
   passportNumber: String(r.passport_number ?? ""),
+  passportExpiry: (r.passport_expiry as string) ?? undefined,
   gender: ((r.gender as string) ?? "") as "L" | "P" | "",
   photoDataUrl: (r.photo_data_url as string) ?? undefined,
   needsReview: Boolean(r.needs_review),
@@ -99,6 +102,7 @@ const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
 const jamaahToRow = (j: Jamaah, agencyId?: string) => ({
   id: j.id, trip_id: j.tripId, name: j.name, phone: j.phone,
   birth_date: j.birthDate, passport_number: j.passportNumber, gender: j.gender,
+  passport_expiry: j.passportExpiry ?? null,
   photo_data_url: j.photoDataUrl ?? null,
   needs_review: !!j.needsReview,
   booking_code: j.bookingCode ?? null,

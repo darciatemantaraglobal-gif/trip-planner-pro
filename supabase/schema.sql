@@ -87,6 +87,7 @@ create table if not exists public.jamaah (
 );
 alter table public.jamaah add column if not exists agency_id uuid references public.agencies(id) on delete cascade;
 alter table public.jamaah add column if not exists needs_review boolean not null default false;
+alter table public.jamaah add column if not exists passport_expiry text;
 create index if not exists jamaah_trip_idx on public.jamaah(trip_id);
 create index if not exists jamaah_agency_idx on public.jamaah(agency_id);
 

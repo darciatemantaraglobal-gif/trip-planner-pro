@@ -23,7 +23,7 @@ interface ScanRow {
     passportNumber: string;
     birthDate: string;
     gender: "L" | "P" | "";
-    phone: string;
+    expiryDate: string;
   };
 }
 
@@ -76,7 +76,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
       previewUrl: URL.createObjectURL(file),
       status: "queued",
       progress: 0,
-      data: { name: "", passportNumber: "", birthDate: "", gender: "", phone: "" },
+      data: { name: "", passportNumber: "", birthDate: "", gender: "", expiryDate: "" },
     }));
     setRows((prev) => [...prev, ...newRows]);
   }, []);
@@ -120,7 +120,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                       mrzValid: result.mrzValid,
                       failedChecks: failedChecksumLabels(result),
                       source: result.source,
-                      data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", phone: "" },
+                      data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", expiryDate: result.expiryDate || "" },
                     }
                   : r
               )
@@ -162,9 +162,10 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
         await addJamaah({
           tripId,
           name: row.data.name.trim(),
-          phone: row.data.phone.trim(),
+          phone: "",
           birthDate: row.data.birthDate,
           passportNumber: row.data.passportNumber.trim(),
+          passportExpiry: row.data.expiryDate || undefined,
           gender: row.data.gender,
           photoDataUrl: row.previewUrl.startsWith("blob:") ? undefined : row.previewUrl,
           needsReview: row.mrzValid === false,
@@ -328,7 +329,10 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                         </div>
                       )}
                       {row.status === "done" && row.data.name && (
-                        <p className="text-[9.5px] text-green-700 mt-0.5 truncate">{row.data.name} · {row.data.passportNumber || "No. paspor belum terbaca"}</p>
+                        <p className="text-[9.5px] text-green-700 mt-0.5 truncate">
+                          {row.data.name} · {row.data.passportNumber || "No. paspor belum terbaca"}
+                          {row.data.expiryDate ? ` · exp ${row.data.expiryDate}` : ""}
+                        </p>
                       )}
                       {row.status === "done" && row.mrzValid === false && row.failedChecks && row.failedChecks.length > 0 && (
                         <p className="text-[9.5px] text-red-600 mt-0.5 flex items-center gap-1">
@@ -372,7 +376,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                         <th className="text-left px-2.5 py-2 text-[10px] font-semibold text-muted-foreground w-32">No. Paspor *</th>
                         <th className="text-left px-2.5 py-2 text-[10px] font-semibold text-muted-foreground w-32">Tgl. Lahir</th>
                         <th className="text-left px-2.5 py-2 text-[10px] font-semibold text-muted-foreground w-24">Gender</th>
-                        <th className="text-left px-2.5 py-2 text-[10px] font-semibold text-muted-foreground w-28">No. HP</th>
+                        <th className="text-left px-2.5 py-2 text-[10px] font-semibold text-muted-foreground w-32">Tgl. Expired</th>
                         <th className="px-2.5 py-2 w-8"></th>
                       </tr>
                     </thead>
@@ -422,8 +426,8 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                               </Select>
                             </td>
                             <td className="px-1.5 py-1.5">
-                              <Input value={row.data.phone} onChange={(e) => updateRowData(row.id, "phone", e.target.value)}
-                                placeholder="08xx" className="h-7 text-[11.5px] rounded-lg" />
+                              <Input type="date" value={row.data.expiryDate} onChange={(e) => updateRowData(row.id, "expiryDate", e.target.value)}
+                                className="h-7 text-[11.5px] rounded-lg" />
                             </td>
                             <td className="px-1.5 py-1.5">
                               <button type="button" onClick={() => removeRow(row.id)}

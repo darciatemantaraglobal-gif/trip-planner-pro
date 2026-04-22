@@ -165,6 +165,32 @@
     stroke: currentColor !important;
     fill: none !important;
   }
+
+  /* ── Global: outline orange icons, no box/chip behind them ──
+     Any container whose only visible child is a lucide icon (the very
+     common "icon chip" pattern: <div className="bg-orange-100 ..."><Icon/></div>)
+     gets its background, border and shadow stripped so the icon stands
+     alone. Layout sizing (h-x w-x flex items-center justify-center) is
+     preserved so surrounding flex/grid layouts don't shift. */
+  :where(div, span, button, a):has(> svg.lucide:only-child),
+  :where(div, span, button, a):has(> svg.lucide:only-of-type:last-child:first-child) {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Opt-out: gradient buttons and chips that *should* keep their fill
+     (e.g. primary CTA buttons with an icon). Add `keep-icon-bg` class
+     to a container to bypass the rule above. */
+  :where(.keep-icon-bg, .gradient-primary):has(> svg.lucide) {
+    background: revert !important;
+    background-color: revert !important;
+    background-image: revert !important;
+    border-color: revert !important;
+    box-shadow: revert !important;
+  }
 }
 
 @layer base {
@@ -192,46 +218,53 @@
   }
 
   /* ── Dark-mode overrides for pastel-50 utility backgrounds ──
-     Without these, light pastel chips/cards turn into either invisible
-     or muddy patches in dark mode. We re-tint them with the original
-     hue at low alpha over the dark card background, keeping the visual
-     coding (blue / emerald / amber etc.) but with proper contrast. */
-  :root[data-theme="dark"] .bg-blue-50    { background-color: hsl(214 70% 50% / 0.15) !important; }
-  :root[data-theme="dark"] .bg-sky-50     { background-color: hsl(199 70% 50% / 0.15) !important; }
-  :root[data-theme="dark"] .bg-emerald-50 { background-color: hsl(160 60% 45% / 0.15) !important; }
-  :root[data-theme="dark"] .bg-teal-50    { background-color: hsl(174 60% 45% / 0.15) !important; }
-  :root[data-theme="dark"] .bg-purple-50  { background-color: hsl(270 60% 55% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-fuchsia-50 { background-color: hsl(290 60% 55% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-orange-50  { background-color: hsl(27 91% 50% / 0.18) !important; }
+     User preference: NO yellow / amber / orange tints in dark mode.
+     Use neutral dark surfaces with bright text instead. Other hues
+     keep a very subtle tint just so the visual coding survives. */
+  :root[data-theme="dark"] .bg-blue-50    { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-sky-50     { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-emerald-50 { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-teal-50    { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-purple-50  { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-fuchsia-50 { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-orange-50,
+  :root[data-theme="dark"] .bg-orange-50\/30,
+  :root[data-theme="dark"] .bg-orange-50\/40,
+  :root[data-theme="dark"] .bg-orange-100  { background-color: hsl(var(--secondary)) !important; }
   :root[data-theme="dark"] .bg-amber-50,
   :root[data-theme="dark"] .bg-amber-50\/30,
-  :root[data-theme="dark"] .bg-amber-50\/40 { background-color: hsl(38 90% 50% / 0.16) !important; }
+  :root[data-theme="dark"] .bg-amber-50\/40,
+  :root[data-theme="dark"] .bg-amber-100  { background-color: hsl(var(--secondary)) !important; }
   :root[data-theme="dark"] .bg-red-50,
   :root[data-theme="dark"] .bg-red-50\/20,
-  :root[data-theme="dark"] .bg-red-50\/40 { background-color: hsl(0 75% 55% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-rose-50    { background-color: hsl(350 75% 55% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-pink-50    { background-color: hsl(330 75% 55% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-indigo-50  { background-color: hsl(238 65% 60% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-violet-50  { background-color: hsl(258 65% 60% / 0.18) !important; }
-  :root[data-theme="dark"] .bg-yellow-50  { background-color: hsl(48 90% 50% / 0.16) !important; }
+  :root[data-theme="dark"] .bg-red-50\/40 { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-rose-50    { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-pink-50    { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-indigo-50  { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-violet-50  { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-yellow-50,
+  :root[data-theme="dark"] .bg-yellow-100 { background-color: hsl(var(--secondary)) !important; }
   :root[data-theme="dark"] .bg-green-50,
-  :root[data-theme="dark"] .bg-green-50\/20 { background-color: hsl(140 60% 45% / 0.16) !important; }
+  :root[data-theme="dark"] .bg-green-50\/20 { background-color: hsl(var(--secondary)) !important; }
   :root[data-theme="dark"] .bg-slate-50,
   :root[data-theme="dark"] .bg-gray-50    { background-color: hsl(var(--secondary)) !important; }
 
-  /* Same idea for gradient stops -- Tailwind `from-X-50` and `to-X-50`
-     write to --tw-gradient-from / --tw-gradient-to, so the stat cards
-     (`bg-gradient-to-br from-blue-50 to-sky-50`) appear nearly white in
-     dark mode. Re-map those gradient stops too. */
-  :root[data-theme="dark"] .from-blue-50    { --tw-gradient-from: hsl(214 70% 50% / 0.18) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(214 70% 50% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-  :root[data-theme="dark"] .to-sky-50       { --tw-gradient-to: hsl(199 70% 50% / 0.18) var(--tw-gradient-to-position) !important; }
-  :root[data-theme="dark"] .from-emerald-50 { --tw-gradient-from: hsl(160 60% 45% / 0.18) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(160 60% 45% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-  :root[data-theme="dark"] .to-teal-50      { --tw-gradient-to: hsl(174 60% 45% / 0.18) var(--tw-gradient-to-position) !important; }
-  :root[data-theme="dark"] .from-purple-50  { --tw-gradient-from: hsl(270 60% 55% / 0.20) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(270 60% 55% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-  :root[data-theme="dark"] .to-fuchsia-50   { --tw-gradient-to: hsl(290 60% 55% / 0.20) var(--tw-gradient-to-position) !important; }
-  :root[data-theme="dark"] .from-orange-50  { --tw-gradient-from: hsl(27 91% 50% / 0.20) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(27 91% 50% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-  :root[data-theme="dark"] .to-amber-50     { --tw-gradient-to: hsl(38 90% 50% / 0.20) var(--tw-gradient-to-position) !important; }
-  :root[data-theme="dark"] .from-amber-50   { --tw-gradient-from: hsl(38 90% 50% / 0.20) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(38 90% 50% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  /* Same for gradient stops — Tailwind `from-X-50` / `to-X-50` write to
+     --tw-gradient-from / --tw-gradient-to. Map every pastel stop to
+     transparent so dashboards & cards just render as flat dark cards. */
+  :root[data-theme="dark"] [class*="from-"][class*="-50"],
+  :root[data-theme="dark"] [class*="from-"][class*="-100"] {
+    --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  }
+  :root[data-theme="dark"] [class*="to-"][class*="-50"],
+  :root[data-theme="dark"] [class*="to-"][class*="-100"] {
+    --tw-gradient-to: hsl(var(--card) / 0.5) var(--tw-gradient-to-position) !important;
+  }
+  :root[data-theme="dark"] [class*="via-"][class*="-50"] {
+    --tw-gradient-via: hsl(var(--card) / 0.4) var(--tw-gradient-via-position) !important;
+  }
 
   /* Brighten the colored text used inside those chips so it pops on dark. */
   :root[data-theme="dark"] .text-blue-600    { color: hsl(214 90% 70%) !important; }

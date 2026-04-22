@@ -15,19 +15,19 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 
 const SYSTEM_PROMPT = `You are an OCR engine specialized in reading the Machine Readable Zone (MRZ) of international passports (ICAO 9303 TD3 format, two lines of 44 characters each).
 
-Look at the bottom of the passport photo for the MRZ strip. Extract these fields and return ONLY a JSON object (no prose, no markdown fences) with this exact shape:
+Look at the bottom of the passport photo for the MRZ strip. Extract EXACTLY these 5 fields and return ONLY a JSON object (no prose, no markdown fences) with this exact shape:
 
 {
   "name": "FULL NAME AS PRINTED (given names then surname, single space separated)",
   "passportNumber": "DOCUMENT NUMBER (alphanumeric, no '<' fillers)",
-  "nationality": "3-LETTER ISO COUNTRY CODE",
   "birthDate": "YYYY-MM-DD",
-  "expiryDate": "YYYY-MM-DD",
   "gender": "L for male, P for female",
+  "expiryDate": "YYYY-MM-DD",
   "mrzValid": true
 }
 
 Rules:
+- Only return the 5 fields above plus mrzValid. Do not return nationality or any other field.
 - If a field is unreadable, set it to null (do NOT guess).
 - For 2-digit years in MRZ: if year > 30 it means 19xx, otherwise 20xx for birth date. Expiry is always 20xx.
 - Set mrzValid to true only if you successfully read all check digits and they all match.
