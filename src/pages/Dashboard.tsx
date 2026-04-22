@@ -297,7 +297,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
     >
       {/* Cover area */}
       <div
-        className="relative h-28 sm:h-36 md:h-40 flex items-center justify-center overflow-hidden"
+        className="relative h-24 sm:h-32 md:h-40 flex items-center justify-center overflow-hidden"
         style={trip.coverImage ? {} : { background: `linear-gradient(135deg, ${from}, ${to})` }}
       >
         {trip.coverImage ? (
@@ -307,7 +307,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <span className="text-5xl md:text-7xl drop-shadow-lg select-none">{trip.emoji}</span>
+          <span className="text-4xl md:text-7xl drop-shadow-lg select-none">{trip.emoji}</span>
         )}
 
         {/* Overlay gradient for readability */}
@@ -756,7 +756,7 @@ export default function Dashboard() {
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
           <div
-            className="relative overflow-hidden rounded-3xl border border-orange-100 p-4 md:p-5"
+            className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-orange-100 p-3 md:p-5"
             style={{
               background:
                 "linear-gradient(135deg, #fff7ed 0%, #ffedd5 45%, #fed7aa 100%)",
@@ -774,10 +774,10 @@ export default function Dashboard() {
 
             <div className="relative flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h1 className="text-[20px] md:text-[22px] font-extrabold text-orange-950 leading-tight tracking-tight">
+                <h1 className="text-[15.5px] md:text-[22px] font-extrabold text-orange-950 leading-tight tracking-tight">
                   {getGreeting(user?.displayName ?? "Admin", t)} <span className="inline-block">👋</span>
                 </h1>
-                <p className="text-[11.5px] md:text-[12.5px] text-orange-700/80 mt-1 capitalize font-medium">
+                <p className="text-[11px] md:text-[12.5px] text-orange-700/80 mt-1 capitalize font-medium">
                   {formatTodayFull(locale)}
                 </p>
                 {nearestDeparture ? (
@@ -795,7 +795,7 @@ export default function Dashboard() {
                   </p>
                 )}
               </div>
-              <div className="hidden sm:flex h-12 w-12 rounded-2xl bg-white/70 backdrop-blur shrink-0 items-center justify-center shadow-sm border border-orange-100">
+              <div className="hidden md:flex h-12 w-12 rounded-2xl bg-white/70 backdrop-blur shrink-0 items-center justify-center shadow-sm border border-orange-100">
                 <Plane strokeWidth={1.5} className="h-6 w-6 text-orange-500" />
               </div>
             </div>
@@ -834,12 +834,12 @@ export default function Dashboard() {
               )}
               variants={fadeUp}
             >
-              <div className={cn("h-9 w-9 md:h-10 md:w-10 rounded-xl flex items-center justify-center shrink-0", stat.iconBg)}>
-                <stat.icon strokeWidth={2} className="h-[18px] w-[18px] md:h-5 md:w-5" />
+              <div className={cn("h-8 w-8 md:h-10 md:w-10 rounded-xl flex items-center justify-center shrink-0", stat.iconBg)}>
+                <stat.icon strokeWidth={2} className="h-[16px] w-[16px] md:h-5 md:w-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[20px] md:text-[22px] font-extrabold text-[hsl(var(--foreground))] leading-none tracking-tight tabular-nums">{stat.value}</p>
-                <p className="text-[10.5px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-1 truncate font-medium">{stat.label}</p>
+                <p className="text-[16px] md:text-[22px] font-extrabold text-[hsl(var(--foreground))] leading-none tracking-tight tabular-nums">{stat.value}</p>
+                <p className="text-[10.5px] md:text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 md:mt-1 truncate font-medium">{stat.label}</p>
               </div>
             </motion.button>
           ))}

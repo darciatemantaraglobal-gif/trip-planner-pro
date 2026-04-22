@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock, History, FileEdit, FileX, FilePlus, Activity, XCircle, AlertCircle, Database, Cloud, HardDrive, UserCheck } from "lucide-react";
 import { supabase, isSupabaseConfigured, SUPABASE_URL } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,30 @@ import { useAuthStore, type LoginEvent, type MemberInfo } from "@/store/authStor
 import { migrateBase64ToStorage, type MigrateProgress } from "@/lib/migrateBase64ToStorage";
 import { useRegionalStore } from "@/store/regionalStore";
 import { useT } from "@/lib/regional";
+
+async function resizeImageToDataUrl(file: File, maxSize = 320, quality = 0.85): Promise<string> {
+  const blobUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Gagal memuat gambar."));
+      el.src = blobUrl;
+    });
+    const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+    const w = Math.round(img.width * ratio);
+    const h = Math.round(img.height * ratio);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas tidak didukung.");
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
+}
 
 function SectionHeader({ title, desc }: { title: string; desc: string }) {
   return (
@@ -124,6 +148,40 @@ export default function Settings() {
 
   const [migrating, setMigrating] = useState(false);
   const [migrateProgress, setMigrateProgress] = useState<MigrateProgress | null>(null);
+
+  const photoKey = user ? `igh.profile.photo.${user.id}` : null;
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!photoKey) { setProfilePhoto(null); return; }
+    try { setProfilePhoto(localStorage.getItem(photoKey)); } catch { setProfilePhoto(null); }
+  }, [photoKey]);
+
+  const handlePhotoFile = async (file: File) => {
+    if (!photoKey) { toast.error("Belum login."); return; }
+    if (!file.type.startsWith("image/")) { toast.error("File harus gambar."); return; }
+    if (file.size > 8 * 1024 * 1024) { toast.error("Ukuran maks 8 MB."); return; }
+    setPhotoUploading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 320, 0.85);
+      localStorage.setItem(photoKey, dataUrl);
+      setProfilePhoto(dataUrl);
+      toast.success("Foto profil diperbarui.");
+    } catch (e: any) {
+      toast.error(`Gagal memproses foto: ${e?.message ?? e}`);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    if (!photoKey) return;
+    localStorage.removeItem(photoKey);
+    setProfilePhoto(null);
+    toast.success("Foto profil dihapus.");
+  };
 
   const [loginHistory, setLoginHistory] = useState<LoginEvent[]>([]);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
@@ -314,18 +372,72 @@ export default function Settings() {
             <SectionHeader title="Profil Agen" desc="Kelola informasi akun dan profil Anda" />
 
             <div className="flex items-center gap-3">
-              <div className="relative group cursor-pointer shrink-0">
-                <div className="h-12 w-12 rounded-xl gradient-primary shadow-glow flex items-center justify-center text-white text-base font-bold">
-                  {profile.name ? profile.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?"}
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="relative group cursor-pointer shrink-0"
+                title="Klik untuk ubah foto"
+                aria-label="Ubah foto profil"
+              >
+                <div
+                  className={cn(
+                    "h-12 w-12 rounded-xl shadow-glow overflow-hidden flex items-center justify-center text-white text-base font-bold",
+                    profilePhoto ? "bg-[hsl(var(--secondary))]" : "gradient-primary"
+                  )}
+                >
+                  {profilePhoto ? (
+                    <img src={profilePhoto} alt="Foto profil" className="h-full w-full object-cover" />
+                  ) : profile.name ? (
+                    profile.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+                  ) : (
+                    "?"
+                  )}
                 </div>
                 <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <Camera strokeWidth={1.5} className="h-4 w-4 text-white" />
                 </div>
-              </div>
+                {photoUploading && (
+                  <div className="absolute inset-0 rounded-xl bg-black/60 flex items-center justify-center">
+                    <RefreshCw strokeWidth={2} className="h-4 w-4 text-white animate-spin" />
+                  </div>
+                )}
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handlePhotoFile(f);
+                  e.target.value = "";
+                }}
+              />
               <div>
                 <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">{profile.name || <span className="text-[hsl(var(--muted-foreground))] font-normal italic">Belum diisi</span>}</p>
                 <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{profile.email || "—"}</p>
-                <button className="text-[11px] text-[hsl(var(--primary))] font-medium hover:underline mt-0.5">Ubah foto</button>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={photoUploading}
+                    className="text-[11px] text-[hsl(var(--primary))] font-medium hover:underline disabled:opacity-50"
+                  >
+                    {photoUploading ? "Mengunggah…" : profilePhoto ? "Ubah foto" : "Unggah foto"}
+                  </button>
+                  {profilePhoto && !photoUploading && (
+                    <>
+                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">·</span>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="text-[11px] text-red-500 font-medium hover:underline"
+                      >
+                        Hapus
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
