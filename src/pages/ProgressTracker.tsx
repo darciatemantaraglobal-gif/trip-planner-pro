@@ -200,8 +200,8 @@ function PackageTrackerSection() {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-sm font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
-        <Activity className="h-4 w-4 text-[hsl(var(--primary))]" strokeWidth={1.5} />
+      <h2 className="text-[12.5px] md:text-sm font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
+        <Activity className="h-3.5 w-3.5 md:h-4 md:w-4 text-[hsl(var(--primary))]" strokeWidth={1.5} />
         Status Paket
       </h2>
       {sorted.map((pkg) => {
@@ -304,14 +304,14 @@ export default function ProgressTracker() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-3 md:space-y-5">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <h1 className="text-xl md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
-          <TrendingUp strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--primary))]" />
+        <h1 className="text-base md:text-2xl font-bold text-[hsl(var(--foreground))] flex items-center gap-2">
+          <TrendingUp strokeWidth={1.5} className="h-4 w-4 md:h-5 md:w-5 text-[hsl(var(--primary))]" />
           Progress Tracker
         </h1>
-        <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+        <p className="hidden md:block text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
           Pantau kelengkapan dokumen & status jamaah dan paket trip secara real-time.
         </p>
       </motion.div>
@@ -337,12 +337,12 @@ export default function ProgressTracker() {
       {/* Overall progress bar */}
       {totalJamaah > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}
-          className="rounded-2xl border border-[hsl(var(--border))] bg-white px-5 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-[hsl(var(--foreground))]">Progres Jamaah Keseluruhan</span>
-            <span className="text-sm font-bold text-orange-500">{overallPct}%</span>
+          className="rounded-2xl border border-[hsl(var(--border))] bg-white px-3 py-2.5 md:px-5 md:py-4">
+          <div className="flex items-center justify-between mb-1.5 md:mb-2">
+            <span className="text-[12px] md:text-sm font-semibold text-[hsl(var(--foreground))]">Progres Jamaah Keseluruhan</span>
+            <span className="text-[12px] md:text-sm font-bold text-orange-500">{overallPct}%</span>
           </div>
-          <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="w-full h-2 md:h-3 bg-gray-100 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${overallPct}%` }}
@@ -367,21 +367,21 @@ export default function ProgressTracker() {
 
       {/* Jamaah search */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" strokeWidth={1.5} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-[hsl(var(--muted-foreground))]" strokeWidth={1.5} />
         <Input placeholder="Cari trip atau nama jamaah…" value={search} onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 h-10 rounded-xl bg-white border-[hsl(var(--border))]" />
+          className="pl-8 md:pl-10 h-9 md:h-10 text-[12.5px] md:text-sm rounded-xl bg-white border-[hsl(var(--border))]" />
       </div>
 
       {/* Trip blocks */}
       {filteredTrips.length === 0 ? (
-        <div className="rounded-2xl border border-[hsl(var(--border))] bg-white py-16 text-center">
-          <TrendingUp className="h-10 w-10 mx-auto mb-3 text-gray-200" />
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+        <div className="rounded-2xl border border-[hsl(var(--border))] bg-white py-10 md:py-16 text-center">
+          <TrendingUp className="h-8 w-8 md:h-10 md:w-10 mx-auto mb-2 md:mb-3 text-gray-200" />
+          <p className="text-[12.5px] md:text-sm text-[hsl(var(--muted-foreground))] px-4">
             {trips.length === 0 ? "Belum ada trip. Buat trip terlebih dahulu di Dashboard." : "Tidak ada hasil untuk pencarian ini."}
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-2.5 md:space-y-4">
           {filteredTrips.map((trip, i) => (
             <motion.div key={trip.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 + i * 0.06 }}>
               <TripBlock trip={trip} jamaahList={jamaah.filter((j) => j.tripId === trip.id)} docMap={docMap} />

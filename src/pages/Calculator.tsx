@@ -457,14 +457,14 @@ export default function Calculator() {
   const pdfCosts = quote.breakdown.map((b) => ({ id: b.id, label: b.label, amount: b.groupIDR }));
 
   return (
-    <div className="pwa-compact-form space-y-3 md:space-y-5 max-w-5xl mx-auto" style={M}>
+    <div className="pwa-compact-form space-y-2.5 md:space-y-5 max-w-5xl mx-auto" style={M}>
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <CalcIcon strokeWidth={2} className="h-5 w-5 text-orange-500 shrink-0" />
-          <div>
-            <h1 className="text-base md:text-lg font-bold text-[hsl(var(--foreground))] leading-tight" style={M}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+          <CalcIcon strokeWidth={2} className="h-4 w-4 md:h-5 md:w-5 text-orange-500 shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-[14px] md:text-lg font-bold text-[hsl(var(--foreground))] leading-tight truncate" style={M}>
               Kalkulator Profesional
             </h1>
             <p className="text-[10px] text-muted-foreground leading-tight hidden sm:block" style={M}>
@@ -472,20 +472,20 @@ export default function Calculator() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
           <button
             onClick={handleReset}
             style={M}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-orange-200 text-orange-600 bg-white hover:bg-orange-50 text-[11px] font-semibold transition-colors"
+            className="flex items-center gap-1 h-7 md:h-8 px-2 md:px-3 rounded-lg md:rounded-xl border border-orange-200 text-orange-600 bg-white hover:bg-orange-50 text-[10.5px] md:text-[11px] font-semibold transition-colors"
           >
             <RotateCcw className="h-3 w-3" /> Reset
           </button>
           <Button
             onClick={() => setPdfOpen(true)}
             disabled={quote.finalPrice === 0}
-            className="h-8 px-3 rounded-xl gradient-primary text-white text-[11px] font-semibold"
+            className="h-7 md:h-8 px-2 md:px-3 rounded-lg md:rounded-xl gradient-primary text-white text-[10.5px] md:text-[11px] font-semibold"
           >
-            <FileText className="h-3.5 w-3.5 mr-1.5" /> Ekspor PDF
+            <FileText className="h-3.5 w-3.5 mr-1" /> PDF
           </Button>
         </div>
       </div>

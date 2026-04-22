@@ -261,18 +261,18 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+    <div className="flex flex-col md:flex-row gap-3 md:gap-6">
 
       {/* ── Tab nav: horizontal scroll on mobile, vertical sidebar on desktop ── */}
-      <div className="md:w-44 md:shrink-0">
+      <div className="md:w-44 md:shrink-0 -mx-3 md:mx-0 px-3 md:px-0 sticky top-0 z-10 bg-[hsl(var(--card))] py-1 md:py-0 md:static md:bg-transparent">
         {/* Mobile: horizontal pill tabs */}
-        <div className="flex md:hidden gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex md:hidden gap-1 overflow-x-auto no-scrollbar -mx-1 px-1">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all border",
+                "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-semibold whitespace-nowrap shrink-0 transition-all border",
                 tab === t.key
                   ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]"
                   : "bg-white text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]"
