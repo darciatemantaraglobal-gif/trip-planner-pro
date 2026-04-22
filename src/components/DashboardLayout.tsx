@@ -47,6 +47,15 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
 
   const moreActive = moreNavItems.some((m) => location.pathname.startsWith(m.url));
 
+  // Halaman yang pakai mode compact di mobile/PWA (Beranda "/" tetap spacious)
+  const COMPACT_PAGE_PREFIXES = [
+    "/calculator", "/packages", "/progress", "/trips",
+    "/notes", "/exports", "/settings",
+  ];
+  const isCompactPage = COMPACT_PAGE_PREFIXES.some((p) =>
+    location.pathname === p || location.pathname.startsWith(p + "/") || location.pathname.startsWith(p + "?")
+  );
+
   const goTo = (url: string) => {
     setMoreOpen(false);
     navigate(url);
@@ -56,7 +65,7 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
     <>
       {/* ── Mobile layout ── */}
       <div
-        className="mobile-compact md:hidden app-shell-mobile"
+        className={`mobile-compact md:hidden app-shell-mobile ${isCompactPage ? "compact-page" : ""}`}
         style={{ background: "hsl(var(--card))" }}
       >
         <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
