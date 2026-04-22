@@ -158,7 +158,11 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
           {template && offer ? (
             <TemplatePreview template={template} offer={offer} />
           ) : simple ? (
-            <div className="bg-white border border-[hsl(var(--border))] rounded-xl p-5 text-[hsl(var(--foreground))]">
+            <div className="relative bg-white border border-[hsl(var(--border))] rounded-xl p-5 text-[hsl(var(--foreground))] overflow-hidden">
+              {simple.customBgImage && (
+                <img src={simple.customBgImage} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-90" />
+              )}
+              <div className="relative">
               <div className="flex items-start justify-between gap-4 pb-3 border-b">
                 <div>
                   <div className="text-[10.5px] text-muted-foreground font-bold">#{simple.quoteNumber}</div>
@@ -214,12 +218,16 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
                   </ul>
                 </div>
               </div>
+              </div>
             </div>
           ) : offer ? (
             <div
               className="relative mx-auto rounded-xl border border-[hsl(var(--border))] shadow-md overflow-hidden text-[hsl(var(--foreground))]"
               style={{ width: "100%", maxWidth: 560, aspectRatio: "210/297", background: "linear-gradient(180deg,#ffffff 0%,#ffffff 60%,#faf5eb 100%)" }}
             >
+              {offer.customBgImage && (
+                <img src={offer.customBgImage} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+              )}
               {/* Top bar */}
               <div className="px-5 pt-4 pb-1 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

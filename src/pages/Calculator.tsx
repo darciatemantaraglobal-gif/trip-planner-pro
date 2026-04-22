@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane } from "lucide-react";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane, ImagePlus, X as XIcon } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
@@ -69,6 +69,7 @@ interface CalcState {
   website: string;
   contactPhone: string;
   contactName: string;
+  customPdfImage: string; // data URL — PDF background image
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -118,6 +119,7 @@ function loadState(fallback: CalcState): CalcState {
       website: stored.website ?? fallback.website,
       contactPhone: stored.contactPhone ?? fallback.contactPhone,
       contactName: stored.contactName ?? fallback.contactName,
+      customPdfImage: stored.customPdfImage ?? fallback.customPdfImage,
     };
   } catch { return fallback; }
 }
@@ -199,6 +201,7 @@ function makeDefault(): CalcState {
     website: "www.umrahservice.co",
     contactPhone: "+62 812-8955-2018",
     contactName: "M. FARUQ AL ISLAM",
+    customPdfImage: "",
   };
 }
 
@@ -656,8 +659,33 @@ export default function Calculator() {
       website: calc.website,
       contactPhone: calc.contactPhone,
       contactName: calc.contactName,
+      customBgImage: calc.customPdfImage || undefined,
     };
   }, [calc, groupMatrix, groupTiers]);
+
+  // ── Simple PDF data (untuk mode private/umum) ──
+  const simplePdfData = useMemo(() => {
+    if (calc.mode === "umroh_group" || !quote) return undefined;
+    const makkahHotel = calc.hotels.find((h) => /makk?ah/i.test(h.label));
+    const madinahHotel = calc.hotels.find((h) => /madin/i.test(h.label));
+    return {
+      quoteNumber: calc.quoteNumber || "001",
+      title: calc.customerName
+        ? `Umroh ${calc.customerName}`
+        : (calc.packageName || "Paket Umroh IGH Tour"),
+      dateRange: calc.dateRange || "",
+      hotelMakkah: calc.hotelMakkahName || makkahHotel?.label || "",
+      hotelMadinah: calc.hotelMadinahName || madinahHotel?.label || "",
+      makkahNights: makkahHotel?.days || 0,
+      madinahNights: madinahHotel?.days || 0,
+      pax: calc.pax,
+      pricePerPaxIDR: quote.perPaxFinal,
+      included: calc.includedItems.filter((s) => s.trim()),
+      excluded: calc.excludedItems.filter((s) => s.trim()),
+      customBgImage: calc.customPdfImage || undefined,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calc, quote]);
 
   // ── Buat Trip otomatis dari hasil kalkulasi ──
   function parseDateRange(s: string): { start?: string; end?: string } {
@@ -723,6 +751,69 @@ export default function Calculator() {
       setCreatingTrip(false);
     }
   }
+
+  // ── PDF custom background image upload handler ──
+  const handlePdfImageUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("File harus berupa gambar.");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Ukuran gambar maksimal 4 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setCalc((c) => ({ ...c, customPdfImage: dataUrl }));
+      toast.success("Gambar template PDF berhasil di-upload.");
+    };
+    reader.onerror = () => toast.error("Gagal membaca file gambar.");
+    reader.readAsDataURL(file);
+  };
+
+  // ── Reusable PDF image upload card UI ──
+  const renderPdfImageUploader = (key: string) => (
+    <div className="rounded-xl bg-white border border-orange-200 p-3" key={key}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700 mb-2" style={M}>
+        Gambar Template PDF
+      </p>
+      {calc.customPdfImage ? (
+        <div className="space-y-2">
+          <div className="relative rounded-lg overflow-hidden border border-orange-200" style={{ aspectRatio: "210/297", maxWidth: 140 }}>
+            <img src={calc.customPdfImage} alt="PDF template" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setCalc((c) => ({ ...c, customPdfImage: "" }))}
+              className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+              title="Hapus gambar"
+            >
+              <XIcon className="h-3 w-3" />
+            </button>
+          </div>
+          <label className="flex items-center justify-center gap-1.5 h-7 px-2 rounded-lg border border-orange-300 text-[10px] font-bold text-orange-700 hover:bg-orange-50 cursor-pointer" style={M}>
+            <ImagePlus className="h-3 w-3" />
+            Ganti
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0]; if (f) handlePdfImageUpload(f); e.target.value = "";
+            }} />
+          </label>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center justify-center gap-1.5 h-20 rounded-lg border-2 border-dashed border-orange-300 bg-orange-50/40 hover:bg-orange-50 cursor-pointer transition-colors" style={M}>
+          <ImagePlus className="h-5 w-5 text-orange-500" />
+          <span className="text-[10px] font-bold text-orange-700">Upload gambar</span>
+          <span className="text-[9px] text-muted-foreground">A4 portrait, ≤ 4 MB</span>
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+            const f = e.target.files?.[0]; if (f) handlePdfImageUpload(f); e.target.value = "";
+          }} />
+        </label>
+      )}
+      <p className="text-[9px] text-muted-foreground mt-1.5 leading-tight" style={M}>
+        Gambar akan dipakai sebagai latar belakang penuh halaman PDF.
+      </p>
+    </div>
+  );
 
   return (
     <div className="pwa-compact-form space-y-2.5 md:space-y-5 max-w-5xl mx-auto" style={M}>
@@ -1534,6 +1625,7 @@ export default function Calculator() {
                       Step {calc.groupSettings.step} · {offerData.rows.length} baris harga
                     </p>
                   </div>
+                  {renderPdfImageUploader("group-pdf-img")}
                   <Button
                     onClick={() => setPdfOpen(true)}
                     className="w-full h-10 md:h-11 rounded-xl gradient-primary text-white text-sm"
@@ -1556,6 +1648,125 @@ export default function Calculator() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── PDF EXPORT + PREVIEW (private + umum) ── */}
+      {simplePdfData && calc.mode !== "umroh_group" && quote && quote.finalPrice > 0 && (
+        <div className="rounded-xl border-2 border-orange-300 bg-white overflow-hidden">
+          <div className="flex items-center justify-between px-3 md:px-5 py-3 md:py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white">
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              <span style={M} className="font-extrabold text-[12px] md:text-[14px] uppercase tracking-wide">
+                PDF Penawaran {calc.mode === "umroh_private" ? "Private" : "Trip"}
+              </span>
+            </div>
+            <span style={M} className="text-[10px] md:text-[11px] opacity-90 hidden sm:inline">
+              Quote #{simplePdfData.quoteNumber} · {simplePdfData.pax} pax
+            </span>
+          </div>
+
+          <div className="p-3 md:p-4 grid md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-start">
+            {/* Inline preview thumbnail */}
+            <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/40 p-3 overflow-hidden">
+              <div className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700 mb-2" style={M}>
+                Preview
+              </div>
+              <div className="relative mx-auto rounded-lg border border-orange-200 shadow-sm overflow-hidden bg-white"
+                   style={{ width: "100%", maxWidth: 360, aspectRatio: "210/297" }}>
+                {simplePdfData.customBgImage && (
+                  <img src={simplePdfData.customBgImage} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+                )}
+                <div className="relative h-full flex flex-col">
+                  <div className="px-3 pt-2.5 pb-1 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[7px] font-bold text-[#666]">#{simplePdfData.quoteNumber}</div>
+                      <h3 className="font-extrabold leading-tight mt-1 truncate" style={{ color: "#102463", fontSize: 12 }}>
+                        {simplePdfData.title}
+                      </h3>
+                      <p className="text-[7px] font-medium mt-1" style={{ color: "#3a2f22" }}>{simplePdfData.dateRange || "—"}</p>
+                    </div>
+                    <img src="/logo-igh-tour.png" alt="IGH" className="h-5 object-contain shrink-0" />
+                  </div>
+                  <div className="px-3 mt-1 grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Makkah", name: simplePdfData.hotelMakkah, n: simplePdfData.makkahNights },
+                      { label: "Madinah", name: simplePdfData.hotelMadinah, n: simplePdfData.madinahNights },
+                    ].map((h) => (
+                      <div key={h.label}>
+                        <p className="text-[6px] text-[#888] uppercase">{h.label}</p>
+                        <p className="text-[8px] font-extrabold leading-tight truncate" style={{ color: "#102463" }}>{h.name || "—"}</p>
+                        <span className="inline-block mt-0.5 text-[6px] font-extrabold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "#f3e2af", color: "#c99841" }}>
+                          {h.n} MALAM
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-3 mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[6px] text-[#888] uppercase">Jumlah Pax</p>
+                      <p className="text-[11px] font-extrabold" style={{ color: "#102463" }}>{simplePdfData.pax}</p>
+                    </div>
+                    <div>
+                      <p className="text-[6px] text-[#888] uppercase">Harga / Pax</p>
+                      <p className="text-[10px] font-extrabold leading-tight" style={{ color: "#ea580c" }}>
+                        Rp {Math.round(simplePdfData.pricePerPaxIDR).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="px-3 mt-1.5 flex-1 grid grid-cols-2 gap-2 overflow-hidden">
+                    <div>
+                      <p className="text-[6px] font-extrabold text-emerald-700 uppercase">Termasuk</p>
+                      <ul className="mt-0.5 text-[6px] text-[#3a2f22] list-disc pl-2.5 leading-tight space-y-0">
+                        {simplePdfData.included.slice(0, 5).map((it, i) => <li key={i} className="truncate">{it}</li>)}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-[6px] font-extrabold text-rose-700 uppercase">Tidak Termasuk</p>
+                      <ul className="mt-0.5 text-[6px] text-[#3a2f22] list-disc pl-2.5 leading-tight space-y-0">
+                        {simplePdfData.excluded.slice(0, 5).map((it, i) => <li key={i} className="truncate">{it}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center mt-2" style={M}>
+                Klik <span className="font-bold">Lihat & Ekspor PDF</span> untuk preview ukuran penuh.
+              </p>
+            </div>
+
+            {/* Action buttons + uploader */}
+            <div className="flex flex-col gap-3 md:w-64">
+              <div className="rounded-xl bg-orange-50 border border-orange-200 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700" style={M}>Harga Final</p>
+                <p className="text-[13px] font-extrabold text-orange-800 mt-0.5 font-mono" style={M}>
+                  {formatCurrency(quote.finalPrice)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5" style={M}>
+                  {formatCurrency(quote.perPaxFinal)}/pax · {simplePdfData.pax} pax
+                </p>
+              </div>
+              {renderPdfImageUploader("private-pdf-img")}
+              <Button
+                onClick={() => setPdfOpen(true)}
+                className="w-full h-10 md:h-11 rounded-xl gradient-primary text-white text-sm"
+                style={M}
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" /> Lihat & Ekspor PDF
+              </Button>
+              <Button
+                onClick={handleCreateTrip}
+                disabled={creatingTrip}
+                variant="outline"
+                className="w-full h-10 md:h-11 rounded-xl border-orange-300 text-orange-700 hover:bg-orange-50 text-sm"
+                style={M}
+              >
+                <Plane className="h-3.5 w-3.5 mr-1.5" />
+                {creatingTrip ? "Membuat Trip…" : "Buat Trip"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── SUMMARY OUTPUT (private + umum modes) ── */}
@@ -1710,7 +1921,7 @@ export default function Calculator() {
                       className="w-full h-9 md:h-11 rounded-xl gradient-primary text-white text-sm"
                       style={M}
                     >
-                      <FileText className="h-3.5 w-3.5 mr-1.5" /> Ekspor PDF
+                      <FileText className="h-3.5 w-3.5 mr-1.5" /> Lihat & Ekspor PDF
                     </Button>
                     <Button
                       onClick={handleCreateTrip}
@@ -1742,25 +1953,7 @@ export default function Calculator() {
           total: quote.finalPrice,
           perPerson: quote.perPaxFinal,
           offer: offerData,
-          simple: calc.mode === "umroh_group" ? undefined : {
-            quoteNumber: calc.quoteNumber || "001",
-            title: calc.customerName
-              ? `Umroh ${calc.customerName}`
-              : (calc.packageName || "Paket Umroh IGH Tour"),
-            dateRange: calc.dateRange || "",
-            hotelMakkah: calc.hotelMakkahName
-              || calc.hotels.find((h) => /makk?ah/i.test(h.label))?.label
-              || "",
-            hotelMadinah: calc.hotelMadinahName
-              || calc.hotels.find((h) => /madin/i.test(h.label))?.label
-              || "",
-            makkahNights: calc.hotels.find((h) => /makk?ah/i.test(h.label))?.days || 0,
-            madinahNights: calc.hotels.find((h) => /madin/i.test(h.label))?.days || 0,
-            pax: calc.pax,
-            pricePerPaxIDR: quote.perPaxFinal,
-            included: calc.includedItems.filter((s) => s.trim()),
-            excluded: calc.excludedItems.filter((s) => s.trim()),
-          },
+          simple: simplePdfData,
         }}
       />
     </div>

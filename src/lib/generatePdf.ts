@@ -30,6 +30,7 @@ export interface LandArrangementOfferData {
   website: string;
   contactPhone: string;
   contactName: string;
+  customBgImage?: string; // data URL — full-page background image
 }
 
 export interface RateMeta {
@@ -53,6 +54,7 @@ export interface SimplePackagePdfData {
   excluded: string[];
   ratesUSD?: number;
   ratesSAR?: number;
+  customBgImage?: string; // data URL — full-page background image
 }
 
 export interface QuotationData {
@@ -256,8 +258,18 @@ async function generateLandArrangementPdf(data: QuotationData) {
   // ── Soft beige page background ──
   doc.setFillColor(...beigeBg);
   doc.rect(0, 0, pageW, pageH, "F");
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, pageW, pageH * 0.66, "F");
+  // ── Optional custom background image (full-page) ──
+  if (offer.customBgImage) {
+    try {
+      doc.addImage(offer.customBgImage, getImgFormat(offer.customBgImage), 0, 0, pageW, pageH);
+    } catch (err) {
+      console.warn("Failed to render custom bg image:", err);
+    }
+  }
+  if (!offer.customBgImage) {
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageW, pageH * 0.66, "F");
+  }
 
   // ── Top-right brand logo ──
   const logo = await loadImageAsDataUrl("/logo-igh-tour.png");
@@ -530,6 +542,15 @@ export async function generateSimplePackagePdf(data: SimplePackagePdfData) {
   const redTxt: [number, number, number] = [165, 50, 50];
   const tagBg: [number, number, number] = [255, 240, 220];
   const tagTxt: [number, number, number] = [200, 130, 40];
+
+  // ── Optional custom background image (full-page) ──
+  if (data.customBgImage) {
+    try {
+      doc.addImage(data.customBgImage, getImgFormat(data.customBgImage), 0, 0, pageW, pageH);
+    } catch (err) {
+      console.warn("Failed to render custom bg image:", err);
+    }
+  }
 
   // ── Logo (top right) ──
   const logo = await loadImageAsDataUrl("/logo-igh-tour.png");
