@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Download, Plane, LayoutTemplate, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { generateQuotationPdf, type LandArrangementOfferData } from "@/lib/generatePdf";
+import { generateQuotationPdf, type LandArrangementOfferData, type SimplePackagePdfData } from "@/lib/generatePdf";
 import { useRatesStore } from "@/store/ratesStore";
 import type { PdfTemplate, TemplateFieldConfig } from "@/features/pdfTemplate/types";
 
@@ -20,6 +20,7 @@ interface Props {
     perPerson: number;
     offer?: LandArrangementOfferData;
     template?: PdfTemplate;
+    simple?: SimplePackagePdfData;
   };
 }
 
@@ -126,6 +127,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
 
   const offer = data.offer;
   const template = data.template;
+  const simple = data.simple;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,6 +157,64 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {template && offer ? (
             <TemplatePreview template={template} offer={offer} />
+          ) : simple ? (
+            <div className="bg-white border border-[hsl(var(--border))] rounded-xl p-5 text-[hsl(var(--foreground))]">
+              <div className="flex items-start justify-between gap-4 pb-3 border-b">
+                <div>
+                  <div className="text-[10.5px] text-muted-foreground font-bold">#{simple.quoteNumber}</div>
+                  <h2 className="text-lg font-bold mt-1 leading-tight">{simple.title}</h2>
+                  {simple.dateRange && <p className="text-[12px] mt-1 text-muted-foreground">{simple.dateRange}</p>}
+                </div>
+                <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shrink-0">
+                  <Plane className="h-5 w-5 text-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 py-3 border-b">
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-semibold">Hotel Makkah</p>
+                  <p className="font-bold text-[12.5px] mt-0.5">{simple.hotelMakkah || "—"}</p>
+                  {simple.makkahNights > 0 && (
+                    <p className="text-[11px] text-primary font-semibold mt-0.5">{simple.makkahNights} Malam</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-semibold">Hotel Madinah</p>
+                  <p className="font-bold text-[12.5px] mt-0.5">{simple.hotelMadinah || "—"}</p>
+                  {simple.madinahNights > 0 && (
+                    <p className="text-[11px] text-primary font-semibold mt-0.5">{simple.madinahNights} Malam</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-4 border-b">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Harga per Pax ({simple.pax} jamaah)</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-extrabold text-primary">Rp {Math.round(simple.pricePerPaxIDR).toLocaleString("id-ID")}</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-3 mt-4 text-[11.5px]">
+                <div className="border border-emerald-200 bg-emerald-50 rounded-xl p-3">
+                  <p className="font-bold mb-1.5 text-emerald-800">Sudah Termasuk</p>
+                  <ul className="space-y-1 list-disc pl-4 text-emerald-900">
+                    {simple.included.length === 0
+                      ? <li className="italic text-emerald-600 list-none">—</li>
+                      : simple.included.slice(0, 12).map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+                <div className="border border-rose-200 bg-rose-50 rounded-xl p-3">
+                  <p className="font-bold mb-1.5 text-rose-800">Tidak Termasuk</p>
+                  <ul className="space-y-1 list-disc pl-4 text-rose-900">
+                    {simple.excluded.length === 0
+                      ? <li className="italic text-rose-600 list-none">—</li>
+                      : simple.excluded.slice(0, 12).map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
           ) : offer ? (
             <div className="bg-white border border-[hsl(var(--border))] rounded-xl p-4 text-[hsl(var(--foreground))]">
               <div className="flex items-start justify-between gap-4 pb-3 border-b">

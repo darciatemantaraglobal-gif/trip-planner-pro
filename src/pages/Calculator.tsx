@@ -19,6 +19,7 @@ import {
   type CostUnit,
 } from "@/features/calculator/pricing";
 import { GroupMatrixSection, DEFAULT_GROUP_SETTINGS, type GroupSettings } from "@/features/calculator/GroupMatrixSection";
+import { QuotationMetaSection } from "@/features/calculator/QuotationMetaSection";
 import { cn } from "@/lib/utils";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
@@ -44,6 +45,14 @@ interface CalcState {
   localRateSAR: number;
   localRateUSD: number;
   groupSettings: GroupSettings;
+  // PDF / quotation meta
+  quoteNumber: string;
+  customerName: string;
+  dateRange: string;
+  hotelMakkahName: string;
+  hotelMadinahName: string;
+  includedItems: string[];
+  excludedItems: string[];
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -77,6 +86,13 @@ function loadState(fallback: CalcState): CalcState {
       staffs: (stored.staffs ?? fallback.staffs).map((s: StaffRow) => ({ numStaff: 1, ...s })),
       generalCosts: stored.generalCosts ?? fallback.generalCosts,
       groupSettings: { ...fallback.groupSettings, ...(stored.groupSettings ?? {}) },
+      quoteNumber: stored.quoteNumber ?? fallback.quoteNumber,
+      customerName: stored.customerName ?? fallback.customerName,
+      dateRange: stored.dateRange ?? fallback.dateRange,
+      hotelMakkahName: stored.hotelMakkahName ?? fallback.hotelMakkahName,
+      hotelMadinahName: stored.hotelMadinahName ?? fallback.hotelMadinahName,
+      includedItems: stored.includedItems ?? fallback.includedItems,
+      excludedItems: stored.excludedItems ?? fallback.excludedItems,
     };
   } catch { return fallback; }
 }
@@ -119,6 +135,13 @@ function makeDefault(): CalcState {
     localRateSAR: 0,
     localRateUSD: 0,
     groupSettings: { ...DEFAULT_GROUP_SETTINGS },
+    quoteNumber: "001",
+    customerName: "",
+    dateRange: "",
+    hotelMakkahName: "",
+    hotelMadinahName: "",
+    includedItems: ["Visa Umroh", "Mutawif", "Hotel Makkah", "Hotel Madinah", "Transport selama di Saudi"],
+    excludedItems: ["Tiket Pesawat", "Vaksinasi", "Pembuatan Paspor", "Personal Expenses"],
   };
 }
 
@@ -1029,6 +1052,20 @@ export default function Calculator() {
 
       </>)}
 
+      {/* ── INFO PENAWARAN + EXCLUDE LIST (untuk PDF) ── */}
+      <QuotationMetaSection
+        value={{
+          quoteNumber: calc.quoteNumber,
+          customerName: calc.customerName,
+          dateRange: calc.dateRange,
+          hotelMakkahName: calc.hotelMakkahName,
+          hotelMadinahName: calc.hotelMadinahName,
+          includedItems: calc.includedItems,
+          excludedItems: calc.excludedItems,
+        }}
+        onChange={(meta) => update({ ...calc, ...meta })}
+      />
+
       {/* ── UMUM MODE TABLE ── */}
       {calc.mode === "umum" && (
         <div className="overflow-hidden rounded-xl border border-orange-200">
@@ -1328,6 +1365,25 @@ export default function Calculator() {
           costs: pdfCosts,
           total: quote.finalPrice,
           perPerson: quote.perPaxFinal,
+          simple: {
+            quoteNumber: calc.quoteNumber || "001",
+            title: calc.customerName
+              ? `Umroh ${calc.customerName}`
+              : (calc.packageName || "Paket Umroh IGH Tour"),
+            dateRange: calc.dateRange || "",
+            hotelMakkah: calc.hotelMakkahName
+              || calc.hotels.find((h) => /makk?ah/i.test(h.label))?.label
+              || "",
+            hotelMadinah: calc.hotelMadinahName
+              || calc.hotels.find((h) => /madin/i.test(h.label))?.label
+              || "",
+            makkahNights: calc.hotels.find((h) => /makk?ah/i.test(h.label))?.days || 0,
+            madinahNights: calc.hotels.find((h) => /madin/i.test(h.label))?.days || 0,
+            pax: calc.pax,
+            pricePerPaxIDR: quote.perPaxFinal,
+            included: calc.includedItems.filter((s) => s.trim()),
+            excluded: calc.excludedItems.filter((s) => s.trim()),
+          },
         }}
       />
     </div>
