@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,13 @@ export default function PdfGenerator() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplateStore();
+  const { templates, addTemplate, updateTemplate, deleteTemplate, hydrateFromCloud } = useTemplateStore();
+
+  // Tarik template dari cloud (Supabase pdf_templates) saat halaman di-mount.
+  // Aman dipanggil berkali-kali — store-nya pakai flag `hydrated` internal.
+  useEffect(() => {
+    void hydrateFromCloud();
+  }, [hydrateFromCloud]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<PdfTemplate | null>(null);

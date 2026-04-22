@@ -99,3 +99,83 @@ export async function syncNotesFull(notes: NoteCloud[]): Promise<void> {
   if (toDelete.length > 0) await supabase!.from("notes").delete().in("id", toDelete);
   if (notes.length > 0) await pushNotes(notes);
 }
+
+// ── PDF TEMPLATES ───────────────────────────────────────────────────────────
+// Tabel `pdf_templates` schema: id text, agency_id uuid, name text,
+// payload jsonb, created_at timestamptz. Seluruh field PdfTemplate kecuali
+// id/name/createdAt disimpan di kolom `payload`.
+
+export interface PdfTemplateCloud {
+  id: string;
+  name: string;
+  createdAt: number;
+  // Sisanya (orientation, backgroundImage, fields, dst.) disimpan di payload.
+  // Pakai unknown supaya helper ini netral terhadap shape PdfTemplate.
+  payload: Record<string, unknown>;
+}
+
+const tmplFromRow = (r: Record<string, unknown>): PdfTemplateCloud => {
+  const payload = (r.payload as Record<string, unknown>) ?? {};
+  // created_at dari Postgres = ISO timestamptz; konversi ke ms epoch.
+  const createdRaw = r.created_at;
+  const createdAt =
+    typeof createdRaw === "string"
+      ? new Date(createdRaw).getTime()
+      : Number(createdRaw ?? Date.now());
+  return {
+    id: String(r.id),
+    name: String(r.name ?? payload.name ?? ""),
+    createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+    payload,
+  };
+};
+
+const tmplToRow = (t: PdfTemplateCloud, agencyId?: string) => ({
+  id: t.id,
+  name: t.name,
+  payload: t.payload,
+  created_at: new Date(t.createdAt).toISOString(),
+  ...(agencyId ? { agency_id: agencyId } : {}),
+});
+
+export async function pullPdfTemplates(): Promise<PdfTemplateCloud[] | null> {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await supabase!
+    .from("pdf_templates")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) return null;
+  return (data ?? []).map(tmplFromRow);
+}
+
+export async function pushPdfTemplate(t: PdfTemplateCloud): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const agencyId = requireAgencyId();
+  const { error } = await supabase!
+    .from("pdf_templates")
+    .upsert(tmplToRow(t, agencyId));
+  if (error) throw error;
+}
+
+export async function deletePdfTemplateCloud(id: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  await supabase!.from("pdf_templates").delete().eq("id", id);
+}
+
+/** Full reconcile: hapus yg di cloud tapi gak ada lokal, upsert sisanya. */
+export async function syncPdfTemplatesFull(templates: PdfTemplateCloud[]): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const cloud = await pullPdfTemplates();
+  if (!cloud) return;
+  const localIds = new Set(templates.map((t) => t.id));
+  const toDelete = cloud.filter((c) => !localIds.has(c.id)).map((c) => c.id);
+  if (toDelete.length > 0) {
+    await supabase!.from("pdf_templates").delete().in("id", toDelete);
+  }
+  if (templates.length > 0) {
+    const agencyId = requireAgencyId();
+    await supabase!
+      .from("pdf_templates")
+      .upsert(templates.map((t) => tmplToRow(t, agencyId)));
+  }
+}
