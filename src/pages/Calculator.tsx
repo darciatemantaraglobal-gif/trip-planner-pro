@@ -1421,23 +1421,141 @@ export default function Calculator() {
 
       {/* ── GROUP MATRIX OUTPUT (only in umroh_group mode) ── */}
       {calc.mode === "umroh_group" && (
-        <GroupMatrixSection
-          settings={calc.groupSettings}
-          onChange={(next) => setField("groupSettings", next)}
-          inputs={{
-            hotels: calc.hotels,
-            transports: calc.transports,
-            tickets: calc.tickets,
-            visas: calc.visas,
-            destinations: calc.destinations,
-            fnbs: calc.fnbs,
-            staffs: calc.staffs,
-            commissionFee: calc.commissionFee,
-            marginPercent: calc.marginPercent,
-            discount: calc.discount,
-          }}
-          rates={effectiveRates}
-        />
+        <>
+          <GroupMatrixSection
+            settings={calc.groupSettings}
+            onChange={(next) => setField("groupSettings", next)}
+            inputs={{
+              hotels: calc.hotels,
+              transports: calc.transports,
+              tickets: calc.tickets,
+              visas: calc.visas,
+              destinations: calc.destinations,
+              fnbs: calc.fnbs,
+              staffs: calc.staffs,
+              commissionFee: calc.commissionFee,
+              marginPercent: calc.marginPercent,
+              discount: calc.discount,
+            }}
+            rates={effectiveRates}
+          />
+
+          {/* ── PDF EXPORT + PREVIEW (umroh_group) ── */}
+          {offerData && (
+            <div className="rounded-xl border-2 border-orange-300 bg-white overflow-hidden">
+              <div className="flex items-center justify-between px-3 md:px-5 py-3 md:py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <span style={M} className="font-extrabold text-[12px] md:text-[14px] uppercase tracking-wide">
+                    PDF Penawaran Group
+                  </span>
+                </div>
+                <span style={M} className="text-[10px] md:text-[11px] opacity-90 hidden sm:inline">
+                  Quote #{offerData.quoteNumber} · {offerData.rows.length} tier
+                </span>
+              </div>
+
+              <div className="p-3 md:p-4 grid md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-start">
+                {/* Inline preview thumbnail */}
+                <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/40 p-3 overflow-hidden">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700 mb-2" style={M}>
+                    Preview
+                  </div>
+                  <div className="relative mx-auto rounded-lg border border-orange-200 shadow-sm overflow-hidden bg-white"
+                       style={{ width: "100%", maxWidth: 360, aspectRatio: "210/297" }}>
+                    <div className="px-3 pt-2.5 pb-1 flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[7px] font-bold text-[#666]">#{offerData.quoteNumber}</div>
+                        <h3 className="font-extrabold leading-tight mt-1" style={{ color: "#102463", fontSize: 12 }}>
+                          {offerData.title}
+                        </h3>
+                        <p className="text-[7px] font-medium mt-1" style={{ color: "#3a2f22" }}>{offerData.dateRange}</p>
+                      </div>
+                      <img src="/logo-igh-tour.png" alt="IGH" className="h-5 object-contain shrink-0" />
+                    </div>
+                    <div className="px-3 mt-1 grid grid-cols-2 gap-2">
+                      {[
+                        { label: "Makkah", name: offerData.hotelMakkah, n: offerData.makkahNights },
+                        { label: "Madinah", name: offerData.hotelMadinah, n: offerData.madinahNights },
+                      ].map((h) => (
+                        <div key={h.label}>
+                          <p className="text-[6px] text-[#888] uppercase">{h.label}</p>
+                          <p className="text-[8px] font-extrabold leading-tight" style={{ color: "#102463" }}>{h.name || "—"}</p>
+                          <span className="inline-block mt-0.5 text-[6px] font-extrabold px-1.5 py-0.5 rounded-full"
+                                style={{ background: "#f3e2af", color: "#c99841" }}>
+                            {h.n} MALAM
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-3 mt-2">
+                      <table className="w-full text-[6.5px] border-collapse">
+                        <thead>
+                          <tr className="border-b border-[#dcd5c8]">
+                            <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">PAX</th>
+                            <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">QUAD</th>
+                            <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">TRIPLE</th>
+                            <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">DOUBLE</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {offerData.rows.slice(0, 8).map((r) => (
+                            <tr key={r.paxRange} className="border-b border-[#eae3d5]">
+                              <td className="py-0.5 font-bold text-[#3a2f22]">{r.paxRange}</td>
+                              <td className="py-0.5 font-extrabold text-[#102463]">${Math.round(r.quad).toLocaleString("en-US")}</td>
+                              <td className="py-0.5 font-extrabold text-[#102463]">${Math.round(r.triple).toLocaleString("en-US")}</td>
+                              <td className="py-0.5 font-extrabold text-[#102463]">${Math.round(r.double).toLocaleString("en-US")}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="absolute left-0 right-0 bottom-0 h-7" style={{ background: "#102463" }}>
+                      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "#c99841" }} />
+                      <div className="px-3 pt-1 flex items-center justify-between text-[6px] text-white">
+                        <span className="font-extrabold">Land Arrangement Umrah & Haji</span>
+                        <span>{offerData.contactPhone}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-center mt-2" style={M}>
+                    Klik <span className="font-bold">Lihat & Ekspor PDF</span> untuk preview ukuran penuh.
+                  </p>
+                </div>
+
+                {/* Action buttons + summary */}
+                <div className="flex flex-col gap-3 md:w-64">
+                  <div className="rounded-xl bg-orange-50 border border-orange-200 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700" style={M}>Tier Range</p>
+                    <p className="text-[13px] font-extrabold text-orange-800 mt-0.5" style={M}>
+                      {calc.groupSettings.minPax}–{calc.groupSettings.maxPax} PAX
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5" style={M}>
+                      Step {calc.groupSettings.step} · {offerData.rows.length} baris harga
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setPdfOpen(true)}
+                    className="w-full h-10 md:h-11 rounded-xl gradient-primary text-white text-sm"
+                    style={M}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Lihat & Ekspor PDF
+                  </Button>
+                  <Button
+                    onClick={handleCreateTrip}
+                    disabled={creatingTrip}
+                    variant="outline"
+                    className="w-full h-10 md:h-11 rounded-xl border-orange-300 text-orange-700 hover:bg-orange-50 text-sm"
+                    style={M}
+                  >
+                    <Plane className="h-3.5 w-3.5 mr-1.5" />
+                    {creatingTrip ? "Membuat Trip…" : "Buat Trip"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── SUMMARY OUTPUT (private + umum modes) ── */}
