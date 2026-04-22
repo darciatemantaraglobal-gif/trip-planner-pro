@@ -116,11 +116,15 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
 
   const handleSave = async () => {
     if (!validate()) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast.error("Kamu sedang offline — periksa koneksi internet.", { duration: 5000 });
+      return;
+    }
     setSaving(true);
     // Hard timeout so the spinner never gets stuck forever if the network
     // request hangs (e.g. expired auth token, slow Supabase, offline).
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Request timeout — periksa koneksi internet")), 15000)
+      setTimeout(() => reject(new Error("Request timeout — server lambat merespons, coba lagi.")), 8000)
     );
     try {
       await Promise.race([Promise.resolve(onSubmit(draft)), timeout]);
