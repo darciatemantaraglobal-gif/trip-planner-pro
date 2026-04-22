@@ -446,20 +446,23 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
     }
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.name.trim()) { toast.error("Nama jamaah wajib diisi."); return; }
-    setSaving(true);
-    try {
-      await addJamaah({ ...form, tripId: packageId, photoDataUrl, needsReview: mrzInvalid });
-      toast.success(`Jamaah "${form.name}" ditambahkan.`);
-      reset();
-      onClose();
-    } catch {
-      toast.error("Gagal menyimpan jamaah.");
-    } finally {
-      setSaving(false);
-    }
+    const snapshot = { ...form };
+    const photoSnap = photoDataUrl;
+    const mrzSnap = mrzInvalid;
+    // Tutup dialog langsung — save jalan di background
+    reset();
+    onClose();
+    void (async () => {
+      try {
+        await addJamaah({ ...snapshot, tripId: packageId, photoDataUrl: photoSnap, needsReview: mrzSnap });
+        toast.success(`Jamaah "${snapshot.name}" ditambahkan.`);
+      } catch {
+        toast.error(`Gagal menyimpan "${snapshot.name}".`);
+      }
+    })();
   };
 
   return (

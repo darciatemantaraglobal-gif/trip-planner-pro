@@ -106,23 +106,28 @@ function PaymentSection({ jamaahId, tripId, pricePerPax }: { jamaahId: string; t
     const amt = parseFloat(form.amount.replace(/[^0-9.]/g, ""));
     if (!amt || amt <= 0) { toast.error("Jumlah pembayaran harus lebih dari 0."); return; }
     if (!form.paidAt) { toast.error("Tanggal pembayaran wajib diisi."); return; }
+    if (proofFile && proofFile.size > 12 * 1024 * 1024) {
+      toast.error("Bukti transfer maks. 12 MB."); return;
+    }
+    const snapshot = { ...form };
+    const proofSnap = proofFile;
+    // Tutup form langsung — save jalan di background
+    setForm({ type: "dp", amount: "", method: "Transfer Bank", paidAt: today, notes: "" });
+    setProofFile(null);
+    if (proofRef.current) proofRef.current.value = "";
+    setShowForm(false);
     setAdding(true);
     try {
       let proofUrl: string | undefined;
-      if (proofFile) {
-        if (proofFile.size > 12 * 1024 * 1024) throw new Error("Bukti transfer maks. 12 MB.");
-        proofUrl = await uploadPaymentProof(proofFile, jamaahId);
+      if (proofSnap) {
+        proofUrl = await uploadPaymentProof(proofSnap, jamaahId);
       }
       await createPayment({
-        jamaahId, tripId, type: form.type,
-        amount: amt, method: form.method, paidAt: form.paidAt, notes: form.notes,
+        jamaahId, tripId, type: snapshot.type,
+        amount: amt, method: snapshot.method, paidAt: snapshot.paidAt, notes: snapshot.notes,
         proofUrl,
       });
       toast.success("Pembayaran tercatat.");
-      setForm({ type: "dp", amount: "", method: "Transfer Bank", paidAt: today, notes: "" });
-      setProofFile(null);
-      if (proofRef.current) proofRef.current.value = "";
-      setShowForm(false);
       await reload();
     } catch (err) {
       console.error(err);
@@ -519,13 +524,19 @@ export default function JamaahProfile() {
     toast.success("Foto profil diperbarui.");
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!jamaahId || !form.name) { toast.error("Nama wajib diisi."); return; }
-    setSaving(true);
-    await patchJamaah(jamaahId, form);
-    toast.success("Data jamaah diperbarui.");
-    setSaving(false);
+    const snapshot = { ...form };
+    // Keluar mode edit langsung — save di background
     setEditing(false);
+    void (async () => {
+      try {
+        await patchJamaah(jamaahId, snapshot);
+        toast.success("Data jamaah diperbarui.");
+      } catch {
+        toast.error("Gagal memperbarui data jamaah.");
+      }
+    })();
   };
 
   if (!person) {

@@ -114,34 +114,30 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
     return Object.keys(errs).length === 0;
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!validate()) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       toast.error("Kamu sedang offline — periksa koneksi internet.", { duration: 5000 });
       return;
     }
-    setSaving(true);
-    // Hard timeout so the spinner never gets stuck forever if the network
-    // request hangs (e.g. expired auth token, slow Supabase, offline).
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Request timeout — server lambat merespons, coba lagi.")), 8000)
-    );
-    try {
-      await Promise.race([Promise.resolve(onSubmit(draft)), timeout]);
-      onOpenChange(false);
-    } catch (err) {
-      console.error("Gagal simpan paket:", err);
-      const msg =
-        (err as { message?: string; hint?: string; details?: string })?.message ||
-        (err as { hint?: string })?.hint ||
-        (err as { details?: string })?.details ||
-        (typeof err === "string" ? err : "") ||
-        "Gagal menyimpan paket";
-      toast.error(msg, { duration: 6000 });
-      setErrors((p) => ({ ...p, name: msg }));
-    } finally {
-      setSaving(false);
-    }
+    const snapshot = { ...draft };
+    // Tutup dialog langsung — save jalan di background
+    onOpenChange(false);
+    void (async () => {
+      try {
+        await Promise.resolve(onSubmit(snapshot));
+        toast.success(`Paket "${snapshot.name}" tersimpan.`);
+      } catch (err) {
+        console.error("Gagal simpan paket:", err);
+        const msg =
+          (err as { message?: string; hint?: string; details?: string })?.message ||
+          (err as { hint?: string })?.hint ||
+          (err as { details?: string })?.details ||
+          (typeof err === "string" ? err : "") ||
+          "Gagal menyimpan paket";
+        toast.error(msg, { duration: 6000 });
+      }
+    })();
   };
 
   // Hanya nama + destinasi yang benar-benar wajib; sisanya opsional supaya

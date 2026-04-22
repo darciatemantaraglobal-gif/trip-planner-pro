@@ -129,16 +129,15 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
   const reset = () => setForm({ name: "", destination: "", startDate: "", endDate: "", emoji: "🕌", quotaPax: "", pricePerPax: "" });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.destination || !form.startDate || !form.endDate) {
       toast.error("Harap lengkapi semua field.");
       return;
     }
-    setLoading(true);
     const quotaNum = form.quotaPax.trim() === "" ? undefined : Math.max(1, parseInt(form.quotaPax, 10) || 0);
     const priceNum = form.pricePerPax.trim() === "" ? undefined : Math.max(0, parseFloat(form.pricePerPax.replace(/[^0-9.]/g, "")) || 0);
-    await addTrip({
+    const draft = {
       name: form.name,
       destination: form.destination,
       startDate: form.startDate,
@@ -146,11 +145,18 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
       emoji: form.emoji,
       quotaPax: quotaNum,
       pricePerPax: priceNum,
-    });
-    toast.success(`Paket "${form.name}" berhasil ditambahkan.`);
-    setLoading(false);
+    };
+    // Tutup dialog langsung — save jalan di background
     reset();
     onClose();
+    void (async () => {
+      try {
+        await addTrip(draft);
+        toast.success(`Paket "${draft.name}" berhasil ditambahkan.`);
+      } catch {
+        toast.error(`Gagal menyimpan "${draft.name}". Coba lagi.`);
+      }
+    })();
   };
 
   return (

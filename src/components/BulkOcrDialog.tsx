@@ -151,10 +151,13 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
   const handleSaveAll = async () => {
     const validRows = rows.filter((r) => r.data.name.trim());
     if (validRows.length === 0) { toast.error("Minimal satu jamaah harus memiliki nama."); return; }
-    setSaving(true);
+    const rowsSnap = [...validRows];
+    // Tutup dialog langsung — batch save jalan di background
+    handleClose();
+    toast.info(`Menyimpan ${rowsSnap.length} jamaah di latar belakang…`);
     try {
       const results = await Promise.allSettled(
-        validRows.map((row) =>
+        rowsSnap.map((row) =>
           addJamaah({
             tripId,
             name: row.data.name.trim(),
@@ -172,11 +175,11 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
       const failCount = results.length - okCount;
       if (okCount > 0) toast.success(`${okCount} jamaah berhasil disimpan.`);
       if (failCount > 0) toast.error(`${failCount} jamaah gagal disimpan.`);
-      if (failCount === 0) handleClose();
     } catch {
       toast.error("Gagal menyimpan beberapa jamaah.");
     } finally {
-      setSaving(false);
+      // no-op — dialog already closed
+      void 0;
     }
   };
 

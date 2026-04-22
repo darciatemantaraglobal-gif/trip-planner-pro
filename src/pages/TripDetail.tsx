@@ -134,34 +134,38 @@ function AddJamaahDialog({ open, tripId, onClose }: { open: boolean; tripId: str
   const changeDocCategory = (id: string, cat: DocCategory) =>
     setUploadedDocs((prev) => prev.map((d) => d.id === id ? { ...d, category: cat } : d));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) { toast.error("Nama jamaah wajib diisi."); return; }
     if (trip?.quotaPax != null && jamaahList.length >= trip.quotaPax) {
       toast.error(`Kuota paket "${trip.name}" sudah penuh (${trip.quotaPax} pax). Tambah kuota dulu di pengaturan paket.`);
       return;
     }
-    setLoading(true);
-    try {
-      const j = await addJamaah({ ...form, tripId, photoDataUrl, needsReview: mrzInvalid });
-      for (const doc of uploadedDocs) {
-        await addDocument({
-          jamaahId: j.id,
-          category: doc.category,
-          label: doc.label,
-          fileName: doc.fileName,
-          fileType: doc.fileType,
-          dataUrl: doc.dataUrl,
-        });
+    const snapshot = { ...form };
+    const docsSnap = [...uploadedDocs];
+    const photoSnap = photoDataUrl;
+    const mrzSnap = mrzInvalid;
+    // Tutup dialog langsung — save jalan di background
+    reset();
+    onClose();
+    void (async () => {
+      try {
+        const j = await addJamaah({ ...snapshot, tripId, photoDataUrl: photoSnap, needsReview: mrzSnap });
+        for (const doc of docsSnap) {
+          await addDocument({
+            jamaahId: j.id,
+            category: doc.category,
+            label: doc.label,
+            fileName: doc.fileName,
+            fileType: doc.fileType,
+            dataUrl: doc.dataUrl,
+          });
+        }
+        toast.success(`Jamaah "${snapshot.name}" ditambahkan${docsSnap.length ? ` dengan ${docsSnap.length} dokumen.` : "."}`);
+      } catch {
+        toast.error(`Gagal menyimpan "${snapshot.name}". Coba lagi.`);
       }
-      toast.success(`Jamaah "${form.name}" ditambahkan${uploadedDocs.length ? ` dengan ${uploadedDocs.length} dokumen.` : "."}`);
-      reset();
-      onClose();
-    } catch {
-      toast.error("Gagal menyimpan. Coba lagi.");
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
   return (
