@@ -191,6 +191,88 @@
     color: hsl(var(--muted-foreground)) !important;
   }
 
+  /* ── Dark-mode overrides for pastel-50 utility backgrounds ──
+     Without these, light pastel chips/cards turn into either invisible
+     or muddy patches in dark mode. We re-tint them with the original
+     hue at low alpha over the dark card background, keeping the visual
+     coding (blue / emerald / amber etc.) but with proper contrast. */
+  :root[data-theme="dark"] .bg-blue-50    { background-color: hsl(214 70% 50% / 0.15) !important; }
+  :root[data-theme="dark"] .bg-sky-50     { background-color: hsl(199 70% 50% / 0.15) !important; }
+  :root[data-theme="dark"] .bg-emerald-50 { background-color: hsl(160 60% 45% / 0.15) !important; }
+  :root[data-theme="dark"] .bg-teal-50    { background-color: hsl(174 60% 45% / 0.15) !important; }
+  :root[data-theme="dark"] .bg-purple-50  { background-color: hsl(270 60% 55% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-fuchsia-50 { background-color: hsl(290 60% 55% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-orange-50  { background-color: hsl(27 91% 50% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-amber-50,
+  :root[data-theme="dark"] .bg-amber-50\/30,
+  :root[data-theme="dark"] .bg-amber-50\/40 { background-color: hsl(38 90% 50% / 0.16) !important; }
+  :root[data-theme="dark"] .bg-red-50,
+  :root[data-theme="dark"] .bg-red-50\/20,
+  :root[data-theme="dark"] .bg-red-50\/40 { background-color: hsl(0 75% 55% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-rose-50    { background-color: hsl(350 75% 55% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-pink-50    { background-color: hsl(330 75% 55% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-indigo-50  { background-color: hsl(238 65% 60% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-violet-50  { background-color: hsl(258 65% 60% / 0.18) !important; }
+  :root[data-theme="dark"] .bg-yellow-50  { background-color: hsl(48 90% 50% / 0.16) !important; }
+  :root[data-theme="dark"] .bg-green-50,
+  :root[data-theme="dark"] .bg-green-50\/20 { background-color: hsl(140 60% 45% / 0.16) !important; }
+  :root[data-theme="dark"] .bg-slate-50,
+  :root[data-theme="dark"] .bg-gray-50    { background-color: hsl(var(--secondary)) !important; }
+
+  /* Same idea for gradient stops -- Tailwind `from-X-50` and `to-X-50`
+     write to --tw-gradient-from / --tw-gradient-to, so the stat cards
+     (`bg-gradient-to-br from-blue-50 to-sky-50`) appear nearly white in
+     dark mode. Re-map those gradient stops too. */
+  :root[data-theme="dark"] .from-blue-50    { --tw-gradient-from: hsl(214 70% 50% / 0.18) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(214 70% 50% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  :root[data-theme="dark"] .to-sky-50       { --tw-gradient-to: hsl(199 70% 50% / 0.18) var(--tw-gradient-to-position) !important; }
+  :root[data-theme="dark"] .from-emerald-50 { --tw-gradient-from: hsl(160 60% 45% / 0.18) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(160 60% 45% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  :root[data-theme="dark"] .to-teal-50      { --tw-gradient-to: hsl(174 60% 45% / 0.18) var(--tw-gradient-to-position) !important; }
+  :root[data-theme="dark"] .from-purple-50  { --tw-gradient-from: hsl(270 60% 55% / 0.20) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(270 60% 55% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  :root[data-theme="dark"] .to-fuchsia-50   { --tw-gradient-to: hsl(290 60% 55% / 0.20) var(--tw-gradient-to-position) !important; }
+  :root[data-theme="dark"] .from-orange-50  { --tw-gradient-from: hsl(27 91% 50% / 0.20) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(27 91% 50% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  :root[data-theme="dark"] .to-amber-50     { --tw-gradient-to: hsl(38 90% 50% / 0.20) var(--tw-gradient-to-position) !important; }
+  :root[data-theme="dark"] .from-amber-50   { --tw-gradient-from: hsl(38 90% 50% / 0.20) var(--tw-gradient-from-position) !important; --tw-gradient-to: hsl(38 90% 50% / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+
+  /* Brighten the colored text used inside those chips so it pops on dark. */
+  :root[data-theme="dark"] .text-blue-600    { color: hsl(214 90% 70%) !important; }
+  :root[data-theme="dark"] .text-sky-600     { color: hsl(199 90% 70%) !important; }
+  :root[data-theme="dark"] .text-emerald-600 { color: hsl(160 75% 60%) !important; }
+  :root[data-theme="dark"] .text-teal-600    { color: hsl(174 75% 60%) !important; }
+  :root[data-theme="dark"] .text-purple-600  { color: hsl(270 80% 75%) !important; }
+  :root[data-theme="dark"] .text-fuchsia-600 { color: hsl(290 80% 75%) !important; }
+  :root[data-theme="dark"] .text-orange-600,
+  :root[data-theme="dark"] .text-orange-700  { color: hsl(27 95% 65%) !important; }
+  :root[data-theme="dark"] .text-amber-600,
+  :root[data-theme="dark"] .text-amber-700   { color: hsl(38 95% 65%) !important; }
+  :root[data-theme="dark"] .text-red-500,
+  :root[data-theme="dark"] .text-red-600,
+  :root[data-theme="dark"] .text-red-700     { color: hsl(0 85% 70%) !important; }
+  :root[data-theme="dark"] .text-green-600,
+  :root[data-theme="dark"] .text-green-700   { color: hsl(140 75% 60%) !important; }
+  :root[data-theme="dark"] .text-gray-400,
+  :root[data-theme="dark"] .text-gray-500    { color: hsl(var(--muted-foreground)) !important; }
+  :root[data-theme="dark"] .text-slate-500,
+  :root[data-theme="dark"] .text-slate-600   { color: hsl(var(--muted-foreground)) !important; }
+
+  /* Borders on chips that match these tints */
+  :root[data-theme="dark"] .border-amber-100,
+  :root[data-theme="dark"] .border-amber-200 { border-color: hsl(38 90% 50% / 0.30) !important; }
+  :root[data-theme="dark"] .border-orange-100,
+  :root[data-theme="dark"] .border-orange-200 { border-color: hsl(27 91% 50% / 0.30) !important; }
+  :root[data-theme="dark"] .border-emerald-100,
+  :root[data-theme="dark"] .border-emerald-200 { border-color: hsl(160 60% 45% / 0.30) !important; }
+  :root[data-theme="dark"] .border-purple-100,
+  :root[data-theme="dark"] .border-purple-200 { border-color: hsl(270 60% 55% / 0.30) !important; }
+  :root[data-theme="dark"] .border-red-100,
+  :root[data-theme="dark"] .border-red-200    { border-color: hsl(0 75% 55% / 0.30) !important; }
+  :root[data-theme="dark"] .border-blue-100,
+  :root[data-theme="dark"] .border-blue-200   { border-color: hsl(214 70% 50% / 0.30) !important; }
+
+  /* Slate / gray backgrounds used for the rate strip etc. */
+  :root[data-theme="dark"] .bg-slate-50       { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .border-slate-100,
+  :root[data-theme="dark"] .border-slate-200  { border-color: hsl(var(--border)) !important; }
+
   :root[data-compact="true"] {
     --radius: 0.75rem;
   }
