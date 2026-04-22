@@ -994,7 +994,7 @@ export default function PackageDetail() {
 
           {/* ── HOTEL TABLE ── */}
           <div className="overflow-hidden rounded-xl border border-orange-200">
-            <SectionHeader icon={Hotel} title="Apartment / Hotel" currency="SAR / USD" color="bg-blue-500" onAdd={addHotel} />
+            <SectionHeader icon={Hotel} title="Hotel" currency="SAR / USD" color="bg-blue-500" onAdd={addHotel} />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
