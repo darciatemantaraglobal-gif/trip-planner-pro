@@ -317,6 +317,205 @@ export function computeGeneralQuote(input: GeneralCalcInput): ProfessionalQuote 
   };
 }
 
+// ── Umroh Group Matrix Mode ───────────────────────────────────────────────────
+// Untuk open-trip / paket grup: hitung harga per pax untuk berbagai
+// kombinasi (jumlah pax × tipe kamar). Karena biaya FIXED (bus, staff)
+// dibagi rata ke pax, dan biaya HOTEL dibagi ke sharing per kamar
+// (Quad=4, Triple=3, Double=2), tiap kombinasi punya harga beda.
+
+export type RoomType = "Quad" | "Triple" | "Double";
+
+export const ROOM_SHARING: Record<RoomType, number> = {
+  Quad: 4,
+  Triple: 3,
+  Double: 2,
+};
+
+export interface PaxTier {
+  min: number;
+  max: number;
+}
+
+export interface GroupMatrixInput {
+  /** Hotel rows — `rooms` field ignored, dihitung otomatis dari pax/sharing */
+  hotels: HotelRow[];
+  /** Transport — biaya FIXED per fleet (ga digantung pax) */
+  transports: TransportRow[];
+  /** Tiket — per pax flat */
+  tickets?: TicketRow[];
+  /** Visa — per pax flat */
+  visas: VisaRow[];
+  /** Destinasi/tasreh — per pax flat */
+  destinations: DestinationRow[];
+  /** F&B — per pax flat */
+  fnbs?: FnBRow[];
+  /** Staff/guide — total grup, FIXED */
+  staffs: StaffRow[];
+  commissionFee: number; // IDR, di-add per grup
+  marginPercent: number;
+  discount: number;      // IDR, di-subtract per grup
+  rates: Rates;
+  /** Tier pax yang mau dihitung */
+  tiers: PaxTier[];
+  /** Tipe kamar yang ditampilkan */
+  roomTypes: RoomType[];
+  /** Currency display untuk tabel matrix output */
+  displayCurrency: CalcCurrency;
+  /** Round per-pax ke kelipatan ini di display currency. 0 = no rounding */
+  roundTo?: number;
+}
+
+export interface GroupMatrixCell {
+  tier: PaxTier;
+  room: RoomType;
+  pax: number;        // pax yang dipake utk hitung (= tier.min, konservatif)
+  rooms: number;      // jumlah kamar dipakai (= ceil(pax/sharing))
+  perPaxIDR: number;
+  perPaxDisplay: number;     // dalam displayCurrency, sudah di-round
+  hppPerPaxIDR: number;
+}
+
+export interface GroupMatrixQuote {
+  cells: GroupMatrixCell[];
+  fixedTotalIDR: number;     // total biaya fixed grup (transport+staff+commission)
+  perPaxFlatIDR: number;     // total biaya per-pax flat (tiket+visa+dest+fnb)
+  hotelPerNightIDR: { hotelId: string; label: string; pricePerRoomIDR: number; nights: number }[];
+  displayCurrency: CalcCurrency;
+  totalSAR: number;
+  totalUSD: number;
+}
+
+function toIDRWith(amount: number, cur: "IDR" | "SAR" | "USD", rates: Rates): number {
+  const sarRate = rates.SAR ?? 1;
+  const usdRate = rates.USD ?? 1;
+  if (cur === "SAR") return amount * sarRate;
+  if (cur === "USD") return amount * usdRate;
+  return amount;
+}
+
+export function computeGroupMatrix(input: GroupMatrixInput): GroupMatrixQuote {
+  const {
+    hotels, transports, visas, destinations, staffs,
+    commissionFee, marginPercent, discount, rates,
+    tiers, roomTypes, displayCurrency,
+  } = input;
+  const tickets = input.tickets ?? [];
+  const fnbs = input.fnbs ?? [];
+  const roundTo = input.roundTo ?? 0;
+  const sarRate = rates.SAR ?? 1;
+  const usdRate = rates.USD ?? 1;
+
+  let totalSAR = 0;
+  let totalUSD = 0;
+  const trackForeign = (amt: number, cur: "IDR" | "SAR" | "USD") => {
+    if (cur === "SAR") totalSAR += amt;
+    else if (cur === "USD") totalUSD += amt;
+  };
+
+  // ── Per-pax flat (tiket + visa + dest + fnb), dalam IDR per orang
+  let perPaxFlatIDR = 0;
+  for (const tk of tickets) {
+    perPaxFlatIDR += toIDRWith(tk.pricePerPax, tk.currency, rates);
+    trackForeign(tk.pricePerPax, tk.currency);
+  }
+  for (const v of visas) {
+    const cur = v.currency ?? "USD";
+    perPaxFlatIDR += toIDRWith(v.pricePerPax, cur, rates);
+    trackForeign(v.pricePerPax, cur);
+  }
+  for (const d of destinations) {
+    const cur = d.currency ?? "SAR";
+    perPaxFlatIDR += toIDRWith(d.pricePerPax, cur, rates);
+    trackForeign(d.pricePerPax, cur);
+  }
+  for (const f of fnbs) {
+    const cur = f.currency ?? "SAR";
+    perPaxFlatIDR += toIDRWith(f.pricePerPax, cur, rates);
+    trackForeign(f.pricePerPax, cur);
+  }
+
+  // ── Fixed grup (transport + staff + commission), dalam IDR total grup
+  let fixedTotalIDR = 0;
+  for (const t of transports) {
+    const cur = t.currency ?? "SAR";
+    const amt = t.fleet * t.pricePerFleet;
+    fixedTotalIDR += toIDRWith(amt, cur, rates);
+    trackForeign(amt, cur);
+  }
+  for (const s of staffs) {
+    const cur = s.currency ?? "SAR";
+    fixedTotalIDR += toIDRWith(s.totalCost, cur, rates);
+    trackForeign(s.totalCost, cur);
+  }
+  fixedTotalIDR += commissionFee;
+
+  // ── Hotel per kamar per malam, di-IDR-kan
+  const hotelPerNightIDR = hotels.map((h) => ({
+    hotelId: h.id,
+    label: h.label || "Hotel",
+    pricePerRoomIDR: toIDRWith(h.pricePerNight, h.currency ?? "SAR", rates) * h.days,
+    nights: h.days,
+  }));
+  for (const h of hotels) {
+    const cur = h.currency ?? "SAR";
+    trackForeign(h.pricePerNight * h.days, cur);
+  }
+
+  // ── Build cells
+  const cells: GroupMatrixCell[] = [];
+  for (const tier of tiers) {
+    const pax = Math.max(1, tier.min); // konservatif: harga buat skenario pax minimum
+    for (const room of roomTypes) {
+      const sharing = ROOM_SHARING[room];
+      const rooms = Math.ceil(pax / sharing);
+      const hotelTotalIDR = hotelPerNightIDR.reduce(
+        (sum, h) => sum + h.pricePerRoomIDR * rooms,
+        0,
+      );
+      const hppGroupIDR = fixedTotalIDR + hotelTotalIDR + perPaxFlatIDR * pax;
+      const hppPerPaxIDR = hppGroupIDR / pax;
+      const sellingGroupIDR = hppGroupIDR * (1 + marginPercent / 100) - discount;
+      const perPaxIDR = Math.max(0, sellingGroupIDR / pax);
+
+      // convert to display currency
+      let perPaxDisplay: number;
+      if (displayCurrency === "USD") perPaxDisplay = perPaxIDR / (usdRate || 1);
+      else if (displayCurrency === "SAR") perPaxDisplay = perPaxIDR / (sarRate || 1);
+      else perPaxDisplay = perPaxIDR;
+
+      if (roundTo > 0) {
+        perPaxDisplay = Math.round(perPaxDisplay / roundTo) * roundTo;
+      }
+
+      cells.push({ tier, room, pax, rooms, perPaxIDR, perPaxDisplay, hppPerPaxIDR });
+    }
+  }
+
+  return {
+    cells,
+    fixedTotalIDR,
+    perPaxFlatIDR,
+    hotelPerNightIDR,
+    displayCurrency,
+    totalSAR,
+    totalUSD,
+  };
+}
+
+/**
+ * Generate default tiers: [min..max] dengan step.
+ * Arrahmah pakai step 4 dari 12 sampai 47.
+ */
+export function defaultPaxTiers(min = 12, max = 47, step = 4): PaxTier[] {
+  const tiers: PaxTier[] = [];
+  for (let lo = min; lo <= max; lo += step) {
+    const hi = Math.min(max, lo + step - 1);
+    tiers.push({ min: lo, max: hi });
+    if (hi === max) break;
+  }
+  return tiers;
+}
+
 // ── Legacy compat (used by Calculator page and calculatorStore) ───────────────
 
 export interface CostInput {

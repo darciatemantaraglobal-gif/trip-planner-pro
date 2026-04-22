@@ -22,6 +22,7 @@ import {
   type DestinationRow, type FnBRow, type StaffRow,
   type GeneralCostRow, type CalcCurrency, type CalcMode, type CostUnit,
 } from "@/features/calculator/pricing";
+import { GroupMatrixSection, DEFAULT_GROUP_SETTINGS, type GroupSettings } from "@/features/calculator/GroupMatrixSection";
 import { usePackages } from "@/features/packages/usePackages";
 import { scanPassport, countPassportDataFields, failedChecksumLabels } from "@/lib/ocrPassport";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,7 @@ interface ProfessionalCalcState {
   commissionFee: number;
   marginPercent: number;
   discount: number;
+  groupSettings: GroupSettings;
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ function loadPackageCalc(packageId: string, fallback: ProfessionalCalcState): Pr
     fnbs: stored.fnbs ?? fallback.fnbs,
     staffs: (stored.staffs ?? fallback.staffs).map((s: StaffRow) => ({ numStaff: 1, ...s })),
     generalCosts: stored.generalCosts ?? fallback.generalCosts,
+    groupSettings: { ...fallback.groupSettings, ...(stored.groupSettings ?? {}) },
   };
 }
 
@@ -136,6 +139,7 @@ function makeDefault(pax: number, name: string, dest: string): ProfessionalCalcS
     commissionFee: 0,
     marginPercent: 10,
     discount: 0,
+    groupSettings: { ...DEFAULT_GROUP_SETTINGS },
   };
 }
 
@@ -1467,8 +1471,29 @@ export default function PackageDetail() {
             </div>
           </div>
 
-          {/* ── SUMMARY OUTPUT TABLE ── */}
-          {quote && (
+          {/* ── GROUP MATRIX OUTPUT (only in umroh_group mode) ── */}
+          {calc.mode === "umroh_group" && (
+            <GroupMatrixSection
+              settings={calc.groupSettings}
+              onChange={(next) => setField("groupSettings", next)}
+              inputs={{
+                hotels: calc.hotels,
+                transports: calc.transports,
+                tickets: calc.tickets,
+                visas: calc.visas,
+                destinations: calc.destinations,
+                fnbs: calc.fnbs,
+                staffs: calc.staffs,
+                commissionFee: calc.commissionFee,
+                marginPercent: calc.marginPercent,
+                discount: calc.discount,
+              }}
+              rates={effectiveRates}
+            />
+          )}
+
+          {/* ── SUMMARY OUTPUT TABLE (private + umum modes) ── */}
+          {quote && calc.mode !== "umroh_group" && (
             <div className="rounded-xl border-2 border-orange-300 bg-white overflow-hidden">
               <button
                 className="w-full flex items-center justify-between px-3 md:px-5 py-3 md:py-4 bg-gradient-to-r from-orange-600 to-orange-500 text-white"
