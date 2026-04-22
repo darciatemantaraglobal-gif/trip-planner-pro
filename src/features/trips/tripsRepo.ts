@@ -199,7 +199,7 @@ export async function listJamaah(tripId: string): Promise<Jamaah[]> {
 }
 
 export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Promise<Jamaah> {
-  const id = `j-${Date.now()}`;
+  const id = `j-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   let photoUrl = draft.photoDataUrl;
   if (isSupabaseConfigured() && isDataUrl(photoUrl)) {
     photoUrl = await uploadJamaahPhoto(id, draft.passportNumber, photoUrl as string);

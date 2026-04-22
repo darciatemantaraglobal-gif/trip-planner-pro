@@ -153,21 +153,26 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
     if (validRows.length === 0) { toast.error("Minimal satu jamaah harus memiliki nama."); return; }
     setSaving(true);
     try {
-      for (const row of validRows) {
-        await addJamaah({
-          tripId,
-          name: row.data.name.trim(),
-          phone: "",
-          birthDate: row.data.birthDate,
-          passportNumber: row.data.passportNumber.trim(),
-          passportExpiry: row.data.expiryDate || undefined,
-          gender: row.data.gender,
-          photoDataUrl: row.previewUrl.startsWith("blob:") ? undefined : row.previewUrl,
-          needsReview: row.mrzValid === false,
-        });
-      }
-      toast.success(`${validRows.length} jamaah berhasil disimpan.`);
-      handleClose();
+      const results = await Promise.allSettled(
+        validRows.map((row) =>
+          addJamaah({
+            tripId,
+            name: row.data.name.trim(),
+            phone: "",
+            birthDate: row.data.birthDate,
+            passportNumber: row.data.passportNumber.trim(),
+            passportExpiry: row.data.expiryDate || undefined,
+            gender: row.data.gender,
+            photoDataUrl: row.previewUrl.startsWith("blob:") ? undefined : row.previewUrl,
+            needsReview: row.mrzValid === false,
+          })
+        )
+      );
+      const okCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.length - okCount;
+      if (okCount > 0) toast.success(`${okCount} jamaah berhasil disimpan.`);
+      if (failCount > 0) toast.error(`${failCount} jamaah gagal disimpan.`);
+      if (failCount === 0) handleClose();
     } catch {
       toast.error("Gagal menyimpan beberapa jamaah.");
     } finally {
