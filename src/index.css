@@ -774,16 +774,20 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
   padding-top: var(--sat);
 }
 
-/* Always apply safe-area padding to pwa-header on mobile (both browser + standalone) */
+/* Mobile spacing — safe-area insets are applied ONCE at .app-shell-mobile level
+   (padding-top/left/right). Header & bottom-nav use ONLY their own visual padding
+   to avoid double-padding (which previously created ~90px of empty whitespace
+   above the header in standalone PWA mode). */
 @media (max-width: 768px) {
   .pwa-header {
-    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
   }
-  .pwa-bottom-nav {
-    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
-  }
+  /* Bottom nav vertical padding handled by inline class (pt-1 + pb-... on inner flex). */
   .pwa-main-content {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)) !important;
+    /* Reserve room for the bottom nav. Inner flex of nav already accounts for
+       safe-area-inset-bottom via inline `pb-[max(8px,env(safe-area-inset-bottom))]`. */
+    padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important;
   }
 }
 
@@ -850,13 +854,10 @@ svg.lucide:where(.text-destructive, .text-success, .text-warning, .text-white,
     background: rgba(22, 11, 5, 0.97) !important;
   }
 
-  /* Deeper safe-area in standalone (home indicator always visible) */
-  .pwa-bottom-nav {
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-  }
-
-  /* Note: header status-bar offset and edge insets are handled at the shell
-     level (.app-shell-mobile padding-top/left/right) so we don't double-pad. */
+  /* Note: safe-area insets (top/left/right + bottom for nav home indicator) are
+     handled by .app-shell-mobile + the inner flex of .pwa-bottom-nav (inline
+     `pb-[max(8px,env(safe-area-inset-bottom))]`). Do NOT add padding-bottom here
+     or it will double-up and create dead space below the nav. */
 }
 
 /* ── PWA / Mobile compact form pages (Calculator, PDF Generator) ─────── */

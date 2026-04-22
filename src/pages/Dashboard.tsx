@@ -1028,7 +1028,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="relative overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-amber-50/60 p-6 md:p-10 text-center"
+            className="relative overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/40 to-amber-50/60 p-6 md:p-10 text-center flex flex-col items-center justify-center min-h-[40vh] md:min-h-[280px]"
           >
             {/* Decorative blob */}
             <div
