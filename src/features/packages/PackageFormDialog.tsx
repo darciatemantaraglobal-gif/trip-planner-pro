@@ -18,7 +18,8 @@ interface Props {
 
 const STATUSES: PackageStatus[] = ["Draft", "Calculated", "Confirmed", "Paid", "Completed"];
 const HOTEL_LEVELS: HotelLevel[] = ["Bintang 3", "Bintang 4", "Bintang 5"];
-const AIRLINES = ["Saudi Airlines", "Garuda Indonesia", "Lion Air", "Batik Air", "Emirates", "Qatar Airways", "Oman Air", "Flynas"];
+const AIRLINES = ["Saudia Airlines", "Ettihad Airways", "Emirates Airways", "Turkish Airways", "Egypt Air", "Lion Air", "Scoot", "Flynas", "Flyadeal"];
+const DESTINATION_PRESETS = ["Mekkah - Madinah - Thaif", "Mekkah - Madinah", "Madinah - Mekkah"];
 
 const FACILITIES_LIST = [
   "Makan 3x/Hari",
@@ -295,12 +296,17 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
                   <div className="space-y-1.5">
                     <p className={lbl}>Destinasi <span className="text-red-400 normal-case font-bold">*</span></p>
-                    <Input
-                      placeholder="Makkah, Madinah"
+                    <Select
                       value={draft.destination}
-                      onChange={(e) => { set("destination", e.target.value); setErrors(p => ({ ...p, destination: undefined })); }}
-                      className={inp + (errors.destination ? " border-red-400" : "")}
-                    />
+                      onValueChange={(v) => { set("destination", v); setErrors(p => ({ ...p, destination: undefined })); }}
+                    >
+                      <SelectTrigger className={sel + (errors.destination ? " border-red-400" : "")}>
+                        <SelectValue placeholder="Pilih rute" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DESTINATION_PRESETS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                     {errors.destination && <p className="text-[10px] text-red-500">{errors.destination}</p>}
                   </div>
                   <div className="space-y-1.5">

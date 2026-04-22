@@ -213,12 +213,44 @@ function NumCell({ value, onChange, placeholder }: {
 
 const TRANSPORT_TYPES = ["Camry", "GMC", "Staria", "Hiace", "Coaster", "Bus", "HHR Train"];
 const ROUTE_OPTIONS = [
-  "JED-MEK", "MEK-JED",
-  "JED-MED", "MED-JED",
-  "MED-MEK", "MEK-MED",
+  "JED-MEK/MEK-JED",
+  "JED-MED/MED-JED",
+  "MED-MEK/MEK-MED",
   "MED-MED",
   "THAIF",
 ];
+const ROOM_TYPES = ["Quad", "Triple", "Double"] as const;
+const ROOM_CAPACITY: Record<typeof ROOM_TYPES[number], number> = { Quad: 4, Triple: 3, Double: 2 };
+const AIRLINES = [
+  "Saudia Airlines", "Ettihad Airways", "Emirates Airways", "Turkish Airways",
+  "Egypt Air", "Lion Air", "Scoot", "Flynas", "Flyadeal",
+];
+const DESTINATION_PRESETS = [
+  "Mekkah - Madinah - Thaif",
+  "Mekkah - Madinah",
+  "Madinah - Mekkah",
+];
+
+function SelectCell({
+  value, onChange, options, placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: readonly string[];
+  placeholder?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={M}
+      className="w-full h-7 rounded-lg border border-orange-200 bg-white px-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400"
+    >
+      <option value="">{placeholder ?? "Pilih"}</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
 
 function TextCell({ value, onChange, placeholder, suggestions, listId }: {
   value: string; onChange: (v: string) => void; placeholder?: string;
@@ -630,14 +662,15 @@ export default function Calculator() {
           </div>
           <div className="space-y-1">
             <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Destinasi</label>
-            <input
-              type="text"
+            <select
               value={calc.destination}
               onChange={(e) => setField("destination", e.target.value)}
-              placeholder="cth: Makkah - Madinah"
               style={M}
               className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
-            />
+            >
+              <option value="">Pilih rute</option>
+              {DESTINATION_PRESETS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
           </div>
           <div className="space-y-1">
             <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Jumlah Pax</label>
@@ -668,6 +701,7 @@ export default function Calculator() {
               <thead>
                 <tr>
                   <Th>Nama Hotel</Th>
+                  <Th>Tipe Kamar</Th>
                   <Th right>Hari</Th>
                   <Th right>Harga/Malam</Th>
                   <Th right>Kamar</Th>
@@ -683,9 +717,21 @@ export default function Calculator() {
                   const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
                   const foreignAmount = h.days * h.pricePerNight * h.rooms;
                   const totalIDR = foreignAmount * rate;
+                  const capacity = h.roomType ? ROOM_CAPACITY[h.roomType] : 0;
+                  const perPaxIDR = capacity > 0
+                    ? (h.days * h.pricePerNight * rate) / capacity
+                    : totalIDR / safePax;
                   return (
                     <tr key={h.id} className="hover:bg-orange-50/30 transition-colors">
                       <Td><TextCell value={h.label} onChange={(v) => updateHotel(h.id, { label: v })} placeholder="Nama hotel" /></Td>
+                      <Td>
+                        <SelectCell
+                          value={h.roomType ?? ""}
+                          onChange={(v) => updateHotel(h.id, { roomType: (v || undefined) as HotelRow["roomType"] })}
+                          options={ROOM_TYPES}
+                          placeholder="Tipe"
+                        />
+                      </Td>
                       <Td right><NumCell value={h.days} onChange={(v) => updateHotel(h.id, { days: v })} /></Td>
                       <Td right>
                         <div className="flex items-center gap-1">
@@ -696,7 +742,10 @@ export default function Calculator() {
                       <Td right><NumCell value={h.rooms} onChange={(v) => updateHotel(h.id, { rooms: v })} /></Td>
                       <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                       <Td right bold mono>{formatCurrency(totalIDR)}</Td>
-                      <Td right muted mono>{formatCurrency(totalIDR / safePax)}</Td>
+                      <Td right muted mono>
+                        {formatCurrency(perPaxIDR)}
+                        {capacity > 0 && <div style={M} className="text-[9px] text-slate-400 font-normal">÷ {capacity} pax/kamar</div>}
+                      </Td>
                       <td className="px-1 py-1.5 border-b border-orange-50"><DeleteBtn onClick={() => removeHotel(h.id)} /></td>
                     </tr>
                   );
@@ -741,8 +790,8 @@ export default function Calculator() {
                   const totalIDR = foreignAmount * rate;
                   return (
                     <tr key={t.id} className="hover:bg-orange-50/30 transition-colors">
-                      <Td><TextCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} placeholder="cth: Hiace" suggestions={TRANSPORT_TYPES} listId="dl-transport-types" /></Td>
-                      <Td><TextCell value={t.route ?? ""} onChange={(v) => updateTransport(t.id, { route: v })} placeholder="cth: JED-MED" suggestions={ROUTE_OPTIONS} listId="dl-routes" /></Td>
+                      <Td><SelectCell value={t.label} onChange={(v) => updateTransport(t.id, { label: v })} options={TRANSPORT_TYPES} placeholder="Jenis" /></Td>
+                      <Td><SelectCell value={t.route ?? ""} onChange={(v) => updateTransport(t.id, { route: v })} options={ROUTE_OPTIONS} placeholder="Rute" /></Td>
                       <Td right><NumCell value={t.fleet} onChange={(v) => updateTransport(t.id, { fleet: v })} /></Td>
                       <Td right>
                         <div className="flex items-center gap-1">
@@ -779,6 +828,7 @@ export default function Calculator() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
+                  <Th>Maskapai</Th>
                   <Th>Rute</Th>
                   <Th>Jenis</Th>
                   <Th right>Harga/Pax</Th>
@@ -797,6 +847,7 @@ export default function Calculator() {
                     : tk.pricePerPax * safePax;
                   return (
                     <tr key={tk.id} className="hover:bg-orange-50/30 transition-colors">
+                      <Td><SelectCell value={tk.airline ?? ""} onChange={(v) => updateTicket(tk.id, { airline: v })} options={AIRLINES} placeholder="Maskapai" /></Td>
                       <Td><TextCell value={tk.label} onChange={(v) => updateTicket(tk.id, { label: v })} placeholder="cth: SUB - JED" /></Td>
                       <Td>
                         <select

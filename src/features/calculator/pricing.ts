@@ -18,7 +18,8 @@ export interface HotelRow {
   label: string;
   days: number;
   pricePerNight: number; // currency per room per night
-  rooms: number;         // Quad = number of rooms
+  rooms: number;         // number of rooms
+  roomType?: "Quad" | "Triple" | "Double"; // sharing type — Quad=4, Triple=3, Double=2
   currency?: "IDR" | "SAR" | "USD"; // default SAR
 }
 
@@ -35,6 +36,7 @@ export interface TicketRow {
   id: string;
   label: string;       // route e.g. "SUB - JED"
   flightType: string;  // e.g. "Return" / "One Way"
+  airline?: string;    // e.g. "Saudia Airlines"
   pricePerPax: number; // price per person
   currency: "IDR" | "SAR" | "USD";
 }

@@ -474,7 +474,7 @@ export default function JamaahProfile() {
   }, [tripId, jamaahId, fetchJamaah, fetchDocs]);
 
   useEffect(() => {
-    if (person) setForm({ name: person.name, phone: person.phone, birthDate: person.birthDate, passportNumber: person.passportNumber, gender: person.gender });
+    if (person) setForm({ name: person.name, phone: person.phone, birthDate: person.birthDate, passportNumber: person.passportNumber, passportExpiry: person.passportExpiry, gender: person.gender, needsReview: person.needsReview });
   }, [person?.id]);
 
   const handleOcrScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -636,6 +636,21 @@ export default function JamaahProfile() {
               <div className="space-y-1.5">
                 <Label className="text-xs text-[hsl(var(--muted-foreground))]">No. Paspor</Label>
                 <Input value={form.passportNumber ?? ""} onChange={(e) => setForm((f) => ({ ...f, passportNumber: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[hsl(var(--muted-foreground))]">Tgl. Expired Paspor</Label>
+                <Input type="date" value={form.passportExpiry ?? ""} onChange={(e) => setForm((f) => ({ ...f, passportExpiry: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form.needsReview}
+                    onChange={(e) => setForm((f) => ({ ...f, needsReview: e.target.checked }))}
+                    className="h-3.5 w-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-400"
+                  />
+                  <span>Tandai "Perlu Review" (mis. hasil OCR perlu diverifikasi)</span>
+                </label>
               </div>
             </div>
           ) : (

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train, AlertCircle, Clock, Star, ChevronRight, Wallet } from "lucide-react";
@@ -195,12 +196,16 @@ function AddTripDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
             <div className="space-y-1">
               <Label className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Destinasi *</Label>
-              <Input
-                className="h-8 text-[12.5px] rounded-xl"
-                placeholder="Makkah, Saudi Arabia"
-                value={form.destination}
-                onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-              />
+              <Select value={form.destination} onValueChange={(v) => setForm((f) => ({ ...f, destination: v }))}>
+                <SelectTrigger className="h-8 text-[12.5px] rounded-xl">
+                  <SelectValue placeholder="Pilih rute" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mekkah - Madinah - Thaif">Mekkah - Madinah - Thaif</SelectItem>
+                  <SelectItem value="Mekkah - Madinah">Mekkah - Madinah</SelectItem>
+                  <SelectItem value="Madinah - Mekkah">Madinah - Mekkah</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
