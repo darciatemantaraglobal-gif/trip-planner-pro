@@ -106,14 +106,15 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
 
           <div className="flex-1" />
 
-          {/* Compact rate indicator — tap to refresh */}
+          {/* Live rate indicator — full numbers, tap to refresh */}
           <button
             onClick={() => refreshRates()}
-            className="flex items-center gap-1.5 shrink-0 h-8 pl-2 pr-2.5 rounded-full bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100/80 transition-all active:scale-95"
+            className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-1.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-100/80 shadow-[0_1px_2px_rgba(249,115,22,0.08)] transition-all active:scale-95"
             style={{ fontVariantNumeric: "tabular-nums" }}
-            title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}` : "Tap untuk perbarui"}
+            title={lastUpdated ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")} · Tap untuk perbarui` : "Tap untuk perbarui"}
+            aria-label="Kurs live"
           >
-            <span className="relative flex h-1.5 w-1.5">
+            <span className="relative flex h-1.5 w-1.5 ml-0.5">
               <span
                 className={cn(
                   "absolute inline-flex h-full w-full rounded-full opacity-75",
@@ -125,20 +126,32 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
                 style={{ background: rateMode === "manual" ? "#f97316" : "#10b981" }}
               />
             </span>
-            <span className="text-[10.5px] font-extrabold text-orange-700 leading-none">
-              {rates.USD ? Math.round(rates.USD / 1000) + "K" : "—"}
+
+            <div className="flex items-center gap-1.5 leading-none">
+              <div className="flex flex-col items-end gap-[1px]">
+                <span className="text-[8px] font-bold uppercase tracking-wider text-orange-500/80 leading-none">USD</span>
+                <span className="text-[11px] font-extrabold text-orange-800 leading-none tabular-nums">
+                  {rates.USD ? rates.USD.toLocaleString("id-ID", { maximumFractionDigits: 0 }) : "—"}
+                </span>
+              </div>
+              <span className="h-5 w-px bg-orange-200/80" />
+              <div className="flex flex-col items-end gap-[1px]">
+                <span className="text-[8px] font-bold uppercase tracking-wider text-orange-500/80 leading-none">SAR</span>
+                <span className="text-[11px] font-extrabold text-orange-800 leading-none tabular-nums">
+                  {rates.SAR ? rates.SAR.toLocaleString("id-ID", { maximumFractionDigits: 0 }) : "—"}
+                </span>
+              </div>
+            </div>
+
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-xl bg-white/70 ml-0.5">
+              <RefreshCw
+                strokeWidth={2.2}
+                className={cn(
+                  "h-3 w-3 text-orange-500",
+                  ratesLoading && "animate-spin"
+                )}
+              />
             </span>
-            <span className="text-[10px] text-orange-300 leading-none -mx-0.5">·</span>
-            <span className="text-[10.5px] font-extrabold text-orange-700 leading-none">
-              {rates.SAR ? Math.round(rates.SAR / 100) / 10 + "K" : "—"}
-            </span>
-            <RefreshCw
-              strokeWidth={2.2}
-              className={cn(
-                "h-3 w-3 text-orange-500 ml-0.5",
-                ratesLoading && "animate-spin"
-              )}
-            />
           </button>
         </motion.header>
 
