@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
 import Notes from "./pages/Notes";
 import ExportCenter from "./pages/ExportCenter";
+import TemplatePreview from "./pages/TemplatePreview";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
@@ -148,6 +149,7 @@ function AnimatedRoutes() {
       <Route path="/bootstrap" element={<Auth />} />
       <Route path="/cek" element={<PublicCheck />} />
       <Route path="/cek/:code" element={<PublicCheck />} />
+      <Route path="/template-preview" element={<TemplatePreview />} />
 
       <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/calculator" element={<RequireAuth><DashboardLayout><Calculator /></DashboardLayout></RequireAuth>} />
