@@ -1782,15 +1782,69 @@ export default function Calculator() {
                       </div>
                     </>
                   ) : (
-                    <div className="text-center py-8">
-                      <p className="text-[11px] text-slate-500 mb-2">Belum ada template aktif.</p>
-                      <button
-                        onClick={handleResetToStarter}
-                        className="h-7 px-3 rounded-lg text-[11px] bg-orange-500 text-white hover:bg-orange-600"
-                      >
-                        Buat Template Default
-                      </button>
-                    </div>
+                    /* Fallback: static live-data thumbnail when no template active */
+                    <>
+                      <div className="relative mx-auto rounded-lg border border-orange-200 shadow-sm overflow-hidden bg-white"
+                           style={{ width: "100%", maxWidth: 360, aspectRatio: "210/297" }}>
+                        <div className="px-3 pt-2.5 pb-1 flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[7px] font-bold text-[#666]">#{offerData.quoteNumber}</div>
+                            <h3 className="font-extrabold leading-tight mt-1" style={{ color: "#102463", fontSize: 12 }}>
+                              {offerData.title}
+                            </h3>
+                            <p className="text-[7px] font-medium mt-1" style={{ color: "#3a2f22" }}>{offerData.dateRange}</p>
+                          </div>
+                          <img src="/logo-igh-tour.png" alt="IGH" className="h-5 object-contain shrink-0" />
+                        </div>
+                        <div className="px-3 mt-1 grid grid-cols-2 gap-2">
+                          {[
+                            { label: "Makkah", name: offerData.hotelMakkah, n: offerData.makkahNights },
+                            { label: "Madinah", name: offerData.hotelMadinah, n: offerData.madinahNights },
+                          ].map((h) => (
+                            <div key={h.label}>
+                              <p className="text-[6px] text-[#888] uppercase">{h.label}</p>
+                              <p className="text-[8px] font-extrabold leading-tight" style={{ color: "#102463" }}>{h.name || "—"}</p>
+                              <span className="inline-block mt-0.5 text-[6px] font-extrabold px-1.5 py-0.5 rounded-full"
+                                    style={{ background: "#f3e2af", color: "#c99841" }}>
+                                {h.n} MALAM
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="px-3 mt-2">
+                          <table className="w-full text-[6.5px] border-collapse">
+                            <thead>
+                              <tr className="border-b border-[#dcd5c8]">
+                                <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">PAX</th>
+                                <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">QUAD</th>
+                                <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">TRIPLE</th>
+                                <th className="text-left py-0.5 font-extrabold text-[#3a2f22]">DOUBLE</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {offerData.rows.slice(0, 8).map((r) => (
+                                <tr key={r.paxRange} className="border-b border-[#eae3d5]">
+                                  <td className="py-0.5 font-bold text-[#3a2f22]">{r.paxRange}</td>
+                                  <td className="py-0.5 font-extrabold text-[#102463]">${Math.round(r.quad).toLocaleString("en-US")}</td>
+                                  <td className="py-0.5 font-extrabold text-[#102463]">${Math.round(r.triple).toLocaleString("en-US")}</td>
+                                  <td className="py-0.5 font-extrabold text-[#102463]">${Math.round(r.double).toLocaleString("en-US")}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="absolute left-0 right-0 bottom-0 h-7" style={{ background: "#102463" }}>
+                          <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "#c99841" }} />
+                          <div className="px-3 pt-1 flex items-center justify-between text-[6px] text-white">
+                            <span className="font-extrabold">Land Arrangement Umrah & Haji</span>
+                            <span>{offerData.contactPhone}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-center mt-2" style={M}>
+                        Buat template untuk kustomisasi penuh, atau klik <span className="font-bold">Lihat & Ekspor PDF</span> langsung.
+                      </p>
+                    </>
                   )}
                 </div>
 
