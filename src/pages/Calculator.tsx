@@ -10,7 +10,8 @@ import { CanvasTemplateEditor } from "@/features/pdfTemplate/CanvasTemplateEdito
 import { CanvasTemplateView } from "@/features/pdfTemplate/renderHtml";
 import type { BindingContext } from "@/features/pdfTemplate/dataBinding";
 import { makeDefaultStarterTemplate } from "@/features/pdfTemplate/types";
-import { useTripsStore } from "@/store/tripsStore";
+import { usePackagesStore } from "@/store/packagesStore";
+import type { PackageDraft } from "@/features/packages/packagesRepo";
 import {
   computeProfessionalQuote,
   computeGeneralQuote,
@@ -515,7 +516,7 @@ export default function Calculator() {
     toast.success("Template default dibuat ulang.");
   }
   const navigate = useNavigate();
-  const addTrip = useTripsStore((s) => s.addTrip);
+  const createPackage = usePackagesStore((s) => s.create);
 
   function update(value: CalcState) {
     setCalc(value);
@@ -798,36 +799,58 @@ export default function Calculator() {
     if (creatingTrip) return;
     setCreatingTrip(true);
     try {
-      const today = new Date();
-      const totalDays =
-        (calc.hotels.find((h) => /makk?ah/i.test(h.label))?.days || 0) +
-        (calc.hotels.find((h) => /madin/i.test(h.label))?.days || 0);
-      const fallbackEnd = new Date(today.getTime() + Math.max(totalDays, 7) * 86400000);
       const parsed = parseDateRange(calc.dateRange);
 
       const name =
         calc.title?.trim() ||
         calc.packageName?.trim() ||
-        (calc.customerName ? `Umroh ${calc.customerName}` : "Trip Baru IGH Tour");
+        (calc.customerName ? `Umroh ${calc.customerName}` : "Paket Baru IGH Tour");
+
       const destination =
         calc.destination?.trim() ||
-        (calc.mode === "umroh_group" || calc.mode === "umroh_pro" ? "Makkah & Madinah" : "Trip");
-      const emoji = /umroh|umrah|haji|hajj|makkah|madinah/i.test(name + " " + destination) ? "🕋" : "✈️";
+        (calc.mode !== "umum"
+          ? [calc.hotelMakkahName, calc.hotelMadinahName]
+              .filter(Boolean)
+              .join(" & ")
+              .trim() || "Makkah & Madinah"
+          : "Trip");
 
-      const trip = await addTrip({
+      const totalDays = calc.hotels.reduce((acc, h) => acc + (h.days || 0), 0) || 7;
+
+      const isUmrah = /umroh|umrah|haji|hajj|makkah|madinah/i.test(name + " " + destination);
+      const emoji = isUmrah ? "🕋" : "✈️";
+
+      const stars = calc.makkahStars ?? calc.madinahStars ?? 0;
+      const hotelLevel =
+        stars >= 5 ? "Bintang 5" :
+        stars >= 4 ? "Bintang 4" :
+        stars >= 3 ? "Bintang 3" : undefined;
+
+      const facilities = calc.includedItems?.filter((s) => s.trim()) ?? [];
+
+      const draft: PackageDraft = {
         name,
         destination,
-        startDate: parsed.start || today.toISOString().slice(0, 10),
-        endDate: parsed.end || fallbackEnd.toISOString().slice(0, 10),
+        people: Math.max(1, calc.pax || 1),
+        days: totalDays,
+        hpp: Math.round(quote.hpp || 0),
+        totalIDR: Math.round(quote.finalPrice || 0),
+        status: "Calculated",
         emoji,
-        quotaPax: calc.pax || undefined,
-        pricePerPax: Math.round(quote.perPaxFinal) || undefined,
-      });
-      toast.success(`Trip "${trip.name}" berhasil dibuat`);
-      navigate(`/trips/${trip.id}`);
+        departureDate: parsed.start || undefined,
+        hotelLevel: hotelLevel as PackageDraft["hotelLevel"],
+        facilities: facilities.length ? facilities : undefined,
+        notes: [calc.subtitle, calc.tier, calc.customerName ? `Customer: ${calc.customerName}` : ""]
+          .filter(Boolean).join(" | ") || undefined,
+        coverImage: calc.customPdfImage || undefined,
+      };
+
+      const newPkg = await createPackage(draft);
+      toast.success(`Paket "${newPkg.name}" berhasil dibuat!`);
+      navigate("/packages");
     } catch (err) {
-      console.error("create trip failed", err);
-      toast.error("Gagal membuat Trip. Coba lagi.");
+      console.error("create package failed", err);
+      toast.error("Gagal membuat Paket. Coba lagi.");
     } finally {
       setCreatingTrip(false);
     }
