@@ -49,9 +49,18 @@ export const usePackagesStore = create<PackagesState>((set, get) => ({
   },
 
   create: async (draft) => {
-    const created = await createPackage(draft);
-    set((s) => ({ items: [created, ...s.items] }));
-    return created;
+    const preId = `p-${Date.now()}`;
+    const now = new Date().toISOString();
+    const optimistic: Package = { ...draft, id: preId, createdAt: now, updatedAt: now };
+    set((s) => ({ items: [optimistic, ...s.items] }));
+    try {
+      const created = await createPackage(draft, preId);
+      set((s) => ({ items: s.items.map((p) => (p.id === preId ? created : p)) }));
+      return created;
+    } catch (err) {
+      set((s) => ({ items: s.items.filter((p) => p.id !== preId) }));
+      throw err;
+    }
   },
 
   update: async (id, patch) => {

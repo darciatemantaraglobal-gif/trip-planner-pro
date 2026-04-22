@@ -90,9 +90,9 @@ export async function getPackage(id: string): Promise<Package | null> {
   return loadStore().find((p) => p.id === id) ?? null;
 }
 
-export async function createPackage(draft: PackageDraft): Promise<Package> {
+export async function createPackage(draft: PackageDraft, preId?: string): Promise<Package> {
   const now = new Date().toISOString();
-  const pkg: Package = { ...draft, id: `p-${Date.now()}`, createdAt: now, updatedAt: now };
+  const pkg: Package = { ...draft, id: preId ?? `p-${Date.now()}`, createdAt: now, updatedAt: now };
   if (isSupabaseConfigured()) {
     const agencyId = requireAgencyId();
     const { error } = await supabase!.from("packages").insert(toRow(pkg, agencyId));
