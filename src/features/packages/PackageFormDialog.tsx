@@ -163,7 +163,9 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
             <motion.div
               className="relative w-full md:max-w-lg pointer-events-auto rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col bg-white border border-[hsl(var(--border))]"
               style={{
-                maxHeight: vvHeight ? `${Math.max(280, vvHeight - 8)}px` : "92dvh",
+                maxHeight: vvHeight
+                  ? `calc(${Math.max(280, vvHeight - 8)}px - env(safe-area-inset-top))`
+                  : "calc(92dvh - env(safe-area-inset-top))",
               }}
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
@@ -171,7 +173,10 @@ export function PackageFormDialog({ open, onOpenChange, initial, onSubmit }: Pro
               transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             >
               {/* ── Header ── */}
-              <div className="flex items-center justify-between px-4 md:px-5 pt-3.5 md:pt-5 pb-3 md:pb-4 border-b border-[hsl(var(--border))] shrink-0">
+              <div
+                className="flex items-center justify-between px-4 md:px-5 pb-3 md:pb-4 border-b border-[hsl(var(--border))] shrink-0"
+                style={{ paddingTop: "calc(env(safe-area-inset-top) + 14px)" }}
+              >
                 <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
                   <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl flex items-center justify-center shrink-0"
                     style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
