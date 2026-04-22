@@ -402,24 +402,118 @@ async function compressForAI(dataUrl: string, maxEdge = 1280): Promise<string> {
   return c.toDataURL("image/jpeg", 0.85);
 }
 
+/* ── OpenAI direct call (browser → OpenAI API) ─────────────────────────── */
+
+const OPENAI_SYSTEM_PROMPT = `You are an OCR engine specialized in reading the Machine Readable Zone (MRZ) of international passports (ICAO 9303 TD3 format, two lines of 44 characters each).
+
+Look at the bottom of the passport photo for the MRZ strip. Extract EXACTLY these 5 fields and return ONLY a JSON object (no prose, no markdown fences) with this exact shape:
+
+{
+  "name": "FULL NAME AS PRINTED (given names then surname, single space separated)",
+  "passportNumber": "DOCUMENT NUMBER (alphanumeric, no '<' fillers)",
+  "birthDate": "YYYY-MM-DD",
+  "gender": "L for male, P for female",
+  "expiryDate": "YYYY-MM-DD",
+  "mrzValid": true
+}
+
+Rules:
+- Only return the 5 fields above plus mrzValid. Do not return nationality or any other field.
+- If a field is unreadable, set it to null (do NOT guess).
+- For 2-digit years in MRZ: if year > 30 it means 19xx, otherwise 20xx for birth date. Expiry is always 20xx.
+- Set mrzValid to true only if you successfully read all check digits and they all match.
+- gender must be exactly "L" (laki-laki) or "P" (perempuan), null if unreadable.
+- Return ONLY the JSON object, nothing else.`;
+
+interface OpenAIParsed {
+  name: string | null;
+  passportNumber: string | null;
+  birthDate: string | null;
+  expiryDate: string | null;
+  gender: "L" | "P" | null;
+  mrzValid: boolean;
+}
+
+function normalizeOpenAIParsed(parsed: OpenAIParsed): PassportData {
+  const out: PassportData = { source: "openai", mrzValid: parsed.mrzValid === true };
+  if (typeof parsed.name === "string" && parsed.name.trim()) out.name = parsed.name.trim();
+  if (typeof parsed.passportNumber === "string" && parsed.passportNumber.trim()) {
+    out.passportNumber = parsed.passportNumber.replace(/[<\s]/g, "").toUpperCase();
+  }
+  if (typeof parsed.birthDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.birthDate)) {
+    out.birthDate = parsed.birthDate;
+  }
+  if (typeof parsed.expiryDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiryDate)) {
+    out.expiryDate = parsed.expiryDate;
+  }
+  if (parsed.gender === "L" || parsed.gender === "P") out.gender = parsed.gender;
+  return out;
+}
+
+async function callOpenAIDirect(dataUrl: string, apiKey: string): Promise<PassportData> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini", // cheapest OpenAI model with vision
+      temperature: 0,
+      max_tokens: 400,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: OPENAI_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Read the MRZ from this passport and return the JSON." },
+            { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const errTxt = await res.text().catch(() => "");
+    throw new Error(`OpenAI ${res.status}: ${errTxt.slice(0, 200) || res.statusText}`);
+  }
+
+  const completion = await res.json();
+  const raw = completion?.choices?.[0]?.message?.content;
+  if (!raw || typeof raw !== "string") {
+    throw new Error("OpenAI returned empty response.");
+  }
+
+  let parsed: OpenAIParsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`OpenAI returned invalid JSON: ${raw.slice(0, 200)}`);
+  }
+
+  return normalizeOpenAIParsed(parsed);
+}
+
 /**
- * Call the Supabase Edge Function `ocr-passport` which proxies to OpenAI gpt-4o-mini.
+ * AI OCR untuk paspor.
  *
- * Behaviour:
- * - `throwOnError=false` (default, dipake oleh hybrid fallback) → return null kalo gagal
- *   biar caller bisa fallback ke Tesseract tanpa nampilin error.
- * - `throwOnError=true` (dipake oleh AI-only mode) → throw Error dengan pesan jelas
- *   biar UI bisa nampilin alasan kenapa OCR gagal.
+ * Strategi:
+ * 1. Kalo `VITE_OPENAI_API_KEY` ada di env → panggil OpenAI gpt-4o-mini langsung dari browser.
+ *    (Paling cepat & ga butuh Edge Function deploy.)
+ * 2. Kalo ga ada → fallback ke Supabase Edge Function `ocr-passport` (yang juga proxy ke OpenAI).
+ *
+ * `throwOnError=true` → throw Error dengan pesan jelas (dipake AI-only mode).
+ * `throwOnError=false` (default) → return null biar caller bisa fallback ke Tesseract.
  */
 export async function scanPassportAI(
   imageSource: string | File,
   opts?: { throwOnError?: boolean },
 ): Promise<PassportData | null> {
   const throwOnError = opts?.throwOnError === true;
-  if (!supabase) {
-    if (throwOnError) throw new Error("Supabase belum dikonfigurasi (VITE_SUPABASE_URL/ANON_KEY).");
-    return null;
-  }
+  const openaiKey = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim();
+
   try {
     const rawDataUrl =
       imageSource instanceof File || imageSource instanceof Blob
@@ -427,6 +521,17 @@ export async function scanPassportAI(
         : imageSource;
     const dataUrl = await compressForAI(rawDataUrl);
 
+    // Path 1: direct OpenAI dari browser
+    if (openaiKey) {
+      return await callOpenAIDirect(dataUrl, openaiKey);
+    }
+
+    // Path 2: fallback ke Supabase Edge Function
+    if (!supabase) {
+      throw new Error(
+        "VITE_OPENAI_API_KEY belum di-set & Supabase belum dikonfigurasi. Set salah satu.",
+      );
+    }
     const { data, error } = await supabase.functions.invoke<{
       name?: string;
       passportNumber?: string;
@@ -438,18 +543,9 @@ export async function scanPassportAI(
       error?: string;
     }>("ocr-passport", { body: { imageDataUrl: dataUrl } });
 
-    if (error) {
-      if (throwOnError) throw new Error(error.message || "Gagal panggil Edge Function ocr-passport.");
-      return null;
-    }
-    if (!data) {
-      if (throwOnError) throw new Error("Edge Function tidak mengembalikan data.");
-      return null;
-    }
-    if (data.error) {
-      if (throwOnError) throw new Error(data.error);
-      return null;
-    }
+    if (error) throw new Error(error.message || "Gagal panggil Edge Function ocr-passport.");
+    if (!data) throw new Error("Edge Function tidak mengembalikan data.");
+    if (data.error) throw new Error(data.error);
     return {
       name: data.name,
       passportNumber: data.passportNumber,
