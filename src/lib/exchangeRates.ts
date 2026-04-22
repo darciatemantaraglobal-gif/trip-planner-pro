@@ -25,6 +25,46 @@ function saveCache(rates: Rates) {
   localStorage.setItem(CACHE_KEY, JSON.stringify({ rates, fetchedAt: Date.now() }));
 }
 
+async function fetchWithTimeout(url: string, ms = 6000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Primary: fawazahmed0 currency-api — free, no key, multi-source aggregator
+// (mid-market rates very close to XE / Wise). Two CDN endpoints for redundancy.
+async function fetchFromCurrencyApi(): Promise<Rates> {
+  const endpoints = [
+    "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/idr.json",
+    "https://latest.currency-api.pages.dev/v1/currencies/idr.json",
+  ];
+  let lastErr: unknown;
+  for (const url of endpoints) {
+    try {
+      const res = await fetchWithTimeout(url);
+      if (!res.ok) throw new Error(`currency-api ${res.status}`);
+      const data = await res.json();
+      const idrTable = data?.idr ?? {};
+      const usdPerIdr = Number(idrTable.usd);
+      const sarPerIdr = Number(idrTable.sar);
+      if (!usdPerIdr || !sarPerIdr) throw new Error("Invalid rate data");
+      return {
+        IDR: 1,
+        USD: Math.round(1 / usdPerIdr),
+        SAR: Math.round(1 / sarPerIdr),
+      };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr ?? new Error("currency-api unreachable");
+}
+
+// Fallback: Frankfurter (ECB rates, weekday-only)
 async function fetchFromFrankfurter(): Promise<Rates> {
   const isDev = typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.port !== "");
@@ -32,14 +72,7 @@ async function fetchFromFrankfurter(): Promise<Rates> {
     ? "/api/frankfurter/latest?from=IDR&to=USD,SAR"
     : "https://api.frankfurter.app/latest?from=IDR&to=USD,SAR";
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-  let res: Response;
-  try {
-    res = await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error("Frankfurter API error");
   const data = await res.json();
   const usdPerIdr = data.rates?.USD ?? 0;
@@ -59,11 +92,17 @@ export async function getExchangeRates(): Promise<Rates> {
   if (cached) return cached.rates;
 
   try {
-    const rates = await fetchFromFrankfurter();
+    const rates = await fetchFromCurrencyApi();
     saveCache(rates);
     return rates;
   } catch {
-    return FALLBACK_RATES;
+    try {
+      const rates = await fetchFromFrankfurter();
+      saveCache(rates);
+      return rates;
+    } catch {
+      return FALLBACK_RATES;
+    }
   }
 }
 
