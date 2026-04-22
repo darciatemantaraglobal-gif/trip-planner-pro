@@ -8,6 +8,16 @@ export interface QuotationMeta {
   hotelMadinahName: string;
   includedItems: string[];
   excludedItems: string[];
+  // ── Group offer (PDF gaya "Penawaran Paket LA") ──
+  tier: string;            // cth: "Premium"
+  title: string;           // judul utama, bisa multi-line
+  subtitle: string;        // cth: "Program 7 Malam"
+  makkahStars: number;     // 1..5
+  madinahStars: number;    // 1..5
+  usdToSar: number;        // cth: 3.75
+  website: string;         // cth: "www.umrahservice.co"
+  contactPhone: string;    // cth: "+62 812-8955-2018"
+  contactName: string;     // cth: "M. FARUQ AL ISLAM"
 }
 
 interface Props {
@@ -89,58 +99,164 @@ export function QuotationMetaSection({ value, onChange }: Props) {
         </span>
       </div>
       <div className="p-3 space-y-3">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <label className="flex flex-col gap-1">
             <span style={M} className="text-[10px] font-bold text-slate-600">No. Quote</span>
             <input
               type="text"
               value={value.quoteNumber}
               onChange={(e) => set("quoteNumber", e.target.value)}
-              placeholder="002"
+              placeholder="3345"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Tier / Badge</span>
+            <select
+              value={value.tier}
+              onChange={(e) => set("tier", e.target.value)}
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            >
+              <option value="">— tanpa badge —</option>
+              <option value="Premium">Premium</option>
+              <option value="Reguler">Reguler</option>
+              <option value="Promo">Promo</option>
+              <option value="VIP">VIP</option>
+              <option value="Spesial">Spesial</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 col-span-2">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Customer (penerima penawaran)</span>
+            <input
+              type="text"
+              value={value.customerName}
+              onChange={(e) => set("customerName", e.target.value)}
+              placeholder="cth: IGH Tour"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1 col-span-2 md:col-span-3">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Judul Penawaran (boleh panjang)</span>
+            <input
+              type="text"
+              value={value.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="cth: Penawaran Paket LA Umrah Bintang 5 Awal Musim"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Sub-judul / Pill</span>
+            <input
+              type="text"
+              value={value.subtitle}
+              onChange={(e) => set("subtitle", e.target.value)}
+              placeholder="cth: Program 7 Malam"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
           </label>
           <label className="flex flex-col gap-1 col-span-2">
-            <span style={M} className="text-[10px] font-bold text-slate-600">Nama Customer / Judul</span>
-            <input
-              type="text"
-              value={value.customerName}
-              onChange={(e) => set("customerName", e.target.value)}
-              placeholder="cth: Bu April"
-              style={M}
-              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
-            />
-          </label>
-          <label className="flex flex-col gap-1 col-span-2 md:col-span-1">
             <span style={M} className="text-[10px] font-bold text-slate-600">Tanggal Trip</span>
             <input
               type="text"
               value={value.dateRange}
               onChange={(e) => set("dateRange", e.target.value)}
-              placeholder="cth: 05–11 Jul 2026"
+              placeholder="cth: 01 Jul - 31 Jul 2026"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
           </label>
           <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">KURS 1 USD = … SAR</span>
+            <input
+              type="number"
+              step="0.01"
+              min={0}
+              value={value.usdToSar || ""}
+              onChange={(e) => set("usdToSar", parseFloat(e.target.value) || 0)}
+              placeholder="3.75"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Bintang Hotel Makkah</span>
+            <select
+              value={value.makkahStars}
+              onChange={(e) => set("makkahStars", parseInt(e.target.value) || 5)}
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            >
+              {[5, 4, 3, 2, 1].map((s) => <option key={s} value={s}>{"★".repeat(s)} ({s})</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Bintang Hotel Madinah</span>
+            <select
+              value={value.madinahStars}
+              onChange={(e) => set("madinahStars", parseInt(e.target.value) || 5)}
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            >
+              {[5, 4, 3, 2, 1].map((s) => <option key={s} value={s}>{"★".repeat(s)} ({s})</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 col-span-2">
             <span style={M} className="text-[10px] font-bold text-slate-600">Hotel Makkah</span>
             <input
               type="text"
               value={value.hotelMakkahName}
               onChange={(e) => set("hotelMakkahName", e.target.value)}
-              placeholder="cth: Movenpick"
+              placeholder="cth: Pullman Zamzam Makkah"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 col-span-2">
             <span style={M} className="text-[10px] font-bold text-slate-600">Hotel Madinah</span>
             <input
               type="text"
               value={value.hotelMadinahName}
               onChange={(e) => set("hotelMadinahName", e.target.value)}
-              placeholder="cth: Grand Plaza"
+              placeholder="cth: Frontel Al Harithia"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1 col-span-2">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Website</span>
+            <input
+              type="text"
+              value={value.website}
+              onChange={(e) => set("website", e.target.value)}
+              placeholder="www.umrahservice.co"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">No. Kontak</span>
+            <input
+              type="text"
+              value={value.contactPhone}
+              onChange={(e) => set("contactPhone", e.target.value)}
+              placeholder="+62 812-8955-2018"
+              style={M}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span style={M} className="text-[10px] font-bold text-slate-600">Nama Kontak</span>
+            <input
+              type="text"
+              value={value.contactName}
+              onChange={(e) => set("contactName", e.target.value)}
+              placeholder="M. FARUQ AL ISLAM"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />

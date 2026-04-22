@@ -216,75 +216,121 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
               </div>
             </div>
           ) : offer ? (
-            <div className="bg-white border border-[hsl(var(--border))] rounded-xl p-4 text-[hsl(var(--foreground))]">
-              <div className="flex items-start justify-between gap-4 pb-3 border-b">
-                <div>
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <span className="font-bold text-foreground">#{offer.quoteNumber}</span>
-                    <span>{offer.tier}</span>
+            <div
+              className="relative mx-auto rounded-xl border border-[hsl(var(--border))] shadow-md overflow-hidden text-[hsl(var(--foreground))]"
+              style={{ width: "100%", maxWidth: 560, aspectRatio: "210/297", background: "linear-gradient(180deg,#ffffff 0%,#ffffff 60%,#faf5eb 100%)" }}
+            >
+              {/* Top bar */}
+              <div className="px-5 pt-4 pb-1 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10.5px] font-bold text-[#666]">#{offer.quoteNumber}</span>
+                    {offer.tier && (
+                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full" style={{ background: "#f3e2af", color: "#c99841" }}>
+                        {offer.tier}
+                      </span>
+                    )}
                   </div>
-                  <h2 className="text-lg font-bold mt-2 max-w-xs leading-tight">{offer.title}</h2>
-                  <p className="text-[12px] mt-1">{offer.subtitle}</p>
-                  <p className="text-[12px] font-medium mt-0.5">{offer.dateRange}</p>
+                  <h2 className="font-extrabold leading-[1.05] mt-2" style={{ color: "#102463", fontSize: 22, maxWidth: 280 }}>
+                    {offer.title}
+                  </h2>
+                  {offer.subtitle && (
+                    <span className="inline-block mt-2 text-[10px] font-extrabold px-2.5 py-1 rounded-full" style={{ background: "#f3e2af", color: "#c99841" }}>
+                      {offer.subtitle}
+                    </span>
+                  )}
+                  <p className="text-[10.5px] font-medium mt-2" style={{ color: "#3a2f22" }}>{offer.dateRange}</p>
                 </div>
-                <div className="text-right text-[11px] shrink-0">
-                  <p className="text-muted-foreground">Customer:</p>
-                  <p className="font-bold">{offer.customerName}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-3 border-b">
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-semibold">Hotel Makkah</p>
-                  <p className="font-bold text-[12.5px] mt-0.5">{offer.hotelMakkah}</p>
-                  <p className="text-[11px] text-primary font-semibold mt-0.5">{offer.makkahNights} Malam · {"★".repeat(offer.makkahStars)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-semibold">Hotel Madinah</p>
-                  <p className="font-bold text-[12.5px] mt-0.5">{offer.hotelMadinah}</p>
-                  <p className="text-[11px] text-primary font-semibold mt-0.5">{offer.madinahNights} Malam · {"★".repeat(offer.madinahStars)}</p>
+                <div className="shrink-0 text-right">
+                  <img src="/logo-igh-tour.png" alt="IGH" className="h-8 ml-auto object-contain" />
+                  <p className="text-[8.5px] text-[#888] mt-3">Customer:</p>
+                  <p className="text-[11px] font-extrabold" style={{ color: "#102463" }}>{offer.customerName}</p>
+                  <div className="h-[1px] bg-[#dcd5c8] w-24 ml-auto mt-1" />
                 </div>
               </div>
 
-              <div className="overflow-x-auto mt-3 border border-[hsl(var(--border))] rounded-xl">
-                <table className="w-full text-[12px] min-w-[500px]">
-                  <thead className="bg-[hsl(var(--secondary))] text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-left">TOTAL PAX</th>
-                      <th className="px-3 py-2 text-center">QUAD</th>
-                      <th className="px-3 py-2 text-center">TRIPLE</th>
-                      <th className="px-3 py-2 text-center">DOUBLE</th>
+              {/* Hotel cards */}
+              <div className="px-5 mt-2 grid grid-cols-2 gap-3">
+                {[
+                  { label: "Hotel Makkah", name: offer.hotelMakkah, n: offer.makkahNights, s: offer.makkahStars },
+                  { label: "Hotel Madinah", name: offer.hotelMadinah, n: offer.madinahNights, s: offer.madinahStars },
+                ].map((h) => (
+                  <div key={h.label}>
+                    <p className="text-[8.5px] text-[#888]">{h.label}</p>
+                    <p className="text-[12px] font-extrabold leading-tight mt-0.5" style={{ color: "#102463" }}>{h.name || "—"}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[8.5px] font-extrabold px-2 py-0.5 rounded-full" style={{ background: "#f3e2af", color: "#c99841" }}>
+                        {h.n} MALAM
+                      </span>
+                      <span className="text-[10px]" style={{ color: "#c99841" }}>{"★".repeat(h.s || 5)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Price matrix */}
+              <div className="px-5 mt-3">
+                <table className="w-full text-[9.5px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#dcd5c8]">
+                      <th className="text-left py-1.5 font-extrabold text-[#3a2f22]">TOTAL PAX</th>
+                      <th className="text-left py-1.5 font-extrabold text-[#3a2f22]">QUAD</th>
+                      <th className="text-left py-1.5 font-extrabold text-[#3a2f22]">TRIPLE</th>
+                      <th className="text-left py-1.5 font-extrabold text-[#3a2f22]">DOUBLE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {offer.rows.map((row) => (
-                      <tr key={row.paxRange} className="border-t border-[hsl(var(--border))]">
-                        <td className="px-3 py-2 font-semibold">{row.paxRange}</td>
-                        <td className="px-3 py-2 text-center font-bold">{usd(row.quad)}</td>
-                        <td className="px-3 py-2 text-center font-bold">{usd(row.triple)}</td>
-                        <td className="px-3 py-2 text-center font-bold">{usd(row.double)}</td>
+                      <tr key={row.paxRange} className="border-b border-[#eae3d5]">
+                        <td className="py-1 font-bold text-[#3a2f22]">{row.paxRange}</td>
+                        <td className="py-1 font-extrabold text-[#102463]">{usd(row.quad)}</td>
+                        <td className="py-1 font-extrabold text-[#102463]">{usd(row.triple)}</td>
+                        <td className="py-1 font-extrabold text-[#102463]">{usd(row.double)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                <div className="flex items-center justify-between text-[8px] mt-1.5">
+                  <span className="font-bold text-[#3a2f22]">KURS 1 USD = {offer.usdToSar} SAR</span>
+                  <span className="text-[#888]">* harga sewaktu-waktu dapat berubah · Update: <strong className="text-[#3a2f22]">{offer.updateDate}</strong></span>
+                </div>
               </div>
 
-              <p className="text-[10.5px] text-muted-foreground mt-3">
-                <strong className="text-foreground">1 USD = {offer.usdToSar} SAR</strong> · Update: {offer.updateDate}
-              </p>
-
-              <div className="grid md:grid-cols-2 gap-3 mt-4 text-[11.5px]">
-                <div className="border border-[hsl(var(--border))] rounded-xl p-3">
-                  <p className="font-bold mb-1.5 text-center">Sudah Termasuk</p>
-                  <ul className="space-y-1 list-disc pl-4">
-                    {offer.included.slice(0, 8).map((item) => <li key={item}>{item}</li>)}
+              {/* Included / Excluded */}
+              <div className="px-5 mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <div className="rounded text-center text-white text-[9px] font-extrabold py-1" style={{ background: "#4caf50" }}>
+                    Harga Sudah Termasuk
+                  </div>
+                  <ul className="mt-1.5 space-y-0.5 text-[7.5px] text-[#3a2f22] list-disc pl-3">
+                    {offer.included.slice(0, 16).map((item, i) => <li key={i}>{item}</li>)}
                   </ul>
                 </div>
-                <div className="border border-[hsl(var(--border))] rounded-xl p-3">
-                  <p className="font-bold mb-1.5 text-center">Tidak Termasuk</p>
-                  <ul className="space-y-1 list-disc pl-4">
-                    {offer.excluded.map((item) => <li key={item}>{item}</li>)}
+                <div>
+                  <div className="rounded text-center text-white text-[9px] font-extrabold py-1" style={{ background: "#e84950" }}>
+                    Harga Tidak Termasuk
+                  </div>
+                  <ul className="mt-1.5 space-y-0.5 text-[7.5px] text-[#3a2f22] list-disc pl-3">
+                    {offer.excluded.slice(0, 12).map((item, i) => <li key={i}>{item}</li>)}
                   </ul>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="absolute left-0 right-0 bottom-0" style={{ background: "#102463", height: 60 }}>
+                <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: "#c99841" }} />
+                <div className="px-5 pt-2.5 flex items-center justify-between gap-2 h-full">
+                  <div className="text-[8.5px] leading-tight">
+                    <p className="font-extrabold text-white">Pelopor Layanan</p>
+                    <p className="font-extrabold" style={{ color: "#c99841" }}>Land Arrangement</p>
+                    <p className="font-extrabold text-white">Umrah & Haji</p>
+                  </div>
+                  <p className="text-[9px] text-white">{offer.website}</p>
+                  <div className="rounded-md bg-white px-2.5 py-1.5 text-right">
+                    <p className="text-[6.5px] text-[#888]">Informasi & Pemesanan</p>
+                    <p className="text-[10px] font-extrabold" style={{ color: "#102463" }}>{offer.contactPhone}</p>
+                    <p className="text-[6.5px] text-[#888]">{offer.contactName}</p>
+                  </div>
                 </div>
               </div>
             </div>

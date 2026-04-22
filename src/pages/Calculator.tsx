@@ -6,6 +6,9 @@ import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import {
   computeProfessionalQuote,
   computeGeneralQuote,
+  computeGroupMatrix,
+  defaultPaxTiers,
+  ROOM_SHARING,
   type HotelRow,
   type TransportRow,
   type TicketRow,
@@ -53,6 +56,16 @@ interface CalcState {
   hotelMadinahName: string;
   includedItems: string[];
   excludedItems: string[];
+  // Group offer extras
+  tier: string;
+  title: string;
+  subtitle: string;
+  makkahStars: number;
+  madinahStars: number;
+  usdToSar: number;
+  website: string;
+  contactPhone: string;
+  contactName: string;
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -93,6 +106,15 @@ function loadState(fallback: CalcState): CalcState {
       hotelMadinahName: stored.hotelMadinahName ?? fallback.hotelMadinahName,
       includedItems: stored.includedItems ?? fallback.includedItems,
       excludedItems: stored.excludedItems ?? fallback.excludedItems,
+      tier: stored.tier ?? fallback.tier,
+      title: stored.title ?? fallback.title,
+      subtitle: stored.subtitle ?? fallback.subtitle,
+      makkahStars: stored.makkahStars ?? fallback.makkahStars,
+      madinahStars: stored.madinahStars ?? fallback.madinahStars,
+      usdToSar: stored.usdToSar ?? fallback.usdToSar,
+      website: stored.website ?? fallback.website,
+      contactPhone: stored.contactPhone ?? fallback.contactPhone,
+      contactName: stored.contactName ?? fallback.contactName,
     };
   } catch { return fallback; }
 }
@@ -140,8 +162,40 @@ function makeDefault(): CalcState {
     dateRange: "",
     hotelMakkahName: "",
     hotelMadinahName: "",
-    includedItems: ["Visa Umroh", "Mutawif", "Hotel Makkah", "Hotel Madinah", "Transport selama di Saudi"],
-    excludedItems: ["Tiket Pesawat", "Vaksinasi", "Pembuatan Paspor", "Personal Expenses"],
+    includedItems: [
+      "Akomodasi hotel Madinah & Makkah sesuai program.",
+      "Makan fullboard.",
+      "Mutawwifah raudah atau pembimbing masuk raudah untuk akhwat.",
+      "Snack 4x trip.",
+      "Handling kedatangan dan kepulangan di bandara.",
+      "Meal box kedatangan dan kepulangan di bandara.",
+      "Welcoming drink air zamzam dan kurma saat kedatangan.",
+      "Handling check-in dan check-out hotel.",
+      "Distribusi koper ke kamar jama'ah.",
+      "Tips porter bandara dan bellboy hotel.",
+      "Air mineral di setiap kamar jama'ah.",
+      "Parcel buah atau snack di setiap kamar jama'ah.",
+      "Greeting card di setiap kamar jama'ah.",
+      "Free air zamzam 5lt.",
+      "FOC 1 pax tour leader.",
+    ],
+    excludedItems: [
+      "Tiket pesawat.",
+      "Asuransi perjalanan.",
+      "Biaya-biaya yang bersifat pribadi, dan atau yang bukan merupakan fasilitas program.",
+      "Biaya tambahan (apabila ada) yang dikeluarkan oleh pemerintah Arab Saudi untuk penerbitan visa umrah.",
+      "Visa umrah.",
+      "Transportasi selama di Arab Saudi.",
+    ],
+    tier: "Premium",
+    title: "Penawaran Paket LA Umrah Bintang 5 Awal Musim",
+    subtitle: "Program 7 Malam",
+    makkahStars: 5,
+    madinahStars: 5,
+    usdToSar: 3.75,
+    website: "www.umrahservice.co",
+    contactPhone: "+62 812-8955-2018",
+    contactName: "M. FARUQ AL ISLAM",
   };
 }
 
@@ -537,6 +591,67 @@ export default function Calculator() {
   }
 
   const pdfCosts = quote.breakdown.map((b) => ({ id: b.id, label: b.label, amount: b.groupIDR }));
+
+  // ── Group matrix (untuk PDF mode "umroh_group") ──
+  const groupTiers = useMemo(
+    () => defaultPaxTiers(calc.groupSettings.minPax, calc.groupSettings.maxPax, calc.groupSettings.step),
+    [calc.groupSettings.minPax, calc.groupSettings.maxPax, calc.groupSettings.step],
+  );
+  const groupMatrix = useMemo(() => {
+    if (calc.mode !== "umroh_group") return null;
+    return computeGroupMatrix({
+      hotels: calc.hotels,
+      transports: calc.transports,
+      tickets: calc.tickets,
+      visas: calc.visas,
+      destinations: calc.destinations,
+      fnbs: calc.fnbs,
+      staffs: calc.staffs,
+      commissionFee: calc.commissionFee,
+      marginPercent: calc.marginPercent,
+      discount: calc.discount,
+      rates: effectiveRates,
+      tiers: groupTiers,
+      roomTypes: calc.groupSettings.roomTypes.length > 0 ? calc.groupSettings.roomTypes : ["Quad", "Triple", "Double"],
+      displayCurrency: "USD",
+      roundTo: calc.groupSettings.roundTo,
+    });
+  }, [calc, effectiveRates, groupTiers]);
+
+  const offerData = useMemo(() => {
+    if (calc.mode !== "umroh_group" || !groupMatrix) return undefined;
+    const rooms: Array<"Quad" | "Triple" | "Double"> = ["Quad", "Triple", "Double"];
+    const rows = groupTiers.map((tier) => {
+      const get = (room: typeof rooms[number]) =>
+        groupMatrix.cells.find((c) => c.tier.min === tier.min && c.tier.max === tier.max && c.room === room)?.perPaxDisplay ?? 0;
+      const label = tier.min === tier.max ? `${tier.min} PAX` : `${tier.min} - ${tier.max} PAX`;
+      return { paxRange: label, quad: get("Quad"), triple: get("Triple"), double: get("Double") };
+    });
+    const makkahHotel = calc.hotels.find((h) => /makk?ah/i.test(h.label));
+    const madinahHotel = calc.hotels.find((h) => /madin/i.test(h.label));
+    return {
+      quoteNumber: calc.quoteNumber || "001",
+      tier: calc.tier,
+      title: calc.title || calc.packageName || "Penawaran Paket Umrah",
+      subtitle: calc.subtitle,
+      dateRange: calc.dateRange,
+      customerName: calc.customerName || "—",
+      hotelMakkah: calc.hotelMakkahName || makkahHotel?.label || "",
+      hotelMadinah: calc.hotelMadinahName || madinahHotel?.label || "",
+      makkahNights: makkahHotel?.days || 0,
+      madinahNights: madinahHotel?.days || 0,
+      makkahStars: calc.makkahStars,
+      madinahStars: calc.madinahStars,
+      usdToSar: calc.usdToSar || 3.75,
+      updateDate: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
+      rows,
+      included: calc.includedItems.filter((s) => s.trim()),
+      excluded: calc.excludedItems.filter((s) => s.trim()),
+      website: calc.website,
+      contactPhone: calc.contactPhone,
+      contactName: calc.contactName,
+    };
+  }, [calc, groupMatrix, groupTiers]);
 
   return (
     <div className="pwa-compact-form space-y-2.5 md:space-y-5 max-w-5xl mx-auto" style={M}>
@@ -1113,6 +1228,15 @@ export default function Calculator() {
           hotelMadinahName: calc.hotelMadinahName,
           includedItems: calc.includedItems,
           excludedItems: calc.excludedItems,
+          tier: calc.tier,
+          title: calc.title,
+          subtitle: calc.subtitle,
+          makkahStars: calc.makkahStars,
+          madinahStars: calc.madinahStars,
+          usdToSar: calc.usdToSar,
+          website: calc.website,
+          contactPhone: calc.contactPhone,
+          contactName: calc.contactName,
         }}
         onChange={(meta) => update({ ...calc, ...meta })}
       />
@@ -1416,7 +1540,8 @@ export default function Calculator() {
           costs: pdfCosts,
           total: quote.finalPrice,
           perPerson: quote.perPaxFinal,
-          simple: {
+          offer: offerData,
+          simple: calc.mode === "umroh_group" ? undefined : {
             quoteNumber: calc.quoteNumber || "001",
             title: calc.customerName
               ? `Umroh ${calc.customerName}`

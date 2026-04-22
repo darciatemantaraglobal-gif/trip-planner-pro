@@ -150,7 +150,7 @@ function generateTemplateOverlayPdf(data: QuotationData, template: PdfTemplate) 
   const rateNote = formatRateNote(data.rateMeta);
   // If the template has no background image, fall back to the default IGH Tour layout
   if (!template.backgroundImage) {
-    generateLandArrangementPdf(data);
+    void generateLandArrangementPdf(data);
     return;
   }
 
@@ -233,66 +233,135 @@ function generateTemplateOverlayPdf(data: QuotationData, template: PdfTemplate) 
   doc.save(`${safeName}_${offer.quoteNumber || Date.now().toString().slice(-6)}.pdf`);
 }
 
-function generateLandArrangementPdf(data: QuotationData) {
+async function generateLandArrangementPdf(data: QuotationData) {
   const offer = data.offer;
   if (!offer) return;
 
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 34;
-  const gold: [number, number, number] = [249, 115, 22];
-  const dark: [number, number, number] = [38, 30, 22];
-  const muted: [number, number, number] = [103, 94, 83];
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+  const pageW = doc.internal.pageSize.getWidth();   // 595
+  const pageH = doc.internal.pageSize.getHeight();  // 842
+  const margin = 36;
 
-  doc.setTextColor(...dark);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(`#${offer.quoteNumber || Date.now().toString().slice(-4)}`, margin, 32);
-  doc.setFontSize(10);
-  doc.setTextColor(...gold);
-  doc.text(offer.tier || "Premium", margin + 82, 31);
+  // Brand palette — IGH/Arrahmah inspired
+  const navy: [number, number, number]   = [16, 36, 99];     // deep blue (title + footer)
+  const gold: [number, number, number]   = [201, 152, 65];   // brass / pill
+  const goldBg: [number, number, number] = [243, 226, 175];  // pill bg
+  const dark: [number, number, number]   = [38, 30, 22];
+  const muted: [number, number, number]  = [120, 110, 100];
+  const greenBg: [number, number, number]= [76, 175, 80];
+  const redBg: [number, number, number]  = [232, 73, 80];
+  const lightLine: [number, number, number] = [225, 220, 210];
+  const beigeBg: [number, number, number]   = [250, 245, 235];
 
-  doc.setTextColor(...dark);
-  doc.setFontSize(20);
-  doc.text(offer.title || data.packageName || "Penawaran Paket Umrah", margin, 72, {
-    maxWidth: 265,
-  });
+  // ── Soft beige page background ──
+  doc.setFillColor(...beigeBg);
+  doc.rect(0, 0, pageW, pageH, "F");
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageW, pageH * 0.66, "F");
+
+  // ── Top-right brand logo ──
+  const logo = await loadImageAsDataUrl("/logo-igh-tour.png");
+  if (logo) {
+    const lw = 96, lh = 36;
+    doc.addImage(logo, "PNG", pageW - margin - lw, margin - 2, lw, lh);
+  }
+
+  // ── Header: quote no + tier ──
+  let y = margin + 6;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(offer.subtitle || "Program Umrah", margin, 107);
-  doc.text(offer.dateRange || "—", margin, 130);
-
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...muted);
-  doc.text("Customer:", pageWidth - 180, 72);
-  doc.setFontSize(12);
-  doc.setTextColor(...dark);
-  doc.text(offer.customerName || "IGH Tour", pageWidth - 180, 94);
+  doc.text(`#${offer.quoteNumber || Date.now().toString().slice(-4)}`, margin, y);
 
-  const hotelY = 166;
-  const colW = (pageWidth - margin * 2 - 28) / 2;
+  if (offer.tier) {
+    const tierText = offer.tier;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    const tw = doc.getTextWidth(tierText) + 14;
+    doc.setFillColor(...goldBg);
+    doc.roundedRect(margin + 38, y - 9, tw, 13, 6.5, 6.5, "F");
+    doc.setTextColor(...gold);
+    doc.text(tierText, margin + 45, y);
+  }
+
+  // ── Title (multi-line) ──
+  y += 22;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...muted);
-  doc.text("Hotel Makkah", margin, hotelY);
-  doc.text("Hotel Madinah", margin + colW + 28, hotelY);
+  doc.setFontSize(24);
+  doc.setTextColor(...navy);
+  const titleLines = doc.splitTextToSize(offer.title || data.packageName || "Penawaran Paket Umrah", 320) as string[];
+  doc.text(titleLines, margin, y);
+  y += titleLines.length * 26;
 
+  // ── Subtitle pill ──
+  if (offer.subtitle) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    const pw = doc.getTextWidth(offer.subtitle) + 20;
+    doc.setFillColor(...goldBg);
+    doc.roundedRect(margin, y - 4, pw, 18, 9, 9, "F");
+    doc.setTextColor(...gold);
+    doc.text(offer.subtitle, margin + 10, y + 8);
+    y += 26;
+  }
+
+  // ── Date range ──
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...dark);
+  doc.text(offer.dateRange || "—", margin, y + 8);
+
+  // ── Customer (right side under logo) ──
+  const custY = margin + 50;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...muted);
+  doc.text("Customer:", pageW - margin, custY, { align: "right" });
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...dark);
-  doc.text(offer.hotelMakkah || "—", margin, hotelY + 23, { maxWidth: colW });
-  doc.text(offer.hotelMadinah || "—", margin + colW + 28, hotelY + 23, { maxWidth: colW });
+  doc.text(offer.customerName || "—", pageW - margin, custY + 18, { align: "right" });
+  doc.setDrawColor(...lightLine);
+  doc.setLineWidth(0.5);
+  doc.line(pageW - margin - 130, custY + 26, pageW - margin, custY + 26);
 
-  doc.setFontSize(10);
-  doc.setTextColor(...gold);
-  doc.text(`${offer.makkahNights || 0} MALAM`, margin, hotelY + 47);
-  doc.text(stars(offer.makkahStars), margin + 78, hotelY + 47);
-  doc.text(`${offer.madinahNights || 0} MALAM`, margin + colW + 28, hotelY + 47);
-  doc.text(stars(offer.madinahStars), margin + colW + 116, hotelY + 47);
+  // ── Hotel cards ──
+  y += 36;
+  const colW = (pageW - margin * 2 - 24) / 2;
+  function drawHotelCard(x: number, ty: number, title: string, name: string, nights: number, starCount: number) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.text(title, x, ty);
 
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(...navy);
+    doc.text(name || "—", x, ty + 18, { maxWidth: colW });
+
+    // Night pill
+    const pillTxt = `${nights || 0} MALAM`;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    const pw = doc.getTextWidth(pillTxt) + 16;
+    doc.setFillColor(...goldBg);
+    doc.roundedRect(x, ty + 28, pw, 14, 7, 7, "F");
+    doc.setTextColor(...gold);
+    doc.text(pillTxt, x + 8, ty + 38);
+
+    // Stars
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...gold);
+    doc.text(stars(starCount), x + pw + 8, ty + 39);
+  }
+  drawHotelCard(margin, y, "Hotel Makkah", offer.hotelMakkah, offer.makkahNights, offer.makkahStars);
+  drawHotelCard(margin + colW + 24, y, "Hotel Madinah", offer.hotelMadinah, offer.madinahNights, offer.madinahStars);
+  y += 60;
+
+  // ── Price matrix ──
   autoTable(doc, {
-    startY: 245,
+    startY: y,
     head: [["TOTAL PAX", "QUAD", "TRIPLE", "DOUBLE"]],
     body: offer.rows.map((row) => [
       row.paxRange,
@@ -304,104 +373,120 @@ function generateLandArrangementPdf(data: QuotationData) {
     theme: "plain",
     styles: {
       font: "helvetica",
-      fontSize: 13,
-      cellPadding: { top: 8, right: 12, bottom: 8, left: 12 },
+      fontSize: 11,
+      cellPadding: { top: 6, right: 10, bottom: 6, left: 12 },
       textColor: dark,
-      lineColor: [235, 229, 220],
+      lineColor: lightLine,
       lineWidth: 0.4,
     },
     headStyles: {
-      fontSize: 11,
+      fontSize: 9.5,
       fontStyle: "bold",
-      textColor: muted,
-      fillColor: [250, 247, 242],
+      textColor: dark,
+      fillColor: [255, 255, 255],
+      lineWidth: 0.6,
     },
     columnStyles: {
-      0: { cellWidth: 185, fontStyle: "bold", halign: "left" },
-      1: { halign: "center" },
-      2: { halign: "center" },
-      3: { halign: "center" },
+      0: { cellWidth: 130, fontStyle: "bold", halign: "left" },
+      1: { halign: "left", cellWidth: (pageW - margin * 2 - 130) / 3 },
+      2: { halign: "left", cellWidth: (pageW - margin * 2 - 130) / 3 },
+      3: { halign: "left", cellWidth: (pageW - margin * 2 - 130) / 3 },
     },
     didParseCell: (hookData) => {
       if (hookData.section === "body" && hookData.column.index > 0) {
         hookData.cell.styles.fontStyle = "bold";
+        hookData.cell.styles.fontSize = 12;
       }
     },
   });
 
-  const tableEndY = (doc as any).lastAutoTable?.finalY ?? 430;
+  const tableEndY = (doc as any).lastAutoTable?.finalY ?? y + 200;
+
+  // ── Kurs + update line ──
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(...dark);
-  doc.text(`KURS 1 USD = ${offer.usdToSar || 3.75} SAR`, margin, tableEndY + 22);
+  doc.text(`KURS 1 USD = ${offer.usdToSar || 3.75} SAR`, margin, tableEndY + 14);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...muted);
-  doc.text(
-    `* Harga sewaktu-waktu dapat berubah tanpa pemberitahuan sebelumnya, harap konfirmasi kembali. Update: ${offer.updateDate || new Date().toLocaleDateString("id-ID")}`,
-    margin + 175,
-    tableEndY + 22
-  );
+  const updateNote = `* Harga sewaktu-waktu dapat berubah tanpa pemberitahuan sebelumnya, harap konfirmasi kembali. `;
+  doc.text(updateNote, margin + 130, tableEndY + 14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...dark);
+  doc.text(`Update: ${offer.updateDate || new Date().toLocaleDateString("id-ID")}`, pageW - margin, tableEndY + 14, { align: "right" });
 
   const rateNote = formatRateNote(data.rateMeta);
   if (rateNote) {
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(...muted);
-    doc.text(rateNote, margin, tableEndY + 36);
+    doc.text(rateNote, margin, tableEndY + 26);
   }
 
-  const sectionY = tableEndY + 58;
-  const halfW = (pageWidth - margin * 2 - 24) / 2;
-  doc.setDrawColor(235, 229, 220);
-  doc.setFillColor(250, 247, 242);
-  doc.roundedRect(margin, sectionY - 20, halfW, 22, 8, 8, "F");
-  doc.roundedRect(margin + halfW + 24, sectionY - 20, halfW, 22, 8, 8, "F");
+  // ── Included / Excluded headers ──
+  const sectionY = tableEndY + 38;
+  const halfW = (pageW - margin * 2 - 12) / 2;
 
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...dark);
-  doc.setFontSize(10);
-  doc.text("Harga Sudah Termasuk", margin + halfW / 2, sectionY - 5, { align: "center" });
-  doc.text("Harga Tidak Termasuk", margin + halfW + 24 + halfW / 2, sectionY - 5, {
-    align: "center",
-  });
-
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...dark);
-  doc.setFontSize(8.2);
-  bulletLines(doc, offer.included, margin + 4, sectionY + 16, halfW - 12, 10);
-  bulletLines(doc, offer.excluded, margin + halfW + 28, sectionY + 16, halfW - 12, 10);
+  doc.setFillColor(...greenBg);
+  doc.roundedRect(margin, sectionY, halfW, 20, 4, 4, "F");
+  doc.setFillColor(...redBg);
+  doc.roundedRect(margin + halfW + 12, sectionY, halfW, 20, 4, 4, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(...gold);
-  doc.text("Pelopor Layanan", margin, pageHeight - 46);
-  doc.setTextColor(...dark);
-  doc.text("Land Arrangement", margin, pageHeight - 31);
-  doc.text("Umrah & Haji", margin, pageHeight - 17);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Harga Sudah Termasuk", margin + halfW / 2, sectionY + 13.5, { align: "center" });
+  doc.text("Harga Tidak Termasuk", margin + halfW + 12 + halfW / 2, sectionY + 13.5, { align: "center" });
+
+  // ── Bullet lists ──
   doc.setFont("helvetica", "normal");
-  doc.text(offer.website || "www.umrahservice.co", margin + 152, pageHeight - 31);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Informasi & Pemesanan", pageWidth - margin, pageHeight - 46, { align: "right" });
-  doc.setTextColor(...gold);
-  doc.text(
-    offer.contactPhone || "+62 812-8955-2018",
-    pageWidth - margin,
-    pageHeight - 31,
-    { align: "right" }
-  );
+  doc.setFontSize(8);
   doc.setTextColor(...dark);
-  doc.text(
-    offer.contactName || "M. FARUQ AL ISLAM",
-    pageWidth - margin,
-    pageHeight - 17,
-    { align: "right" }
-  );
+  bulletLines(doc, offer.included, margin + 4, sectionY + 36, halfW - 8, 9);
+  bulletLines(doc, offer.excluded, margin + halfW + 16, sectionY + 36, halfW - 8, 9);
 
-  const safeName = (offer.title || data.packageName || "penawaran_igh").replace(
-    /[^a-z0-9-_]+/gi,
-    "_"
-  );
+  // ── Footer band (navy) ──
+  const footerH = 64;
+  doc.setFillColor(...navy);
+  doc.rect(0, pageH - footerH, pageW, footerH, "F");
+
+  // gold accent strip
+  doc.setFillColor(...gold);
+  doc.rect(0, pageH - footerH, pageW, 4, "F");
+
+  // Pelopor block
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Pelopor Layanan", margin, pageH - 38);
+  doc.setTextColor(...gold);
+  doc.text("Land Arrangement", margin, pageH - 25);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Umrah & Haji", margin, pageH - 12);
+
+  // Website
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text(offer.website || "www.umrahservice.co", pageW / 2, pageH - 25, { align: "center" });
+
+  // Contact card
+  const cardW = 188, cardH = 44, cardX = pageW - margin - cardW, cardY = pageH - footerH + 10;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...muted);
+  doc.text("Informasi & Pemesanan", cardX + 12, cardY + 13);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...navy);
+  doc.text(offer.contactPhone || "+62 812-8955-2018", cardX + 12, cardY + 27);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...muted);
+  doc.text(offer.contactName || "M. FARUQ AL ISLAM", cardX + 12, cardY + 38);
+
+  const safeName = (offer.title || data.packageName || "penawaran_igh").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
   doc.save(`${safeName}_${offer.quoteNumber || Date.now().toString().slice(-6)}.pdf`);
 }
 
@@ -617,7 +702,7 @@ export function generateQuotationPdf(data: QuotationData) {
   }
 
   if (data.offer) {
-    generateLandArrangementPdf(data);
+    void generateLandArrangementPdf(data);
     return;
   }
 
