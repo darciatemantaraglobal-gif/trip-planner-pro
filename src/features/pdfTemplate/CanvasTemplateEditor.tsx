@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   X, Type, Image as ImageIcon, Square, Circle, Minus, List,
   Sparkles, Trash2, Copy, ArrowUp, ArrowDown,
-  Save, Upload, Eye,
+  Save, Upload, Eye, Undo2, Redo2,
+  AlignStartVertical, AlignCenterHorizontal, AlignEndVertical,
+  AlignStartHorizontal, AlignCenterVertical, AlignEndHorizontal,
+  Maximize2,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -31,6 +34,8 @@ type DragMode =
   | { kind: "move"; id: string; startMx: number; startMy: number; ox: number; oy: number }
   | { kind: "resize"; id: string; handle: "br" | "tr" | "bl" | "tl" | "r" | "b"; startMx: number; startMy: number; ox: number; oy: number; ow: number; oh: number };
 
+type AlignMode = "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom" | "fill-w" | "fill-h";
+
 function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -40,6 +45,8 @@ const COLOR_SWATCHES = [
   "#10b981", "#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#666666",
   "#888888", "#cccccc", "#fef3c7", "#fee2e2", "#dcfce7", "#dbeafe",
 ];
+
+const SNAP_THRESHOLD = 1.8;
 
 export function CanvasTemplateEditor({
   open,
@@ -52,15 +59,74 @@ export function CanvasTemplateEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragMode | null>(null);
   const [fileDragOver, setFileDragOver] = useState<null | "element" | "background">(null);
+  const [snapGuides, setSnapGuides] = useState<{ h?: number; v?: number }>({});
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
   const pageRef = useRef<HTMLDivElement>(null);
   const previewCtx = ctx ?? PLACEHOLDER_CTX;
 
-  // Reset on open
+  const histStack = useRef<CanvasTemplate[]>([]);
+  const histPos = useRef<number>(0);
+  const clipboardRef = useRef<CanvasElement | null>(null);
+  const latestTemplate = useRef<CanvasTemplate>(emptyTemplate());
+
+  useEffect(() => { latestTemplate.current = template; }, [template]);
+
+  const stateRef = useRef({ selectedId, editingTextId, template });
+  useEffect(() => { stateRef.current = { selectedId, editingTextId, template }; });
+
+  /* ─── History ─── */
+  function updateHistFlags() {
+    setCanUndo(histPos.current > 0);
+    setCanRedo(histPos.current < histStack.current.length - 1);
+  }
+
+  function initHistory(t: CanvasTemplate) {
+    histStack.current = [JSON.parse(JSON.stringify(t))];
+    histPos.current = 0;
+    updateHistFlags();
+  }
+
+  function commitToHistory(t: CanvasTemplate) {
+    histStack.current = histStack.current.slice(0, histPos.current + 1);
+    histStack.current.push(JSON.parse(JSON.stringify(t)));
+    if (histStack.current.length > 50) histStack.current.shift();
+    else histPos.current++;
+    updateHistFlags();
+  }
+
+  function undo() {
+    if (histPos.current <= 0) return;
+    histPos.current--;
+    const t = JSON.parse(JSON.stringify(histStack.current[histPos.current])) as CanvasTemplate;
+    latestTemplate.current = t;
+    setTemplate(t);
+    setSelectedId(null);
+    updateHistFlags();
+  }
+
+  function redo() {
+    if (histPos.current >= histStack.current.length - 1) return;
+    histPos.current++;
+    const t = JSON.parse(JSON.stringify(histStack.current[histPos.current])) as CanvasTemplate;
+    latestTemplate.current = t;
+    setTemplate(t);
+    setSelectedId(null);
+    updateHistFlags();
+  }
+
+  /* ─── Reset on open ─── */
   useEffect(() => {
     if (open) {
-      setTemplate(initial ?? emptyTemplate());
+      const t = initial ?? emptyTemplate();
+      setTemplate(t);
       setSelectedId(null);
       setDrag(null);
+      setEditingTextId(null);
+      setSnapGuides({});
+      initHistory(t);
     }
   }, [open, initial]);
 
@@ -68,10 +134,11 @@ export function CanvasTemplateEditor({
 
   /* ─── Element CRUD ─── */
   function addElement(el: CanvasElement) {
-    setTemplate((t) => ({
-      ...t,
-      elements: [...t.elements, { ...el, z: nextZ(t.elements) }],
-    }));
+    setTemplate((t) => {
+      const newT = { ...t, elements: [...t.elements, { ...el, z: nextZ(t.elements) }] };
+      commitToHistory(newT);
+      return newT;
+    });
     setSelectedId(el.id);
   }
 
@@ -85,22 +152,46 @@ export function CanvasTemplateEditor({
     }));
   }
 
-  function deleteSelected() {
+  function patchSelectedAndCommit(updates: Partial<CanvasElement>) {
     if (!selectedId) return;
-    setTemplate((t) => ({ ...t, elements: t.elements.filter((e) => e.id !== selectedId) }));
+    setTemplate((t) => {
+      const newT = {
+        ...t,
+        elements: t.elements.map((e) =>
+          e.id === selectedId ? ({ ...e, ...updates } as CanvasElement) : e
+        ),
+      };
+      commitToHistory(newT);
+      return newT;
+    });
+  }
+
+  function deleteSelected() {
+    if (!stateRef.current.selectedId) return;
+    const sid = stateRef.current.selectedId;
+    setTemplate((t) => {
+      const newT = { ...t, elements: t.elements.filter((e) => e.id !== sid) };
+      commitToHistory(newT);
+      return newT;
+    });
     setSelectedId(null);
   }
 
   function duplicateSelected() {
-    if (!selected) return;
+    const sel = stateRef.current.template.elements.find(e => e.id === stateRef.current.selectedId) ?? null;
+    if (!sel) return;
     const copy: CanvasElement = {
-      ...selected,
-      id: uid(selected.type),
-      x: Math.min(95, selected.x + 3),
-      y: Math.min(95, selected.y + 3),
-      z: nextZ(template.elements),
+      ...sel,
+      id: uid(sel.type),
+      x: Math.min(95, sel.x + 3),
+      y: Math.min(95, sel.y + 3),
+      z: nextZ(stateRef.current.template.elements),
     } as CanvasElement;
-    setTemplate((t) => ({ ...t, elements: [...t.elements, copy] }));
+    setTemplate((t) => {
+      const newT = { ...t, elements: [...t.elements, copy] };
+      commitToHistory(newT);
+      return newT;
+    });
     setSelectedId(copy.id);
   }
 
@@ -110,13 +201,14 @@ export function CanvasTemplateEditor({
     const idx = sorted.findIndex((e) => e.id === selected.id);
     if (idx === -1 || idx === sorted.length - 1) return;
     const next = sorted[idx + 1];
-    patchSelected({ z: next.z });
-    setTemplate((t) => ({
-      ...t,
-      elements: t.elements.map((e) =>
+    const newT = {
+      ...template,
+      elements: template.elements.map((e) =>
         e.id === next.id ? { ...e, z: selected.z } : e.id === selected.id ? { ...e, z: next.z } : e
       ),
-    }));
+    };
+    commitToHistory(newT);
+    setTemplate(newT);
   }
 
   function sendBackward() {
@@ -125,12 +217,37 @@ export function CanvasTemplateEditor({
     const idx = sorted.findIndex((e) => e.id === selected.id);
     if (idx <= 0) return;
     const prev = sorted[idx - 1];
-    setTemplate((t) => ({
-      ...t,
-      elements: t.elements.map((e) =>
+    const newT = {
+      ...template,
+      elements: template.elements.map((e) =>
         e.id === prev.id ? { ...e, z: selected.z } : e.id === selected.id ? { ...e, z: prev.z } : e
       ),
-    }));
+    };
+    commitToHistory(newT);
+    setTemplate(newT);
+  }
+
+  /* ─── Alignment ─── */
+  function alignEl(mode: AlignMode) {
+    if (!selected) return;
+    const { x, y, w, h } = selected;
+    let nx = x, ny = y, nw = w, nh = h;
+    if (mode === "left") nx = 0;
+    else if (mode === "hcenter") nx = (100 - w) / 2;
+    else if (mode === "right") nx = 100 - w;
+    else if (mode === "top") ny = 0;
+    else if (mode === "vcenter") ny = (100 - h) / 2;
+    else if (mode === "bottom") ny = 100 - h;
+    else if (mode === "fill-w") { nx = 0; nw = 100; }
+    else if (mode === "fill-h") { ny = 0; nh = 100; }
+    const newT = {
+      ...template,
+      elements: template.elements.map((e) =>
+        e.id === selectedId ? { ...e, x: nx, y: ny, w: nw, h: nh } : e
+      ),
+    };
+    commitToHistory(newT);
+    setTemplate(newT);
   }
 
   /* ─── Drag / Resize ─── */
@@ -176,13 +293,16 @@ export function CanvasTemplateEditor({
         elements: t.elements.map((e) => {
           if (e.id !== drag!.id) return e;
           if (drag!.kind === "move") {
-            return {
-              ...e,
-              x: clamp(drag!.ox + dxPct, 0, 100 - e.w),
-              y: clamp(drag!.oy + dyPct, 0, 100 - e.h),
-            };
+            let nx = clamp(drag!.ox + dxPct, 0, 100 - e.w);
+            let ny = clamp(drag!.oy + dyPct, 0, 100 - e.h);
+            const cx = nx + e.w / 2;
+            const cy = ny + e.h / 2;
+            const newGuides: { h?: number; v?: number } = {};
+            if (Math.abs(cx - 50) < SNAP_THRESHOLD) { nx = 50 - e.w / 2; newGuides.v = 50; }
+            if (Math.abs(cy - 50) < SNAP_THRESHOLD) { ny = 50 - e.h / 2; newGuides.h = 50; }
+            setSnapGuides(newGuides);
+            return { ...e, x: nx, y: ny };
           }
-          // resize
           const d = drag!;
           let nx = d.ox, ny = d.oy, nw = d.ow, nh = d.oh;
           if (d.handle === "br" || d.handle === "tr" || d.handle === "r") nw = clamp(d.ow + dxPct, 1, 100 - d.ox);
@@ -201,6 +321,8 @@ export function CanvasTemplateEditor({
     }
     function onUp() {
       setDrag(null);
+      setSnapGuides({});
+      commitToHistory(latestTemplate.current);
     }
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -209,6 +331,93 @@ export function CanvasTemplateEditor({
       window.removeEventListener("mouseup", onUp);
     };
   }, [drag]);
+
+  /* ─── Keyboard shortcuts ─── */
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      const { selectedId, editingTextId, template } = stateRef.current;
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
+
+      if (e.key === "Escape") {
+        if (editingTextId) {
+          setEditingTextId(null);
+          commitToHistory(latestTemplate.current);
+        } else {
+          setSelectedId(null);
+        }
+        e.preventDefault();
+        return;
+      }
+
+      if (isInput) return;
+
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedId && !editingTextId) {
+        e.preventDefault();
+        deleteSelected();
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z" || e.key === "Z") {
+          e.preventDefault();
+          if (e.shiftKey) redo(); else undo();
+          return;
+        }
+        if (e.key === "y" || e.key === "Y") {
+          e.preventDefault();
+          redo();
+          return;
+        }
+        if ((e.key === "d" || e.key === "D") && !editingTextId) {
+          e.preventDefault();
+          duplicateSelected();
+          return;
+        }
+        if ((e.key === "c" || e.key === "C") && !editingTextId) {
+          const sel = template.elements.find(el => el.id === selectedId);
+          if (sel) clipboardRef.current = JSON.parse(JSON.stringify(sel));
+          return;
+        }
+        if ((e.key === "v" || e.key === "V") && !editingTextId) {
+          e.preventDefault();
+          if (clipboardRef.current) {
+            const paste: CanvasElement = {
+              ...clipboardRef.current,
+              id: uid(clipboardRef.current.type),
+              x: Math.min(95, clipboardRef.current.x + 3),
+              y: Math.min(95, clipboardRef.current.y + 3),
+            } as CanvasElement;
+            setTemplate((t) => {
+              const newT = { ...t, elements: [...t.elements, { ...paste, z: nextZ(t.elements) }] };
+              commitToHistory(newT);
+              return newT;
+            });
+            setSelectedId(paste.id);
+          }
+          return;
+        }
+      }
+
+      if (selectedId && !editingTextId && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 2 : 0.5;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        setTemplate((t) => ({
+          ...t,
+          elements: t.elements.map((el) =>
+            el.id !== selectedId ? el :
+            { ...el, x: clamp(el.x + dx, 0, 100 - el.w), y: clamp(el.y + dy, 0, 100 - el.h) }
+          ),
+        }));
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   /* ─── Toolbar adders ─── */
   function addText() {
@@ -267,7 +476,11 @@ export function CanvasTemplateEditor({
   function setBgImageFromFile(file: File) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setTemplate((t) => ({ ...t, backgroundImage: ev.target?.result as string }));
+      setTemplate((t) => {
+        const newT = { ...t, backgroundImage: ev.target?.result as string };
+        commitToHistory(newT);
+        return newT;
+      });
     };
     reader.readAsDataURL(file);
   }
@@ -293,7 +506,7 @@ export function CanvasTemplateEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[1280px] w-[98vw] h-[95vh] p-0 overflow-hidden flex flex-col rounded-2xl">
         {/* ── Top bar ── */}
-        <div className="px-4 py-3 border-b bg-white flex items-center gap-3 shrink-0">
+        <div className="px-4 py-3 border-b bg-white flex items-center gap-3 shrink-0 flex-wrap">
           <Sparkles className="h-4 w-4 text-orange-500 shrink-0" />
           <Input
             value={template.name}
@@ -382,6 +595,26 @@ export function CanvasTemplateEditor({
             />
           </div>
 
+          {/* Undo / Redo */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+              className="h-7 w-7 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Y)"
+              className="h-7 w-7 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9">
               <X className="h-4 w-4 mr-1" /> Batal
@@ -428,6 +661,26 @@ export function CanvasTemplateEditor({
                 ))}
               </div>
             </ToolSection>
+
+            {/* Shortcut cheatsheet */}
+            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Shortcut</p>
+              {[
+                ["Del", "Hapus"],
+                ["↑↓←→", "Geser 0.5%"],
+                ["Shift+↑↓←→", "Geser 2%"],
+                ["Ctrl+Z", "Undo"],
+                ["Ctrl+Y", "Redo"],
+                ["Ctrl+D", "Duplikat"],
+                ["Ctrl+C / V", "Salin / Tempel"],
+                ["Dbl-klik teks", "Edit langsung"],
+              ].map(([key, desc]) => (
+                <div key={key} className="flex items-center justify-between gap-1">
+                  <kbd className="text-[9px] bg-white border border-slate-200 rounded px-1 py-0.5 font-mono shrink-0">{key}</kbd>
+                  <span className="text-[9px] text-slate-500 text-right">{desc}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Center: canvas */}
@@ -491,8 +744,31 @@ export function CanvasTemplateEditor({
                     className="absolute inset-0"
                     onMouseDown={onPageMouseDown}
                   >
+                    {/* Snap guides */}
+                    {snapGuides.h !== undefined && (
+                      <div
+                        className="absolute left-0 right-0 pointer-events-none z-20"
+                        style={{
+                          top: `${snapGuides.h}%`,
+                          borderTop: "1.5px dashed #f97316",
+                          opacity: 0.85,
+                        }}
+                      />
+                    )}
+                    {snapGuides.v !== undefined && (
+                      <div
+                        className="absolute top-0 bottom-0 pointer-events-none z-20"
+                        style={{
+                          left: `${snapGuides.v}%`,
+                          borderLeft: "1.5px dashed #f97316",
+                          opacity: 0.85,
+                        }}
+                      />
+                    )}
+
                     {template.elements.map((el) => {
                       const isSel = el.id === selectedId;
+                      const isEditingText = el.id === editingTextId;
                       return (
                         <div
                           key={el.id}
@@ -510,7 +786,42 @@ export function CanvasTemplateEditor({
                             e.stopPropagation();
                             setSelectedId(el.id);
                           }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            if (el.type === "text") {
+                              setSelectedId(el.id);
+                              setEditingTextId(el.id);
+                            }
+                          }}
                         >
+                          {isEditingText && el.type === "text" && (
+                            <textarea
+                              autoFocus
+                              value={el.text}
+                              onChange={(ev) => patchSelected({ text: ev.target.value })}
+                              onBlur={() => {
+                                setEditingTextId(null);
+                                commitToHistory(latestTemplate.current);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setEditingTextId(null);
+                                  commitToHistory(latestTemplate.current);
+                                }
+                                e.stopPropagation();
+                              }}
+                              className="absolute inset-0 w-full h-full resize-none bg-white/90 border-2 border-orange-500 rounded p-1 outline-none z-30"
+                              style={{
+                                fontWeight: el.fontWeight,
+                                fontStyle: el.fontStyle,
+                                textAlign: el.align,
+                                color: el.color,
+                                fontSize: `clamp(8px, ${el.fontSize * 0.9}px, 24px)`,
+                              }}
+                            />
+                          )}
                           {isSel && (
                             <>
                               <ResizeHandle pos="tl" onDown={(e) => startResize(e, el, "tl")} />
@@ -536,10 +847,12 @@ export function CanvasTemplateEditor({
               <PropertyPanel
                 el={selected}
                 onChange={patchSelected}
+                onCommit={() => commitToHistory(latestTemplate.current)}
                 onDelete={deleteSelected}
                 onDuplicate={duplicateSelected}
                 onForward={bringForward}
                 onBackward={sendBackward}
+                onAlign={alignEl}
               />
             ) : (
               <div className="text-center py-12 text-slate-400">
@@ -547,6 +860,9 @@ export function CanvasTemplateEditor({
                 <p className="text-[11px]">Pilih elemen untuk mengedit propertinya.</p>
                 <p className="text-[10px] mt-2 text-slate-500">
                   Total elemen: <strong>{template.elements.length}</strong>
+                </p>
+                <p className="text-[9px] mt-3 text-slate-400">
+                  Dbl-klik teks → edit langsung
                 </p>
               </div>
             )}
@@ -661,40 +977,76 @@ function ResizeHandle({
   return <div style={style} onMouseDown={onDown} />;
 }
 
+function AlignmentBar({ onAlign }: { onAlign: (m: AlignMode) => void }) {
+  const btns: [AlignMode, React.ReactNode, string][] = [
+    ["left",    <AlignStartVertical className="h-3.5 w-3.5" />,      "Rata kiri halaman"],
+    ["hcenter", <AlignCenterHorizontal className="h-3.5 w-3.5" />,   "Tengah horizontal"],
+    ["right",   <AlignEndVertical className="h-3.5 w-3.5" />,        "Rata kanan halaman"],
+    ["top",     <AlignStartHorizontal className="h-3.5 w-3.5" />,    "Rata atas halaman"],
+    ["vcenter", <AlignCenterVertical className="h-3.5 w-3.5" />,     "Tengah vertikal"],
+    ["bottom",  <AlignEndHorizontal className="h-3.5 w-3.5" />,      "Rata bawah halaman"],
+    ["fill-w",  <Maximize2 className="h-3.5 w-3.5 rotate-90" />,     "Penuh lebar"],
+    ["fill-h",  <Maximize2 className="h-3.5 w-3.5" />,               "Penuh tinggi"],
+  ];
+  return (
+    <div>
+      <Label className="text-[10px] text-slate-500 mb-1 block">Rata halaman</Label>
+      <div className="grid grid-cols-4 gap-1">
+        {btns.map(([mode, icon, title]) => (
+          <button
+            key={mode}
+            title={title}
+            onClick={() => onAlign(mode)}
+            className="h-7 rounded flex items-center justify-center bg-slate-100 hover:bg-orange-100 hover:text-orange-600 text-slate-600 transition-colors"
+          >
+            {icon}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PropertyPanel({
   el,
   onChange,
+  onCommit,
   onDelete,
   onDuplicate,
   onForward,
   onBackward,
+  onAlign,
 }: {
   el: CanvasElement;
   onChange: (u: Partial<CanvasElement>) => void;
+  onCommit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
   onForward: () => void;
   onBackward: () => void;
+  onAlign: (m: AlignMode) => void;
 }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase text-slate-600">{el.type}</span>
         <div className="flex items-center gap-1">
-          <IconBtn title="Maju" onClick={onForward}><ArrowUp className="h-3 w-3" /></IconBtn>
-          <IconBtn title="Mundur" onClick={onBackward}><ArrowDown className="h-3 w-3" /></IconBtn>
-          <IconBtn title="Duplikat" onClick={onDuplicate}><Copy className="h-3 w-3" /></IconBtn>
-          <IconBtn title="Hapus" onClick={onDelete} danger><Trash2 className="h-3 w-3" /></IconBtn>
+          <IconBtn title="Maju (layer)" onClick={onForward}><ArrowUp className="h-3 w-3" /></IconBtn>
+          <IconBtn title="Mundur (layer)" onClick={onBackward}><ArrowDown className="h-3 w-3" /></IconBtn>
+          <IconBtn title="Duplikat (Ctrl+D)" onClick={onDuplicate}><Copy className="h-3 w-3" /></IconBtn>
+          <IconBtn title="Hapus (Del)" onClick={onDelete} danger><Trash2 className="h-3 w-3" /></IconBtn>
         </div>
       </div>
 
-      <PositionFields el={el} onChange={onChange} />
+      <AlignmentBar onAlign={onAlign} />
 
-      {el.type === "text" && <TextFields el={el} onChange={onChange} />}
-      {el.type === "smart" && <SmartFields el={el} onChange={onChange} />}
-      {el.type === "shape" && <ShapeFields el={el} onChange={onChange} />}
-      {el.type === "image" && <ImageFields el={el} onChange={onChange} />}
-      {el.type === "bullet" && <BulletFields el={el} onChange={onChange} />}
+      <PositionFields el={el} onChange={onChange} onCommit={onCommit} />
+
+      {el.type === "text" && <TextFields el={el} onChange={onChange} onCommit={onCommit} />}
+      {el.type === "smart" && <SmartFields el={el} onChange={onChange} onCommit={onCommit} />}
+      {el.type === "shape" && <ShapeFields el={el} onChange={onChange} onCommit={onCommit} />}
+      {el.type === "image" && <ImageFields el={el} onChange={onChange} onCommit={onCommit} />}
+      {el.type === "bullet" && <BulletFields el={el} onChange={onChange} onCommit={onCommit} />}
     </div>
   );
 }
@@ -713,13 +1065,13 @@ function IconBtn({ children, onClick, title, danger }: { children: React.ReactNo
   );
 }
 
-function PositionFields({ el, onChange }: { el: CanvasElement; onChange: (u: Partial<CanvasElement>) => void }) {
+function PositionFields({ el, onChange, onCommit }: { el: CanvasElement; onChange: (u: Partial<CanvasElement>) => void; onCommit: () => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <NumField label="X (%)" value={el.x} onChange={(v) => onChange({ x: v })} />
-      <NumField label="Y (%)" value={el.y} onChange={(v) => onChange({ y: v })} />
-      <NumField label="Lebar (%)" value={el.w} onChange={(v) => onChange({ w: v })} />
-      <NumField label="Tinggi (%)" value={el.h} onChange={(v) => onChange({ h: v })} />
+      <NumField label="X (%)" value={el.x} onChange={(v) => onChange({ x: v })} onCommit={onCommit} />
+      <NumField label="Y (%)" value={el.y} onChange={(v) => onChange({ y: v })} onCommit={onCommit} />
+      <NumField label="Lebar (%)" value={el.w} onChange={(v) => onChange({ w: v })} onCommit={onCommit} />
+      <NumField label="Tinggi (%)" value={el.h} onChange={(v) => onChange({ h: v })} onCommit={onCommit} />
     </div>
   );
 }
@@ -727,9 +1079,11 @@ function PositionFields({ el, onChange }: { el: CanvasElement; onChange: (u: Par
 function TextFields({
   el,
   onChange,
+  onCommit,
 }: {
   el: Extract<CanvasElement, { type: "text" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onCommit: () => void;
 }) {
   return (
     <>
@@ -737,6 +1091,7 @@ function TextFields({
         <textarea
           value={el.text}
           onChange={(e) => onChange({ text: e.target.value })}
+          onBlur={onCommit}
           rows={3}
           className="w-full text-[12px] p-2 border border-slate-200 rounded resize-none"
         />
@@ -749,6 +1104,7 @@ function TextFields({
         color={el.color}
         bg={el.backgroundColor}
         onChange={(p) => onChange(p)}
+        onCommit={onCommit}
       />
     </>
   );
@@ -757,16 +1113,18 @@ function TextFields({
 function SmartFields({
   el,
   onChange,
+  onCommit,
 }: {
   el: Extract<CanvasElement, { type: "smart" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onCommit: () => void;
 }) {
   return (
     <>
       <FieldGroup label="Field Sumber">
         <select
           value={el.smartKey}
-          onChange={(e) => onChange({ smartKey: e.target.value as SmartKey })}
+          onChange={(e) => { onChange({ smartKey: e.target.value as SmartKey }); onCommit(); }}
           className="w-full h-8 text-[11px] border border-slate-200 rounded px-2"
         >
           {(Object.keys(SMART_KEY_LABELS) as SmartKey[]).map((k) => (
@@ -777,7 +1135,7 @@ function SmartFields({
       <FieldGroup label="Format">
         <select
           value={el.format ?? "plain"}
-          onChange={(e) => onChange({ format: e.target.value as Extract<CanvasElement, { type: "smart" }>["format"] })}
+          onChange={(e) => { onChange({ format: e.target.value as Extract<CanvasElement, { type: "smart" }>["format"] }); onCommit(); }}
           className="w-full h-8 text-[11px] border border-slate-200 rounded px-2"
         >
           <option value="plain">Apa adanya</option>
@@ -787,10 +1145,10 @@ function SmartFields({
       </FieldGroup>
       <div className="grid grid-cols-2 gap-2">
         <FieldGroup label="Awalan">
-          <Input value={el.prefix ?? ""} onChange={(e) => onChange({ prefix: e.target.value })} className="h-7 text-[11px]" />
+          <Input value={el.prefix ?? ""} onChange={(e) => onChange({ prefix: e.target.value })} onBlur={onCommit} className="h-7 text-[11px]" />
         </FieldGroup>
         <FieldGroup label="Akhiran">
-          <Input value={el.suffix ?? ""} onChange={(e) => onChange({ suffix: e.target.value })} className="h-7 text-[11px]" />
+          <Input value={el.suffix ?? ""} onChange={(e) => onChange({ suffix: e.target.value })} onBlur={onCommit} className="h-7 text-[11px]" />
         </FieldGroup>
       </div>
       <FontFields
@@ -801,6 +1159,7 @@ function SmartFields({
         color={el.color}
         bg={el.backgroundColor}
         onChange={(p) => onChange(p)}
+        onCommit={onCommit}
       />
     </>
   );
@@ -809,21 +1168,23 @@ function SmartFields({
 function ShapeFields({
   el,
   onChange,
+  onCommit,
 }: {
   el: Extract<CanvasElement, { type: "shape" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onCommit: () => void;
 }) {
   return (
     <>
       <FieldGroup label="Warna Isi">
-        <ColorPicker value={el.fill} onChange={(v) => onChange({ fill: v })} />
+        <ColorPicker value={el.fill} onChange={(v) => { onChange({ fill: v }); onCommit(); }} />
       </FieldGroup>
       <FieldGroup label="Warna Garis">
-        <ColorPicker value={el.stroke} onChange={(v) => onChange({ stroke: v })} />
+        <ColorPicker value={el.stroke} onChange={(v) => { onChange({ stroke: v }); onCommit(); }} />
       </FieldGroup>
-      <NumField label="Tebal Garis (pt)" value={el.strokeWidth} onChange={(v) => onChange({ strokeWidth: v })} />
+      <NumField label="Tebal Garis (pt)" value={el.strokeWidth} onChange={(v) => onChange({ strokeWidth: v })} onCommit={onCommit} />
       {el.shape === "rect" && (
-        <NumField label="Sudut (pt)" value={el.borderRadius ?? 0} onChange={(v) => onChange({ borderRadius: v })} />
+        <NumField label="Sudut (pt)" value={el.borderRadius ?? 0} onChange={(v) => onChange({ borderRadius: v })} onCommit={onCommit} />
       )}
     </>
   );
@@ -832,15 +1193,17 @@ function ShapeFields({
 function ImageFields({
   el,
   onChange,
+  onCommit,
 }: {
   el: Extract<CanvasElement, { type: "image" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onCommit: () => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   function handleFile(f: File) {
     const r = new FileReader();
-    r.onload = (ev) => onChange({ src: ev.target?.result as string });
+    r.onload = (ev) => { onChange({ src: ev.target?.result as string }); onCommit(); };
     r.readAsDataURL(f);
   }
   return (
@@ -850,7 +1213,7 @@ function ImageFields({
           {(["contain", "cover"] as const).map((f) => (
             <button
               key={f}
-              onClick={() => onChange({ fit: f })}
+              onClick={() => { onChange({ fit: f }); onCommit(); }}
               className={`flex-1 h-7 rounded text-[11px] capitalize ${el.fit === f ? "bg-orange-500 text-white" : "bg-slate-100"}`}
             >
               {f}
@@ -891,13 +1254,11 @@ function ImageFields({
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (!f) return;
-          const r = new FileReader();
-          r.onload = (ev) => onChange({ src: ev.target?.result as string });
-          r.readAsDataURL(f);
+          handleFile(f);
           e.target.value = "";
         }}
       />
-      <NumField label="Sudut (px)" value={el.borderRadius ?? 0} onChange={(v) => onChange({ borderRadius: v })} />
+      <NumField label="Sudut (px)" value={el.borderRadius ?? 0} onChange={(v) => onChange({ borderRadius: v })} onCommit={onCommit} />
     </>
   );
 }
@@ -905,16 +1266,18 @@ function ImageFields({
 function BulletFields({
   el,
   onChange,
+  onCommit,
 }: {
   el: Extract<CanvasElement, { type: "bullet" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onCommit: () => void;
 }) {
   return (
     <>
       <FieldGroup label="Sumber Item">
         <select
           value={el.source}
-          onChange={(e) => onChange({ source: e.target.value as Extract<CanvasElement, { type: "bullet" }>["source"] })}
+          onChange={(e) => { onChange({ source: e.target.value as Extract<CanvasElement, { type: "bullet" }>["source"] }); onCommit(); }}
           className="w-full h-8 text-[11px] border border-slate-200 rounded px-2"
         >
           <option value="included">Termasuk (auto)</option>
@@ -927,30 +1290,31 @@ function BulletFields({
           <textarea
             value={(el.items ?? []).join("\n")}
             onChange={(e) => onChange({ items: e.target.value.split("\n").filter((s) => s.trim()) })}
+            onBlur={onCommit}
             rows={5}
             className="w-full text-[11px] p-2 border border-slate-200 rounded resize-none"
           />
         </FieldGroup>
       )}
       <FieldGroup label="Judul">
-        <Input value={el.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} className="h-7 text-[11px]" />
+        <Input value={el.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} onBlur={onCommit} className="h-7 text-[11px]" />
       </FieldGroup>
       <div className="grid grid-cols-2 gap-2">
         <FieldGroup label="Warna Judul">
-          <ColorPicker value={el.titleColor ?? "#333"} onChange={(v) => onChange({ titleColor: v })} />
+          <ColorPicker value={el.titleColor ?? "#333"} onChange={(v) => { onChange({ titleColor: v }); onCommit(); }} />
         </FieldGroup>
         <FieldGroup label="Latar Judul">
-          <ColorPicker value={el.titleBg ?? "#f5f5f5"} onChange={(v) => onChange({ titleBg: v })} />
+          <ColorPicker value={el.titleBg ?? "#f5f5f5"} onChange={(v) => { onChange({ titleBg: v }); onCommit(); }} />
         </FieldGroup>
       </div>
-      <NumField label="Ukuran (pt)" value={el.fontSize} onChange={(v) => onChange({ fontSize: v })} />
+      <NumField label="Ukuran (pt)" value={el.fontSize} onChange={(v) => onChange({ fontSize: v })} onCommit={onCommit} />
       <FieldGroup label="Warna Teks">
-        <ColorPicker value={el.color} onChange={(v) => onChange({ color: v })} />
+        <ColorPicker value={el.color} onChange={(v) => { onChange({ color: v }); onCommit(); }} />
       </FieldGroup>
       <FieldGroup label="Warna Bullet">
-        <ColorPicker value={el.bulletColor ?? el.color} onChange={(v) => onChange({ bulletColor: v })} />
+        <ColorPicker value={el.bulletColor ?? el.color} onChange={(v) => { onChange({ bulletColor: v }); onCommit(); }} />
       </FieldGroup>
-      <NumField label="Maks Item" value={el.maxItems ?? 10} onChange={(v) => onChange({ maxItems: Math.max(1, Math.round(v)) })} />
+      <NumField label="Maks Item" value={el.maxItems ?? 10} onChange={(v) => onChange({ maxItems: Math.max(1, Math.round(v)) })} onCommit={onCommit} />
     </>
   );
 }
@@ -958,6 +1322,7 @@ function BulletFields({
 function FontFields({
   size, weight, style, align, color, bg,
   onChange,
+  onCommit,
 }: {
   size: number;
   weight: "normal" | "bold";
@@ -966,19 +1331,20 @@ function FontFields({
   color: string;
   bg: string | undefined;
   onChange: (p: Partial<CanvasElement>) => void;
+  onCommit: () => void;
 }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-2">
-        <NumField label="Ukuran (pt)" value={size} onChange={(v) => onChange({ fontSize: v } as Partial<CanvasElement>)} />
+        <NumField label="Ukuran (pt)" value={size} onChange={(v) => onChange({ fontSize: v } as Partial<CanvasElement>)} onCommit={onCommit} />
         <FieldGroup label="Style">
           <div className="flex gap-1">
             <button
-              onClick={() => onChange({ fontWeight: weight === "bold" ? "normal" : "bold" } as Partial<CanvasElement>)}
+              onClick={() => { onChange({ fontWeight: weight === "bold" ? "normal" : "bold" } as Partial<CanvasElement>); onCommit(); }}
               className={`flex-1 h-7 rounded text-[11px] font-bold ${weight === "bold" ? "bg-orange-500 text-white" : "bg-slate-100"}`}
             >B</button>
             <button
-              onClick={() => onChange({ fontStyle: style === "italic" ? "normal" : "italic" } as Partial<CanvasElement>)}
+              onClick={() => { onChange({ fontStyle: style === "italic" ? "normal" : "italic" } as Partial<CanvasElement>); onCommit(); }}
               className={`flex-1 h-7 rounded text-[11px] italic ${style === "italic" ? "bg-orange-500 text-white" : "bg-slate-100"}`}
             >I</button>
           </div>
@@ -989,17 +1355,17 @@ function FontFields({
           {(["left", "center", "right"] as const).map((a) => (
             <button
               key={a}
-              onClick={() => onChange({ align: a } as Partial<CanvasElement>)}
+              onClick={() => { onChange({ align: a } as Partial<CanvasElement>); onCommit(); }}
               className={`flex-1 h-7 rounded text-[11px] capitalize ${align === a ? "bg-orange-500 text-white" : "bg-slate-100"}`}
             >{a === "left" ? "Kiri" : a === "right" ? "Kanan" : "Tengah"}</button>
           ))}
         </div>
       </FieldGroup>
       <FieldGroup label="Warna Teks">
-        <ColorPicker value={color} onChange={(v) => onChange({ color: v } as Partial<CanvasElement>)} />
+        <ColorPicker value={color} onChange={(v) => { onChange({ color: v } as Partial<CanvasElement>); onCommit(); }} />
       </FieldGroup>
       <FieldGroup label="Latar Belakang">
-        <ColorPicker value={bg ?? "transparent"} onChange={(v) => onChange({ backgroundColor: v === "transparent" ? undefined : v } as Partial<CanvasElement>)} allowTransparent />
+        <ColorPicker value={bg ?? "transparent"} onChange={(v) => { onChange({ backgroundColor: v === "transparent" ? undefined : v } as Partial<CanvasElement>); onCommit(); }} allowTransparent />
       </FieldGroup>
     </>
   );
@@ -1014,7 +1380,7 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function NumField({ label, value, onChange, onCommit }: { label: string; value: number; onChange: (v: number) => void; onCommit: () => void }) {
   return (
     <FieldGroup label={label}>
       <Input
@@ -1024,6 +1390,7 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
           const n = Number(e.target.value);
           if (Number.isFinite(n)) onChange(n);
         }}
+        onBlur={onCommit}
         className="h-7 text-[11px]"
       />
     </FieldGroup>
