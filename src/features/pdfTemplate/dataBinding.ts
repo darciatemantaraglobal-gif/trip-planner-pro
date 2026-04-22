@@ -39,9 +39,9 @@ export const PLACEHOLDER_CTX: BindingContext = {
   pricePerPax: 22863610,
   priceTotal: 228636100,
   updateDate: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
-  website: "www.umrahservice.co",
-  contactPhone: "+62 812-8955-2018",
-  contactName: "M. FARUQ AL ISLAM",
+  website: "www.agensitravel.co.id",
+  contactPhone: "+62 812-0000-0000",
+  contactName: "Nama Kontak Agencia",
   included: [
     "Visa Umrah",
     "Mutawif",

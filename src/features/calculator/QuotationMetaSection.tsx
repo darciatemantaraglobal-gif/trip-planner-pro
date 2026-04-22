@@ -234,7 +234,7 @@ export function QuotationMetaSection({ value, onChange }: Props) {
               type="text"
               value={value.website}
               onChange={(e) => set("website", e.target.value)}
-              placeholder="www.umrahservice.co"
+              placeholder="cth: www.agensitravel.co.id"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
@@ -245,7 +245,7 @@ export function QuotationMetaSection({ value, onChange }: Props) {
               type="text"
               value={value.contactPhone}
               onChange={(e) => set("contactPhone", e.target.value)}
-              placeholder="+62 812-8955-2018"
+              placeholder="cth: +62 812-0000-0000"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
@@ -256,7 +256,7 @@ export function QuotationMetaSection({ value, onChange }: Props) {
               type="text"
               value={value.contactName}
               onChange={(e) => set("contactName", e.target.value)}
-              placeholder="M. FARUQ AL ISLAM"
+              placeholder="cth: Nama Kontak"
               style={M}
               className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
             />
