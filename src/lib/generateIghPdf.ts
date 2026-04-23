@@ -29,8 +29,17 @@ const SCALE = PAGE_W / TPL_W_PX; // ≈ 0.5594
 
 // Brand colors sampled from the template artwork
 const ORANGE_TEXT: RGB = rgb(0.945, 0.471, 0.118); // #F1781E — headings & values
-const DARK: RGB = rgb(0.13, 0.13, 0.13);
+const DARK: RGB = rgb(0.13, 0.13, 0.13);          // body text
+const DARK_BROWN: RGB = rgb(0.20, 0.14, 0.10);    // project name — kontras hangat vs label grey
+const GREY_MUTED: RGB = rgb(0.42, 0.42, 0.42);    // sub-info (jumlah malam, dll)
 const WHITE: RGB = rgb(1, 1, 1);
+
+// ── LAYOUT GRID (kolom & anchor — semua dalam template px space 740×1024) ──
+// Halaman dibagi 2 kolom utama (kiri & kanan) dengan margin konsisten.
+const COL_LEFT_X = 55;        // start kolom kiri (Project, Hotel Makkah, list kiri)
+const COL_RIGHT_X = 410;      // start kolom kanan (Hotel Madinah, list kanan)
+const PAGE_RIGHT_X = 700;     // batas kanan untuk teks rata-kanan
+const COL_WIDTH = 305;        // lebar konten per kolom
 
 export interface IghPdfData {
   /** Project Name → "(Nama Penawaran)" */
@@ -106,6 +115,25 @@ function drawText(
     ? truncateToWidth(text, opts.font, opts.size, opts.maxWidthPx * SCALE)
     : text;
   page.drawText(value, { x, y, size: opts.size, font: opts.font, color: opts.color });
+}
+
+/** Draw text right-aligned to a given right anchor (px). Auto-shrinks if maxWidth provided. */
+function drawTextRight(
+  page: PDFPage,
+  text: string,
+  opts: { rightPx: number; topPx: number; size: number; minSize?: number; font: PDFFont; color: RGB; maxWidthPx?: number },
+) {
+  let size = opts.size;
+  const minSize = opts.minSize ?? 9;
+  const maxW = opts.maxWidthPx ? opts.maxWidthPx * SCALE : Infinity;
+  while (size > minSize && opts.font.widthOfTextAtSize(text, size) > maxW) size -= 0.5;
+  const value = opts.font.widthOfTextAtSize(text, size) > maxW
+    ? truncateToWidth(text, opts.font, size, maxW)
+    : text;
+  const w = opts.font.widthOfTextAtSize(value, size);
+  const x = opts.rightPx * SCALE - w;
+  const y = PAGE_H - opts.topPx * SCALE - size * 0.82;
+  page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
 /** Draw text horizontally centered inside a given pixel rectangle.
@@ -187,118 +215,126 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   // Koordinat di bawah adalah TEBAKAN AWAL (px space 740×1024) — gampang
   // di-tweak per-field tanpa risiko ngebocorin warna mask.
 
-  // ── Invoice to (Nama Customer) ──
-  drawText(page, data.customerName || "—", {
-    leftPx: 343, topPx: 250, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 180,
+  // ── 1. HEADER META (kanan atas) ──
+  // Label "Invoice to :" & "Date :" baked in template (sejajar horizontal).
+  // Value di-DRAW rata-kanan tepat di BAWAH masing-masing label, biar block-nya
+  // kebaca sebagai: [LABEL]
+  //                 [VALUE rata kanan]
+  // Anchor kanan: kolom invoice berakhir di x=445, kolom date berakhir di x=PAGE_RIGHT_X.
+  const META_VALUE_TOP = 273;   // tepat di bawah baris label (label baseline ~250)
+  drawTextRight(page, data.customerName || "—", {
+    rightPx: 445, topPx: META_VALUE_TOP, size: 12, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 165,
+  });
+  drawTextRight(page, data.date || "—", {
+    rightPx: PAGE_RIGHT_X, topPx: META_VALUE_TOP, size: 12, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 175,
   });
 
-  // ── Date ──
-  drawText(page, data.date || "—", {
-    leftPx: 540, topPx: 250, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
-  });
-
-  // ── Project Name (di bawah label "Project :") ──
+  // ── 2. PROJECT SECTION (kiri atas) ──
+  // Project name DI BAWAH label "Project :" (label berada di y≈250 di template),
+  // line-height lega (1.30) biar dua baris nggak nempel, warna dark-brown buat
+  // kontras hangat dengan label grey.
   const projectName = (data.projectName || "—").trim();
-  let projSize = 22;
+  let projSize = 20;
   let projLines: string[] = [projectName];
   while (projSize > 12) {
-    projLines = wrapAtSize(projectName, fontExBold, projSize, 275 * SCALE);
+    projLines = wrapAtSize(projectName, fontExBold, projSize, COL_WIDTH * SCALE);
     if (projLines.length <= 2) break;
     projSize -= 1;
   }
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
-  const projLH = projSize * 1.12;
-  const projTotalH = projLines.length * projLH;
-  let py = 252 + (75 - projTotalH) / 2;
+  const projLH = projSize * 1.30;
+  const PROJECT_TOP = 278; // mulai dari sini, di bawah label "Project :"
+  let py = PROJECT_TOP;
   for (const line of projLines) {
-    drawText(page, line, { leftPx: 55, topPx: py, size: projSize, font: fontExBold, color: ORANGE_TEXT });
+    drawText(page, line, { leftPx: COL_LEFT_X, topPx: py, size: projSize, font: fontExBold, color: DARK_BROWN });
     py += projLH;
   }
 
-  // ── Timeline ──
+  // ── Timeline (Periode) — left-align persis di bawah Project Name ──
+  const timelineTop = py + 6;
   drawText(page, data.timeline || "—", {
-    leftPx: 55, topPx: 330, size: 11, font: fontBold, color: DARK, maxWidthPx: 280,
+    leftPx: COL_LEFT_X, topPx: timelineTop, size: 11, font: fontBold, color: GREY_MUTED, maxWidthPx: COL_WIDTH,
   });
 
-  // ── Hotel Makkah (nama + malam) ──
+  // ── 3. HOTEL SECTION (dua kolom sejajar — LEFT ALIGN) ──
+  // Label "Hotel Makkah" & "Hotel Madinah" baked in template di y≈370 (kiri & kanan).
+  // Nama hotel (Bold Orange) di atas — Jumlah Malam (Regular Grey) tepat di bawahnya.
+  const HOTEL_NAME_TOP = 410;
+  const HOTEL_NIGHTS_TOP = 445;
   drawTextFit(page, data.hotelMakkah || "—", {
-    leftPx: 55, topPx: 400, size: 20, minSize: 10, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 305,
+    leftPx: COL_LEFT_X, topPx: HOTEL_NAME_TOP, size: 18, minSize: 10,
+    font: fontExBold, color: ORANGE_TEXT, maxWidthPx: COL_WIDTH,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 55, topPx: 442, size: 11, font: fontBold, color: DARK,
+    leftPx: COL_LEFT_X, topPx: HOTEL_NIGHTS_TOP, size: 11, font: fontReg, color: GREY_MUTED,
   });
-
-  // ── Hotel Madinah (nama + malam) ──
   drawTextFit(page, data.hotelMadinah || "—", {
-    leftPx: 410, topPx: 400, size: 20, minSize: 10, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 275,
+    leftPx: COL_RIGHT_X, topPx: HOTEL_NAME_TOP, size: 18, minSize: 10,
+    font: fontExBold, color: ORANGE_TEXT, maxWidthPx: COL_WIDTH - 30,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 410, topPx: 442, size: 11, font: fontBold, color: DARK,
+    leftPx: COL_RIGHT_X, topPx: HOTEL_NIGHTS_TOP, size: 11, font: fontReg, color: GREY_MUTED,
   });
 
-  // ── Jumlah Pax (di tengah box oranye) ──
+  // ── 4. PRICING BOXES (Pax & Harga per Pax) — center vertical+horizontal ──
+  // Box oranye baked in template. Kita tinggal taruh teks tepat di tengahnya.
+  // Tambah top-padding ~3px biar nggak mepet ke atas box.
+  const PAX_BOX = { leftPx: 50, topPx: 545, widthPx: 105, heightPx: 60 };
+  const PRICE_BOX = { leftPx: 230, topPx: 545, widthPx: 470, heightPx: 60 };
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
-    leftPx: 45, topPx: 520, widthPx: 110, heightPx: 65, size: 28, font: fontExBold, color: WHITE,
+    ...PAX_BOX, size: 26, font: fontExBold, color: WHITE,
   });
-
-  // ── Harga per Pax (di tengah box oranye) ──
   drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
-    leftPx: 275, topPx: 520, widthPx: 405, heightPx: 65, size: 24, font: fontExBold, color: WHITE,
+    ...PRICE_BOX, size: 24, font: fontExBold, color: WHITE,
   });
 
-  // ── Kurs note ──
+  // ── 5. KURS NOTE (rata kiri di bawah box harga) ──
   const kurs = data.kursIdrPerUsd && data.kursIdrPerUsd > 0
     ? Math.round(data.kursIdrPerUsd).toLocaleString("id-ID")
     : "17.100";
   drawText(page, `* Kurs IDR ${kurs}/USD`, {
-    leftPx: 55, topPx: 624, size: 11, font: fontReg, color: DARK,
+    leftPx: COL_LEFT_X, topPx: 638, size: 10, font: fontReg, color: GREY_MUTED,
   });
 
-  // ── Sudah Termasuk (kolom kiri) ──
+  // ── 6. CHECKLIST (Sudah / Belum Termasuk) — LEFT ALIGN dengan line spacing konsisten ──
+  // Header box hijau & merah baked di template di y≈700. Line "01..05" di y≈735+.
+  // Item teks dimulai sedikit setelah nomor (offset 22px) supaya nggak nimpa nomor.
+  const LIST_TOP = 738;     // baseline baris pertama (sedikit di atas underline)
+  const LIST_ROW_H = 28;    // jarak antar baris konsisten
+  const LIST_TEXT_OFFSET = 22; // geser kanan biar nggak nabrak nomor "01"
   drawList(page, data.included, {
-    leftPx: 90, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK,
+    leftPx: COL_LEFT_X + LIST_TEXT_OFFSET, topPx: LIST_TOP, widthPx: 235 - LIST_TEXT_OFFSET,
+    rowHeight: LIST_ROW_H, font: fontBold, color: DARK,
   });
-
-  // ── Belum Termasuk (kolom kanan) ──
   drawList(page, data.excluded, {
-    leftPx: 450, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK,
+    leftPx: COL_RIGHT_X + LIST_TEXT_OFFSET, topPx: LIST_TOP, widthPx: 235 - LIST_TEXT_OFFSET,
+    rowHeight: LIST_ROW_H, font: fontBold, color: DARK,
   });
 
   return pdf.save();
 }
 
+/** Draw checklist column dengan LEFT ALIGN dan line-spacing konsisten.
+ *  Auto-shrink (drawTextFit) jaga supaya item panjang nggak ngelimpas kolom. */
 function drawList(
   page: PDFPage,
   items: string[],
   opts: { leftPx: number; topPx: number; widthPx: number; rowHeight: number; font: PDFFont; color: RGB },
 ) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, 5);
-  for (let i = 0; i < 5; i++) {
+  const FONT_SIZE = 11;
+  for (let i = 0; i < cleaned.length; i++) {
     const top = opts.topPx + i * opts.rowHeight;
-    const text = cleaned[i];
-    if (text) {
-      drawTextCentered(page, text, {
-        leftPx: opts.leftPx,
-        topPx: top + 4,
-        widthPx: opts.widthPx,
-        heightPx: opts.rowHeight - 8,
-        size: 12,
-        font: opts.font,
-        color: opts.color,
-      });
-    }
+    drawTextFit(page, cleaned[i], {
+      leftPx: opts.leftPx,
+      topPx: top,
+      size: FONT_SIZE,
+      minSize: 8,
+      font: opts.font,
+      color: opts.color,
+      maxWidthPx: opts.widthPx,
+    });
   }
-}
-
-/** Word-wrap with auto-shrink. */
-function wrapText(text: string, font: PDFFont, startSize: number, maxWidth: number, maxLines: number): string[] {
-  let size = startSize;
-  while (size > 12) {
-    const lines = wrapAtSize(text, font, size, maxWidth);
-    if (lines.length <= maxLines) return lines;
-    size -= 1;
-  }
-  return wrapAtSize(text, font, size, maxWidth).slice(0, maxLines);
 }
 
 function wrapAtSize(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
