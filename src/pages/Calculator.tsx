@@ -7,6 +7,7 @@ import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus,
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
+import { LivePdfThumbnail } from "@/components/LivePdfThumbnail";
 import type { IghPdfData } from "@/lib/generateIghPdf";
 import { usePackagesStore } from "@/store/packagesStore";
 import type { PackageDraft } from "@/features/packages/packagesRepo";
@@ -1716,7 +1717,15 @@ function PdfExportCard({
         </span>
       </div>
 
-      <div className="p-3 md:p-4 grid md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-start">
+      <div className="p-3 md:p-4 grid md:grid-cols-[200px_minmax(0,1fr)_auto] gap-4 items-start">
+        {/* ── Live thumbnail PDF — auto-refresh tiap field calculator berubah ── */}
+        <div className="w-full md:w-[200px]">
+          <LivePdfThumbnail data={data} onClick={onOpenPdf} />
+          <p className="text-[9px] text-center text-muted-foreground mt-1.5 font-medium" style={M}>
+            Live preview · auto-update
+          </p>
+        </div>
+
         <div className="rounded-xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/40 p-3">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-orange-700 mb-2" style={M}>
             Pemetaan Data Template
@@ -1738,7 +1747,7 @@ function PdfExportCard({
             <dd className="font-semibold">{data.excluded.length} item</dd>
           </dl>
           <p className="text-[10px] text-muted-foreground mt-2" style={M}>
-            Klik <span className="font-bold">Lihat &amp; Ekspor PDF</span> untuk preview hasil overlay.
+            Klik thumbnail kiri buat preview ukuran penuh.
           </p>
         </div>
 
