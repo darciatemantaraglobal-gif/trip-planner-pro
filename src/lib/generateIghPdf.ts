@@ -1,6 +1,13 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { DEFAULT_IGH_LAYOUT, mergeConfig, type IghLayoutConfig } from "./ighPdfConfig";
+import {
+  DEFAULT_IGH_LAYOUT,
+  FONT_FAMILY_URLS,
+  mergeConfig,
+  type IghFontFamily,
+  type IghLayoutConfig,
+  type IghSection,
+} from "./ighPdfConfig";
 
 export type { IghLayoutConfig } from "./ighPdfConfig";
 
@@ -28,8 +35,6 @@ export type { IghLayoutConfig } from "./ighPdfConfig";
  */
 
 const TEMPLATE_URL = "/igh-blank-template.pdf";
-const FONT_REGULAR_URL = "/fonts/Sk-Modernist-Regular.otf";
-const FONT_BOLD_URL = "/fonts/Sk-Modernist-Bold.otf";
 
 // Template canonical pixel size (matches the 150-DPI render of igh-template.pdf)
 const TPL_W_PX = 740;
@@ -179,20 +184,42 @@ function fmtIdr(n: number): string {
 /** Build the filled PDF (returns bytes). Optional `layout` override koordinat. */
 export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
   const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
-  const [tplBytes, regBytes, boldBytes] = await Promise.all([
-    fetchBytes(TEMPLATE_URL),
-    fetchBytes(FONT_REGULAR_URL),
-    fetchBytes(FONT_BOLD_URL),
-  ]);
+  const tplBytes = await fetchBytes(TEMPLATE_URL);
 
   const pdf = await PDFDocument.load(tplBytes);
   pdf.registerFontkit(fontkit);
 
-  const fontReg = await pdf.embedFont(regBytes, { subset: true });
-  const fontBold = await pdf.embedFont(boldBytes, { subset: true });
+  // Kumpulin semua family yang dipakai (default + overrides) → load tiap weight sekali.
+  const usedFamilies = new Set<IghFontFamily>([cfg.fonts.family]);
+  for (const fam of Object.values(cfg.fonts.overrides ?? {})) {
+    if (fam) usedFamilies.add(fam);
+  }
+  const familyFonts: Record<string, { regular: PDFFont; semiBold: PDFFont; bold: PDFFont }> = {};
+  await Promise.all(
+    Array.from(usedFamilies).map(async (fam) => {
+      const urls = FONT_FAMILY_URLS[fam];
+      const [regBytes, sbBytes, boldBytes] = await Promise.all([
+        fetchBytes(urls.regular),
+        fetchBytes(urls.semiBold),
+        fetchBytes(urls.bold),
+      ]);
+      familyFonts[fam] = {
+        regular: await pdf.embedFont(regBytes, { subset: true }),
+        semiBold: await pdf.embedFont(sbBytes, { subset: true }),
+        bold: await pdf.embedFont(boldBytes, { subset: true }),
+      };
+    }),
+  );
 
   // Defensive Helvetica fallback (not actually drawn)
   void (await pdf.embedFont(StandardFonts.Helvetica));
+
+  /** Resolve font (regular/semiBold/bold) untuk section tertentu, hormatin override. */
+  const fontFor = (section: IghSection, weight: "regular" | "semiBold" | "bold"): PDFFont => {
+    const fam = cfg.fonts.overrides?.[section] ?? cfg.fonts.family;
+    const set = familyFonts[fam] ?? familyFonts[cfg.fonts.family];
+    return set[weight];
+  };
 
   const page = pdf.getPage(0);
 
@@ -203,8 +230,10 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   let projSize = cfg.projectName.size;
   let projLines: string[] = [projectName];
   const projMaxW = 285 * SCALE; // kolom kiri sebelum dipotong kolom Invoice
+  const projBold = fontFor("projectName", "bold");
+  const projReg = fontFor("projectName", "regular");
   while (projSize > 14) {
-    projLines = wrapAtSize(projectName, fontBold, projSize, projMaxW);
+    projLines = wrapAtSize(projectName, projBold, projSize, projMaxW);
     if (projLines.length <= 2) break;
     projSize -= 1;
   }
@@ -213,61 +242,61 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   let py = cfg.projectName.topPx;
   for (const line of projLines) {
     drawText(page, line, {
-      leftPx: 55, topPx: py, size: projSize, font: fontBold, color: ORANGE,
+      leftPx: 55, topPx: py, size: projSize, font: projBold, color: ORANGE,
     });
     py += projLH;
   }
 
   // Timeline (Periode) — grey muted, persis di bawah project name
   drawText(page, data.timeline || "—", {
-    leftPx: 55, topPx: py + 6, size: 11, font: fontReg, color: GREY_MUTED, maxWidthPx: 285,
+    leftPx: 55, topPx: py + 6, size: 11, font: projReg, color: GREY_MUTED, maxWidthPx: 285,
   });
 
   // ── 2. HEADER META (Invoice to & Date) ──
-  // Label baseline yTop=235 → value mulai topPx=247 (8px di bawah label),
-  // LEFT-aligned ke posisi label-nya (x=335 dan x=538).
+  const metaReg = fontFor("metaInfo", "regular");
   drawText(page, data.customerName || "—", {
-    leftPx: 335, topPx: cfg.metaInfo.topPx, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
+    leftPx: 335, topPx: cfg.metaInfo.topPx, size: 13, font: metaReg, color: ORANGE, maxWidthPx: 175,
   });
   drawText(page, data.date || "—", {
-    leftPx: 538, topPx: cfg.metaInfo.topPx, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
+    leftPx: 538, topPx: cfg.metaInfo.topPx, size: 13, font: metaReg, color: ORANGE, maxWidthPx: 175,
   });
 
   // ── 3. HOTEL SECTION ──
-  // Label baseline yTop=385 → nama hotel topPx=395 (10px di bawah label), Orange Bold besar.
+  const hotelBold = fontFor("hotel", "bold");
+  const hotelReg = fontFor("hotel", "regular");
   drawText(page, data.hotelMakkah || "—", {
-    leftPx: 51, topPx: 395, size: 22, minSize: 12, font: fontBold, color: ORANGE, maxWidthPx: 285,
+    leftPx: 51, topPx: 395, size: 22, minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 51, topPx: 433, size: 9, font: fontReg, color: DARK,
+    leftPx: 51, topPx: 433, size: 9, font: hotelReg, color: DARK,
   });
   drawText(page, data.hotelMadinah || "—", {
-    leftPx: 407, topPx: 395, size: 22, minSize: 12, font: fontBold, color: ORANGE, maxWidthPx: 285,
+    leftPx: 407, topPx: 395, size: 22, minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 407, topPx: 433, size: 9, font: fontReg, color: DARK,
+    leftPx: 407, topPx: 433, size: 9, font: hotelReg, color: DARK,
   });
 
   // ── 4. PRICING BOXES (Pax & Harga per Pax) ──
-  // Box terukur dari raster: pax x47..161 w114 / price x272..678 w406, y518..579 h61.
+  const priceBold = fontFor("pricing", "bold");
   const PAX_BOX = { leftPx: 47, topPx: 518, widthPx: 114, heightPx: 61 };
   const PRICE_BOX = { leftPx: 272, topPx: 518, widthPx: 406, heightPx: 61 };
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
-    ...PAX_BOX, size: 26, minSize: 14, font: fontBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
+    ...PAX_BOX, size: 26, minSize: 14, font: priceBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
   });
   drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
-    ...PRICE_BOX, size: 22, minSize: 12, font: fontBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
+    ...PRICE_BOX, size: 22, minSize: 12, font: priceBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
   });
 
   // ── 5. CHECKLIST (Sudah / Belum Termasuk) ──
-  // Baseline rows derived dari config: firstBaselinePx + i*rowSpacingPx.
+  const listFont = fontFor("checklist", "semiBold");
   const ROW_BASELINES = Array.from({ length: 5 }, (_, i) =>
     cfg.checklist.firstBaselinePx + i * cfg.checklist.rowSpacingPx,
   );
   const LEFT_AREA = { left: 95, width: 235 };
   const RIGHT_AREA = { left: 459, width: 235 };
-  drawList(page, data.included, ROW_BASELINES, LEFT_AREA, fontBold, cfg.checklist.size);
-  drawList(page, data.excluded, ROW_BASELINES, RIGHT_AREA, fontBold, cfg.checklist.size);
+  drawList(page, data.included, ROW_BASELINES, LEFT_AREA, listFont, cfg.checklist.size);
+  drawList(page, data.excluded, ROW_BASELINES, RIGHT_AREA, listFont, cfg.checklist.size);
 
   return pdf.save();
 }

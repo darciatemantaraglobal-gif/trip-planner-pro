@@ -1,12 +1,35 @@
 import { useEffect, useState } from "react";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ClipboardCopy, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   DEFAULT_IGH_LAYOUT,
   saveIghLayoutConfig,
+  type IghFontFamily,
   type IghLayoutConfig,
+  type IghSection,
 } from "@/lib/ighPdfConfig";
+
+const FONT_OPTIONS: { value: IghFontFamily; label: string; hint: string }[] = [
+  { value: "Poppins", label: "Poppins", hint: "Modern · Geometric" },
+  { value: "Montserrat", label: "Montserrat", hint: "Classic · Elegant" },
+  { value: "Sk-Modernist", label: "Sk-Modernist", hint: "Minimal · Clean" },
+];
+
+const SECTION_LABELS: { key: IghSection; label: string }[] = [
+  { key: "projectName", label: "Project Name" },
+  { key: "metaInfo", label: "Meta Info" },
+  { key: "hotel", label: "Hotel" },
+  { key: "pricing", label: "Pricing" },
+  { key: "checklist", label: "Checklist" },
+];
 
 interface Props {
   config: IghLayoutConfig;
@@ -97,6 +120,77 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {/* FONT FAMILY (global) */}
+        <section className="space-y-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Font Family (Global)
+          </h4>
+          <Select
+            value={local.fonts.family}
+            onValueChange={(v) =>
+              setLocal((prev) => ({ ...prev, fonts: { ...prev.fonts, family: v as IghFontFamily } }))
+            }
+          >
+            <SelectTrigger className="h-8 text-[11px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                  <span className="font-semibold">{opt.label}</span>
+                  <span className="ml-1.5 text-[9px] text-slate-400">{opt.hint}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[9px] text-slate-400 leading-snug">
+            Default untuk semua section. Bisa override per-section di bawah.
+          </p>
+        </section>
+
+        {/* PER-SECTION FONT OVERRIDES */}
+        <section className="space-y-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Override per Section
+          </h4>
+          <div className="space-y-1.5">
+            {SECTION_LABELS.map(({ key, label }) => {
+              const overridden = local.fonts.overrides?.[key];
+              const value = overridden ?? "__default__";
+              return (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-600 w-20 shrink-0">{label}</span>
+                  <Select
+                    value={value}
+                    onValueChange={(v) => {
+                      setLocal((prev) => {
+                        const ov = { ...(prev.fonts.overrides ?? {}) };
+                        if (v === "__default__") delete ov[key];
+                        else ov[key] = v as IghFontFamily;
+                        return { ...prev, fonts: { ...prev.fonts, overrides: ov } };
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-[10px] flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__" className="text-[10px] italic text-slate-500">
+                        Pakai default
+                      </SelectItem>
+                      {FONT_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value} className="text-[10px]">
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         {/* PROJECT NAME */}
         <section className="space-y-2">
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
