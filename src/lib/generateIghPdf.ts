@@ -72,7 +72,9 @@ function pxRect(leftPx: number, topPx: number, widthPx: number, heightPx: number
 
 /** Mask a region with a solid color (covers placeholder text in the template). */
 
-/** Draw text and shrink size if needed to fit max width (no truncation). */
+/** Draw text and shrink size if needed to fit max width.
+ *  Final fallback: truncate with ellipsis if still over-width at minSize
+ *  (prevents silent overflow into adjacent columns). */
 function drawTextFit(
   page: PDFPage,
   text: string,
@@ -82,9 +84,13 @@ function drawTextFit(
   let size = opts.size;
   const minSize = opts.minSize ?? 10;
   while (size > minSize && opts.font.widthOfTextAtSize(text, size) > max) size -= 0.5;
+  const value =
+    opts.font.widthOfTextAtSize(text, size) > max
+      ? truncateToWidth(text, opts.font, size, max)
+      : text;
   const x = opts.leftPx * SCALE;
   const y = PAGE_H - opts.topPx * SCALE - size * 0.82;
-  page.drawText(text, { x, y, size, font: opts.font, color: opts.color });
+  page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
 /** Draw text using top-left pixel coords; size is in PDF points. */
@@ -102,23 +108,30 @@ function drawText(
   page.drawText(value, { x, y, size: opts.size, font: opts.font, color: opts.color });
 }
 
-/** Draw text horizontally centered inside a given pixel rectangle. */
+/** Draw text horizontally centered inside a given pixel rectangle.
+ *  Auto-shrinks down to 8pt; final fallback is ellipsis truncation so very
+ *  long inputs never bleed past the box boundary. */
 function drawTextCentered(
   page: PDFPage,
   text: string,
   opts: { leftPx: number; topPx: number; widthPx: number; heightPx: number; size: number; font: PDFFont; color: RGB },
 ) {
   const r = pxRect(opts.leftPx, opts.topPx, opts.widthPx, opts.heightPx);
+  const maxW = r.width - 8;
   let size = opts.size;
   let textW = opts.font.widthOfTextAtSize(text, size);
-  // Auto-shrink if too wide
-  while (textW > r.width - 8 && size > 8) {
+  while (textW > maxW && size > 8) {
     size -= 1;
     textW = opts.font.widthOfTextAtSize(text, size);
   }
+  let value = text;
+  if (textW > maxW) {
+    value = truncateToWidth(text, opts.font, size, maxW);
+    textW = opts.font.widthOfTextAtSize(value, size);
+  }
   const x = r.x + (r.width - textW) / 2;
   const y = r.y + (r.height - size * 0.82) / 2;
-  page.drawText(text, { x, y, size, font: opts.font, color: opts.color });
+  page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
 function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
