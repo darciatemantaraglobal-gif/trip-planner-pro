@@ -98,6 +98,44 @@ const DEFAULT_GENERAL_COSTS: GeneralCostRow[] = [
   { id: "g7", category: "guide",     label: "Guide & Staff",        qty: 1, amount: 0, currency: "IDR", unit: "group" },
 ];
 
+// ── Autosave ke localStorage ──
+// Restore state terakhir kalau halaman ke-refresh / crash. Versioning pake key
+// ber-suffix biar kalau struktur CalcState berubah breaking, key lama
+// di-skip & user dapat default fresh.
+const STORAGE_KEY = "igh:calculator:state:v1";
+const STORAGE_DEBOUNCE_MS = 600;
+
+function loadFromStorage(): CalcState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CalcState>;
+    // Sanity check minimal — pastikan field-field krusial ada
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.hotels)) return null;
+    // Merge dengan default biar field baru yang ditambah belakangan tetap ada
+    return { ...makeDefault(), ...parsed } as CalcState;
+  } catch (err) {
+    console.warn("Gagal load state kalkulator dari localStorage", err);
+    return null;
+  }
+}
+
+function saveToStorage(state: CalcState): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    // QuotaExceededError dll — diam aja, autosave best-effort
+    console.warn("Gagal save state kalkulator ke localStorage", err);
+  }
+}
+
+function clearStorage(): void {
+  if (typeof window === "undefined") return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
+}
+
 function makeDefault(): CalcState {
   return {
     mode: "umroh_private",
@@ -421,7 +459,13 @@ export default function Calculator() {
   const rates = useRatesStore((s) => s.rates);
   const { formatCurrency } = useRegional();
 
-  const [calc, setCalc] = useState<CalcState>(() => makeDefault());
+  const [calc, setCalc] = useState<CalcState>(() => {
+    const restored = loadFromStorage();
+    return restored ?? makeDefault();
+  });
+  // Tandai apakah state awal hasil restore — buat tampilin toast info sekali.
+  const wasRestoredRef = useRef<boolean>(loadFromStorage() !== null);
+  const didShowRestoreToastRef = useRef(false);
   const [showSummary, setShowSummary] = useState(true);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [creatingTrip, setCreatingTrip] = useState(false);
@@ -617,9 +661,32 @@ export default function Calculator() {
     const fresh = makeDefault();
     update(fresh);
     lastAutoRangeRef.current = ""; // reset auto-fill guard juga
+    clearStorage();                  // hapus juga snapshot localStorage
+    wasRestoredRef.current = false;
     setResetConfirmOpen(false);
     toast.success("Kalkulator di-reset ke default");
   }
+
+  // ── Restore toast: tampil sekali pas mount kalau ada state yang dipulihkan ──
+  useEffect(() => {
+    if (didShowRestoreToastRef.current) return;
+    didShowRestoreToastRef.current = true;
+    if (!wasRestoredRef.current) return;
+    toast.message("Sesi sebelumnya dipulihkan", {
+      description: "Kalkulasi terakhir ditemukan & dimuat otomatis.",
+      duration: 4000,
+      action: {
+        label: "Mulai Baru",
+        onClick: () => setResetConfirmOpen(true),
+      },
+    });
+  }, []);
+
+  // ── Autosave: simpan state ke localStorage tiap kali calc berubah (debounced) ──
+  useEffect(() => {
+    const t = window.setTimeout(() => saveToStorage(calc), STORAGE_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [calc]);
 
 
   // ── Group matrix (untuk PDF mode "umroh_group") ──
