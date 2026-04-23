@@ -8,6 +8,16 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
 import { LivePdfThumbnail } from "@/components/LivePdfThumbnail";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { IghPdfData } from "@/lib/generateIghPdf";
 import { usePackagesStore } from "@/store/packagesStore";
 import type { PackageDraft } from "@/features/packages/packagesRepo";
@@ -415,6 +425,7 @@ export default function Calculator() {
   const [showSummary, setShowSummary] = useState(true);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [creatingTrip, setCreatingTrip] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const navigate = useNavigate();
   const createPackage = usePackagesStore((s) => s.create);
@@ -599,8 +610,15 @@ export default function Calculator() {
   }
 
   function handleReset() {
+    setResetConfirmOpen(true);
+  }
+
+  function confirmReset() {
     const fresh = makeDefault();
     update(fresh);
+    lastAutoRangeRef.current = ""; // reset auto-fill guard juga
+    setResetConfirmOpen(false);
+    toast.success("Kalkulator di-reset ke default");
   }
 
 
@@ -1680,6 +1698,44 @@ export default function Calculator() {
       )}
 
       <PdfPreviewDialog open={pdfOpen} onOpenChange={setPdfOpen} data={ighPdfData} />
+
+      {/* ── FOOTER: Reset Default ── */}
+      <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-t border-orange-100">
+        <p className="text-[11px] text-muted-foreground" style={M}>
+          Selesai? Reset semua field buat mulai kalkulasi baru.
+        </p>
+        <Button
+          onClick={handleReset}
+          variant="outline"
+          className="h-9 px-4 rounded-xl border-orange-300 text-orange-700 hover:bg-orange-50 text-[12px] font-semibold"
+          style={M}
+        >
+          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+          Reset Default
+        </Button>
+      </div>
+
+      {/* ── Confirm dialog buat reset ── */}
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset semua field kalkulator?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Semua data kalkulasi (hotel, transport, tiket, visa, harga, dll) akan dikembalikan ke kondisi awal.
+              Tindakan ini <span className="font-bold text-red-600">tidak bisa dibatalkan</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmReset}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Ya, Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
