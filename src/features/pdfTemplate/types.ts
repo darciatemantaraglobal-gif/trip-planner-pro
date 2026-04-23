@@ -165,6 +165,9 @@ export interface CanvasTemplate {
   name: string;
   pageSize: "a4" | "a5" | "letter";
   orientation: "portrait" | "landscape";
+  /** Custom page dims in pt (overrides pageSize when both set). Useful for PDF uploads with non-standard sizes. */
+  customWidthPt?: number;
+  customHeightPt?: number;
   backgroundColor: string;
   backgroundImage?: string;
   elements: CanvasElement[];
@@ -180,7 +183,15 @@ export const PAGE_SIZES_PT: Record<CanvasTemplate["pageSize"], { w: number; h: n
   letter: { w: 612, h: 792 },
 };
 
-export function getPageDimsPt(t: { pageSize: CanvasTemplate["pageSize"]; orientation: CanvasTemplate["orientation"] }) {
+export function getPageDimsPt(t: {
+  pageSize: CanvasTemplate["pageSize"];
+  orientation: CanvasTemplate["orientation"];
+  customWidthPt?: number;
+  customHeightPt?: number;
+}) {
+  if (t.customWidthPt && t.customHeightPt) {
+    return { wPt: t.customWidthPt, hPt: t.customHeightPt };
+  }
   const base = PAGE_SIZES_PT[t.pageSize];
   return t.orientation === "landscape"
     ? { wPt: base.h, hPt: base.w }

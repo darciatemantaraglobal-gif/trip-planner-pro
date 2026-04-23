@@ -553,6 +553,8 @@ export function CanvasTemplateEditor({
               ...t,
               backgroundImage: editable.cleanedDataUrl,
               orientation: editable.orientation,
+              customWidthPt: editable.widthPt,
+              customHeightPt: editable.heightPt,
               elements: [
                 ...t.elements,
                 ...textItemsToElements(editable.textItems, editable.widthPt, editable.heightPt),
@@ -562,7 +564,17 @@ export function CanvasTemplateEditor({
             return newT;
           });
         } else {
-          applyBgDataUrl(editable.dataUrl, { orientation: editable.orientation });
+          setTemplate((t) => {
+            const newT = {
+              ...t,
+              backgroundImage: editable.dataUrl,
+              orientation: editable.orientation,
+              customWidthPt: editable.widthPt,
+              customHeightPt: editable.heightPt,
+            };
+            commitToHistory(newT);
+            return newT;
+          });
         }
       } catch (err) {
         console.error(err);
@@ -611,7 +623,7 @@ export function CanvasTemplateEditor({
             {(["a4", "a5", "letter"] as const).map((sz) => (
               <button
                 key={sz}
-                onClick={() => setTemplate((t) => ({ ...t, pageSize: sz }))}
+                onClick={() => setTemplate((t) => ({ ...t, pageSize: sz, customWidthPt: undefined, customHeightPt: undefined }))}
                 className={`h-7 px-2 rounded text-[11px] font-bold uppercase ${
                   template.pageSize === sz ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
                 }`}
