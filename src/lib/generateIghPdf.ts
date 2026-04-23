@@ -75,6 +75,21 @@ function mask(page: PDFPage, color: RGB, leftPx: number, topPx: number, widthPx:
   page.drawRectangle({ ...r, color });
 }
 
+/** Draw text and shrink size if needed to fit max width (no truncation). */
+function drawTextFit(
+  page: PDFPage,
+  text: string,
+  opts: { leftPx: number; topPx: number; size: number; minSize?: number; font: PDFFont; color: RGB; maxWidthPx: number },
+) {
+  const max = opts.maxWidthPx * SCALE;
+  let size = opts.size;
+  const minSize = opts.minSize ?? 10;
+  while (size > minSize && opts.font.widthOfTextAtSize(text, size) > max) size -= 0.5;
+  const x = opts.leftPx * SCALE;
+  const y = PAGE_H - opts.topPx * SCALE - size * 0.82;
+  page.drawText(text, { x, y, size, font: opts.font, color: opts.color });
+}
+
 /** Draw text using top-left pixel coords; size is in PDF points. */
 function drawText(
   page: PDFPage,
@@ -155,87 +170,97 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
 
   const page = pdf.getPage(0);
 
-  // ── 1. Project Name (large orange) — replaces "(Nama Penawaran)" ──
-  // Mask the placeholder area first.
-  mask(page, WHITE, 50, 248, 220, 88);
+  // ── 3. Invoice to (Nama Customer) — placeholder "(Nama Customer)" ──
+  mask(page, WHITE, 335, 240, 195, 28);
+  drawText(page, data.customerName || "—", {
+    leftPx: 343, topPx: 248, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 180,
+  });
+
+  // ── 4. Date — placeholder "(Tanggal)" ──
+  mask(page, WHITE, 530, 240, 180, 28);
+  drawText(page, data.date || "—", {
+    leftPx: 540, topPx: 248, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
+  });
+
+  // ── 1. Project Name — placeholder "(Nama Penawaran)" ──
+  // Placeholder occupies y 240–305. Mask starts BELOW "Project :" label (≈y 220–238).
+  mask(page, WHITE, 45, 240, 285, 70);
   const projectName = (data.projectName || "—").trim();
-  // Wrap to max 2 lines, auto-shrink to fit width
-  const projLines = wrapText(projectName, fontExBold, 30, 220 * SCALE, 2);
-  let py = 268;
+  let projSize = 22;
+  let projLines: string[] = [projectName];
+  while (projSize > 12) {
+    projLines = wrapAtSize(projectName, fontExBold, projSize, 275 * SCALE);
+    if (projLines.length <= 2) break;
+    projSize -= 1;
+  }
+  if (projLines.length > 2) projLines = projLines.slice(0, 2);
+  const projLH = projSize * 1.12;
+  const projTotalH = projLines.length * projLH;
+  let py = 245 + (65 - projTotalH) / 2;
   for (const line of projLines) {
-    drawText(page, line, { leftPx: 60, topPx: py, size: 30, font: fontExBold, color: ORANGE_TEXT });
-    py += 36;
+    drawText(page, line, { leftPx: 55, topPx: py, size: projSize, font: fontExBold, color: ORANGE_TEXT });
+    py += projLH;
   }
 
-  // ── 2. Timeline — replaces "5 Juli - 11 Juli 2026" ──
-  mask(page, WHITE, 50, 340, 230, 22);
+  // ── 2. Timeline — placeholder "5 Juli - 11 Juli 2026" ──
+  mask(page, WHITE, 45, 312, 290, 22);
   drawText(page, data.timeline || "—", {
-    leftPx: 60, topPx: 343, size: 13, font: fontReg, color: DARK, maxWidthPx: 220,
-  });
-
-  // ── 3. Invoice to (Nama Customer) ──
-  mask(page, WHITE, 340, 244, 175, 24);
-  drawText(page, data.customerName || "—", {
-    leftPx: 343, topPx: 247, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
-  });
-
-  // ── 4. Date ──
-  mask(page, WHITE, 535, 244, 175, 24);
-  drawText(page, data.date || "—", {
-    leftPx: 540, topPx: 247, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
+    leftPx: 55, topPx: 318, size: 11, font: fontReg, color: DARK, maxWidthPx: 280,
   });
 
   // ── 5. Hotel Makkah ──
-  mask(page, WHITE, 50, 388, 280, 38); // hotel name slot
-  drawText(page, data.hotelMakkah || "—", {
-    leftPx: 60, topPx: 392, size: 22, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 270,
+  // Hotel name placeholder y 386–428 (~42 px). Font ~20pt with shrink-to-fit.
+  mask(page, WHITE, 45, 384, 320, 44);
+  drawTextFit(page, data.hotelMakkah || "—", {
+    leftPx: 55, topPx: 392, size: 20, minSize: 11, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 305,
   });
-  mask(page, WHITE, 50, 432, 200, 22); // nights slot
+  mask(page, WHITE, 45, 432, 200, 22);
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 60, topPx: 434, size: 12, font: fontReg, color: DARK,
+    leftPx: 55, topPx: 436, size: 11, font: fontReg, color: DARK,
   });
 
   // ── 6. Hotel Madinah ──
-  mask(page, WHITE, 410, 388, 290, 38);
-  drawText(page, data.hotelMadinah || "—", {
-    leftPx: 420, topPx: 392, size: 22, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 280,
+  mask(page, WHITE, 400, 384, 290, 44);
+  drawTextFit(page, data.hotelMadinah || "—", {
+    leftPx: 410, topPx: 392, size: 20, minSize: 11, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 275,
   });
-  mask(page, WHITE, 410, 432, 200, 22);
+  mask(page, WHITE, 400, 432, 200, 22);
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 420, topPx: 434, size: 12, font: fontReg, color: DARK,
+    leftPx: 410, topPx: 436, size: 11, font: fontReg, color: DARK,
   });
 
-  // ── 7. Pax box (orange) — mask with orange & redraw ──
-  // Box covers approx x:62-145, y:520-585 (image px)
-  mask(page, ORANGE, 62, 520, 84, 66);
+  // ── 7. Pax orange box ──
+  // Box: x 45–155 (110 wide), y 520–585 (65 tall). Big white digit.
+  mask(page, ORANGE, 45, 520, 110, 65);
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
-    leftPx: 62, topPx: 520, widthPx: 84, heightPx: 66, size: 30, font: fontExBold, color: WHITE,
+    leftPx: 45, topPx: 520, widthPx: 110, heightPx: 65, size: 28, font: fontExBold, color: WHITE,
   });
 
-  // ── 8. Harga per Pax box (orange) ──
-  mask(page, ORANGE, 283, 520, 385, 66);
+  // ── 8. Harga per Pax orange box ──
+  // Box: x 275–680 (405 wide), y 520–585 (65 tall).
+  mask(page, ORANGE, 275, 520, 405, 65);
   drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
-    leftPx: 283, topPx: 520, widthPx: 385, heightPx: 66, size: 28, font: fontExBold, color: WHITE,
+    leftPx: 275, topPx: 520, widthPx: 405, heightPx: 65, size: 24, font: fontExBold, color: WHITE,
   });
 
-  // ── 9. Kurs note (line 2 of asterisk notes) ──
-  mask(page, WHITE, 50, 622, 320, 18);
+  // ── 9. Kurs note — second asterisk line ──
+  mask(page, WHITE, 45, 622, 320, 18);
   const kurs = data.kursIdrPerUsd && data.kursIdrPerUsd > 0
     ? Math.round(data.kursIdrPerUsd).toLocaleString("id-ID")
     : "17.100";
   drawText(page, `* Kurs IDR ${kurs}/USD`, {
-    leftPx: 60, topPx: 623, size: 11, font: fontReg, color: DARK,
+    leftPx: 55, topPx: 624, size: 11, font: fontReg, color: DARK,
   });
 
-  // ── 10. Bullet list — Sudah Termasuk ──
-  // 5 rows. Row centers (image y-px): 722, 750, 778, 806, 834. Width ~290 px each.
+  // ── 10. Bullet list — Sudah Termasuk (left column) ──
+  // Rows: 5 rows × ~27 px tall starting at y≈710. Content area x 90–325 (skip "01" label & line).
   drawList(page, data.included, {
-    leftPx: 70, topPx: 712, widthPx: 270, rowHeight: 28, font: fontBold, color: DARK, maskColor: WHITE,
+    leftPx: 90, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK, maskColor: WHITE,
   });
 
-  // ── 11. Bullet list — Belum Termasuk ──
+  // ── 11. Bullet list — Belum Termasuk (right column) ──
   drawList(page, data.excluded, {
-    leftPx: 432, topPx: 712, widthPx: 270, rowHeight: 28, font: fontBold, color: DARK, maskColor: WHITE,
+    leftPx: 450, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK, maskColor: WHITE,
   });
 
   return pdf.save();
