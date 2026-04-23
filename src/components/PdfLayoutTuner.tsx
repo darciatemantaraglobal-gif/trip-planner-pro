@@ -11,16 +11,22 @@ import {
 import { Bookmark, ClipboardCopy, Pencil, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
+  BUILTIN_PRESET,
   DEFAULT_IGH_LAYOUT,
-  deletePreset,
-  loadPresets,
+  loadPresetsCache,
   saveIghLayoutConfig,
-  upsertPreset,
+  withBuiltins,
   type IghFontFamily,
   type IghLayoutConfig,
   type IghLayoutPreset,
   type IghSection,
 } from "@/lib/ighPdfConfig";
+import {
+  deletePdfLayoutPreset,
+  pullPdfLayoutPresets,
+  upsertPdfLayoutPreset,
+} from "@/lib/cloudSync";
+import { onPdfPresetsChanged } from "@/lib/supabaseRealtime";
 
 const FONT_OPTIONS: { value: IghFontFamily; label: string; hint: string }[] = [
   { value: "Poppins", label: "Poppins", hint: "Modern · Geometric" },
@@ -107,9 +113,15 @@ function TextRow({ label, value, placeholder, multiline, onChange }: TextRowProp
 
 export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
   const [local, setLocal] = useState<IghLayoutConfig>(config);
-  const [presets, setPresets] = useState<IghLayoutPreset[]>(() => loadPresets());
+  const [cloudPresets, setCloudPresets] = useState<IghLayoutPreset[]>(() => loadPresetsCache());
   const [activePresetId, setActivePresetId] = useState<string | "">("");
   const [presetName, setPresetName] = useState("");
+  const [presetBusy, setPresetBusy] = useState(false);
+
+  // List yang ditampilkan: built-in selalu di atas, lalu cloud.
+  const visiblePresets = withBuiltins(cloudPresets);
+  const activePreset = visiblePresets.find((p) => p.id === activePresetId);
+  const isBuiltinActive = !!activePreset?.builtin;
 
   // Debounce upstream notify by 350ms biar slider drag/typing ga lag.
   useEffect(() => {
@@ -121,50 +133,113 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local]);
 
-  function refreshPresets() {
-    setPresets(loadPresets());
-  }
+  // Initial pull dari cloud + subscribe realtime → kalau device lain mutasi,
+  // list di sini auto refresh.
+  useEffect(() => {
+    let cancelled = false;
+    void pullPdfLayoutPresets().then((list) => {
+      if (!cancelled) setCloudPresets(list);
+    });
+    const off = onPdfPresetsChanged(() => {
+      void pullPdfLayoutPresets().then((list) => {
+        if (!cancelled) setCloudPresets(list);
+      });
+    });
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, []);
 
   function handleApplyPreset(id: string) {
     setActivePresetId(id);
     if (!id) return;
-    const p = presets.find((x) => x.id === id);
+    const p = visiblePresets.find((x) => x.id === id);
     if (!p) return;
     setLocal(p.config);
-    setPresetName(p.name);
+    setPresetName(p.builtin ? "" : p.name);
     toast.success(`Preset "${p.name}" diterapkan`);
   }
 
-  function handleSaveAsNew() {
+  async function handleSaveAsNew() {
     const name = presetName.trim();
     if (!name) {
       toast.error("Kasih nama preset dulu");
       return;
     }
-    const created = upsertPreset(name, local);
-    refreshPresets();
-    setActivePresetId(created.id);
-    toast.success(`Preset "${created.name}" disimpan`);
+    setPresetBusy(true);
+    try {
+      const now = Date.now();
+      const created = await upsertPdfLayoutPreset({
+        id: `preset_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        config: local,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const list = await pullPdfLayoutPresets();
+      setCloudPresets(list);
+      setActivePresetId(created.id);
+      toast.success(`Preset "${created.name}" disimpan ke cloud`);
+    } catch (e) {
+      toast.error(`Gagal simpan preset: ${(e as Error).message}`);
+    } finally {
+      setPresetBusy(false);
+    }
   }
 
-  function handleUpdateActive() {
+  async function handleUpdateActive() {
     if (!activePresetId) {
       toast.error("Pilih preset dulu, atau pakai Save as New");
       return;
     }
-    const updated = upsertPreset(presetName, local, activePresetId);
-    refreshPresets();
-    toast.success(`Preset "${updated.name}" diperbarui`);
+    if (isBuiltinActive) {
+      toast.error("Preset bawaan tidak bisa diubah");
+      return;
+    }
+    const existing = cloudPresets.find((p) => p.id === activePresetId);
+    if (!existing) {
+      toast.error("Preset tidak ditemukan");
+      return;
+    }
+    setPresetBusy(true);
+    try {
+      const updated = await upsertPdfLayoutPreset({
+        ...existing,
+        name: presetName.trim() || existing.name,
+        config: local,
+        updatedAt: Date.now(),
+      });
+      const list = await pullPdfLayoutPresets();
+      setCloudPresets(list);
+      toast.success(`Preset "${updated.name}" diperbarui`);
+    } catch (e) {
+      toast.error(`Gagal update preset: ${(e as Error).message}`);
+    } finally {
+      setPresetBusy(false);
+    }
   }
 
-  function handleDeleteActive() {
+  async function handleDeleteActive() {
     if (!activePresetId) return;
-    const p = presets.find((x) => x.id === activePresetId);
-    deletePreset(activePresetId);
-    refreshPresets();
-    setActivePresetId("");
-    setPresetName("");
-    toast.success(`Preset "${p?.name ?? ""}" dihapus`);
+    if (isBuiltinActive) {
+      toast.error("Preset bawaan tidak bisa dihapus");
+      return;
+    }
+    const p = cloudPresets.find((x) => x.id === activePresetId);
+    setPresetBusy(true);
+    try {
+      await deletePdfLayoutPreset(activePresetId);
+      const list = await pullPdfLayoutPresets();
+      setCloudPresets(list);
+      setActivePresetId("");
+      setPresetName("");
+      toast.success(`Preset "${p?.name ?? ""}" dihapus`);
+    } catch (e) {
+      toast.error(`Gagal hapus preset: ${(e as Error).message}`);
+    } finally {
+      setPresetBusy(false);
+    }
   }
 
   function patch<K extends keyof IghLayoutConfig>(
@@ -223,14 +298,9 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
               <SelectItem value="__none__" className="text-[10px] italic text-slate-500">
                 — tidak ada —
               </SelectItem>
-              {presets.length === 0 && (
-                <div className="px-2 py-1.5 text-[10px] italic text-slate-400">
-                  Belum ada preset tersimpan
-                </div>
-              )}
-              {presets.map((p) => (
+              {visiblePresets.map((p) => (
                 <SelectItem key={p.id} value={p.id} className="text-[10px]">
-                  {p.name}
+                  {p.builtin ? `★ ${p.name}` : p.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -244,16 +314,17 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
           <div className="flex gap-1">
             <button
               onClick={handleSaveAsNew}
-              title="Save as new preset"
-              className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors"
+              disabled={presetBusy}
+              title="Save as new preset (cloud-synced)"
+              className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save className="h-3 w-3" />
               Save as New
             </button>
             <button
               onClick={handleUpdateActive}
-              disabled={!activePresetId}
-              title="Update preset aktif dengan config sekarang"
+              disabled={!activePresetId || isBuiltinActive || presetBusy}
+              title={isBuiltinActive ? "Preset bawaan tidak bisa diubah" : "Update preset aktif"}
               className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Pencil className="h-3 w-3" />
@@ -261,15 +332,16 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
             </button>
             <button
               onClick={handleDeleteActive}
-              disabled={!activePresetId}
-              title="Hapus preset aktif"
+              disabled={!activePresetId || isBuiltinActive || presetBusy}
+              title={isBuiltinActive ? "Preset bawaan tidak bisa dihapus" : "Hapus preset aktif"}
               className="h-7 w-7 inline-flex items-center justify-center rounded-md text-rose-500 bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
           <p className="text-[9px] text-slate-500 leading-snug">
-            Simpan beberapa kombinasi (mis. "Umrah 9-hari", "Haji Plus") dan switch dengan satu klik.
+            ★ <span className="font-semibold">{BUILTIN_PRESET.name}</span> selalu ada sebagai
+            safety-net. Preset lain tersimpan di cloud per-agency dan auto-sync antar device.
           </p>
         </section>
 

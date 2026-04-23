@@ -4,9 +4,19 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { useTripsStore, useJamaahStore } from "@/store/tripsStore";
 import { usePackagesStore } from "@/store/packagesStore";
+import { pullPdfLayoutPresets } from "./cloudSync";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 let channel: RealtimeChannel | null = null;
+
+/** Listeners untuk preset Tuner — komponen tuner subscribe biar UI auto-refresh. */
+type PresetListener = () => void;
+const presetListeners = new Set<PresetListener>();
+
+export function onPdfPresetsChanged(fn: PresetListener): () => void {
+  presetListeners.add(fn);
+  return () => presetListeners.delete(fn);
+}
 
 export function startRealtimeSync(): () => void {
   if (!isSupabaseConfigured() || channel) return () => undefined;
@@ -24,6 +34,12 @@ export function startRealtimeSync(): () => void {
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "packages" }, () => {
       void usePackagesStore.getState().refresh();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "pdf_layout_presets" }, () => {
+      // Refresh cache lalu broadcast ke semua tuner yang sedang dibuka.
+      void pullPdfLayoutPresets().then(() => {
+        for (const fn of presetListeners) fn();
+      });
     })
     .subscribe();
 

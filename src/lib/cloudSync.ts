@@ -7,6 +7,13 @@
  */
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { requireAgencyId } from "@/store/authStore";
+import {
+  mergeConfig,
+  DEFAULT_IGH_LAYOUT,
+  savePresetsCache,
+  type IghLayoutConfig,
+  type IghLayoutPreset,
+} from "./ighPdfConfig";
 
 // ── PACKAGE CALCULATIONS ────────────────────────────────────────────────────
 
@@ -178,4 +185,67 @@ export async function syncPdfTemplatesFull(templates: PdfTemplateCloud[]): Promi
       .from("pdf_templates")
       .upsert(templates.map((t) => tmplToRow(t, agencyId)));
   }
+}
+
+// ── PDF LAYOUT PRESETS (Tuner) ──────────────────────────────────────────────
+// Tabel `pdf_layout_presets` schema: id text PK, agency_id uuid, name text,
+// payload jsonb (= IghLayoutConfig), created_at + updated_at timestamptz.
+
+const presetFromRow = (r: Record<string, unknown>): IghLayoutPreset => {
+  const payload = (r.payload as Partial<IghLayoutConfig>) ?? {};
+  const created = typeof r.created_at === "string" ? Date.parse(r.created_at) : Number(r.created_at ?? Date.now());
+  const updated = typeof r.updated_at === "string" ? Date.parse(r.updated_at) : Number(r.updated_at ?? created);
+  return {
+    id: String(r.id),
+    name: String(r.name ?? ""),
+    config: mergeConfig(DEFAULT_IGH_LAYOUT, payload),
+    createdAt: Number.isFinite(created) ? created : Date.now(),
+    updatedAt: Number.isFinite(updated) ? updated : Date.now(),
+  };
+};
+
+const presetToRow = (p: IghLayoutPreset, agencyId: string) => ({
+  id: p.id,
+  name: p.name,
+  payload: p.config as unknown,
+  agency_id: agencyId,
+  created_at: new Date(p.createdAt).toISOString(),
+  updated_at: new Date(p.updatedAt).toISOString(),
+});
+
+/** Pull semua preset agency aktif → simpan ke localStorage cache → return list. */
+export async function pullPdfLayoutPresets(): Promise<IghLayoutPreset[]> {
+  if (!isSupabaseConfigured()) return [];
+  const { data, error } = await supabase!
+    .from("pdf_layout_presets")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.warn("pullPdfLayoutPresets failed", error);
+    return [];
+  }
+  const list = (data ?? []).map(presetFromRow);
+  savePresetsCache(list);
+  return list;
+}
+
+/** Upsert satu preset (insert kalau ID baru, update kalau sudah ada). */
+export async function upsertPdfLayoutPreset(p: IghLayoutPreset): Promise<IghLayoutPreset> {
+  if (!isSupabaseConfigured()) throw new Error("Cloud sync belum tersedia");
+  if (p.builtin) throw new Error("Built-in preset tidak bisa diubah");
+  const agencyId = requireAgencyId();
+  const { data, error } = await supabase!
+    .from("pdf_layout_presets")
+    .upsert(presetToRow(p, agencyId))
+    .select()
+    .single();
+  if (error || !data) throw error ?? new Error("Gagal simpan preset");
+  return presetFromRow(data as Record<string, unknown>);
+}
+
+export async function deletePdfLayoutPreset(id: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  if (id.startsWith("builtin:")) throw new Error("Built-in preset tidak bisa dihapus");
+  const { error } = await supabase!.from("pdf_layout_presets").delete().eq("id", id);
+  if (error) throw error;
 }

@@ -4,7 +4,12 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
 
 ## Supabase (Cloud Sync) — v1
 - **Client**: `src/lib/supabase.ts` — pakai `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Helper `isSupabaseConfigured()` jadi feature flag.
-- **Schema**: `supabase/schema.sql` — tables (trips, jamaah, jamaah_docs, packages, package_calculations, notes, pdf_templates) + storage buckets (jamaah-photos, jamaah-docs, pdf-templates). Jalankan sekali di SQL Editor Supabase.
+- **Schema**: `supabase/schema.sql` — tables (trips, jamaah, jamaah_docs, packages, package_calculations, notes, pdf_templates, pdf_layout_presets) + storage buckets (jamaah-photos, jamaah-docs, pdf-templates). Jalankan sekali di SQL Editor Supabase. Untuk DB existing yang sudah dijalankan sebelumnya, jalankan migration `supabase/migrations/2026_04_23_pdf_layout_presets.sql`.
+
+**PDF Layout Tuner Presets (cloud-synced):**
+- Tabel `pdf_layout_presets` (id text PK, agency_id, name, payload jsonb, timestamps) per-agency RLS.
+- Built-in preset `IGH Official Default` (id `builtin:igh-official-default`) selalu muncul di dropdown sebagai safety net read-only — tidak disimpan di cloud.
+- Cloud presets di-cache ke localStorage (`igh:pdf-layout-presets-cache`) untuk render instan, lalu di-sync via `pullPdfLayoutPresets()` + realtime channel `pdf_layout_presets`. Cross-device sync bekerja otomatis lewat `onPdfPresetsChanged` listener.
 - **Pola**: local-first cache. Reads narik dari Supabase + simpen ke localStorage; writes push ke localStorage **dan** Supabase. Kalau Supabase belum dikonfigurasi, app jalan offline-only pakai localStorage.
 - **Repos cloud-aware**:
   - `src/features/trips/tripsRepo.ts` — trips, jamaah, jamaah_docs (full CRUD ke Supabase)

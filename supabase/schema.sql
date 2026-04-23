@@ -152,6 +152,17 @@ create table if not exists public.notes (
 alter table public.notes add column if not exists agency_id uuid references public.agencies(id) on delete cascade;
 create index if not exists notes_agency_idx on public.notes(agency_id);
 
+create table if not exists public.pdf_layout_presets (
+  id          text primary key,
+  agency_id   uuid not null references public.agencies(id) on delete cascade,
+  name        text not null,
+  payload     jsonb not null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+alter table public.pdf_layout_presets add column if not exists agency_id uuid references public.agencies(id) on delete cascade;
+create index if not exists pdf_layout_presets_agency_idx on public.pdf_layout_presets(agency_id);
+
 create table if not exists public.pdf_templates (
   id          text primary key,
   agency_id   uuid not null references public.agencies(id) on delete cascade,
@@ -187,6 +198,7 @@ alter table public.packages              enable row level security;
 alter table public.package_calculations  enable row level security;
 alter table public.notes                 enable row level security;
 alter table public.pdf_templates         enable row level security;
+alter table public.pdf_layout_presets    enable row level security;
 alter table public.audit_logs            enable row level security;
 
 -- ── POLICY HELPERS ──────────────────────────────────────────────────────────
@@ -197,7 +209,7 @@ declare t text; pname text;
 begin
   for t in select unnest(array[
     'agencies','agency_members','trips','jamaah','jamaah_docs','packages',
-    'package_calculations','notes','pdf_templates','audit_logs'
+    'package_calculations','notes','pdf_templates','pdf_layout_presets','audit_logs'
   ]) loop
     for pname in select policyname from pg_policies where schemaname='public' and tablename=t loop
       execute format('drop policy if exists %I on public.%I', pname, t);
@@ -230,7 +242,7 @@ declare t text;
 begin
   for t in select unnest(array[
     'trips','jamaah','jamaah_docs','packages',
-    'package_calculations','notes','pdf_templates'
+    'package_calculations','notes','pdf_templates','pdf_layout_presets'
   ]) loop
     execute format($f$
       create policy "%1$s_select" on public.%1$I
@@ -305,7 +317,7 @@ declare t text;
 begin
   for t in select unnest(array[
     'trips','jamaah','jamaah_docs','packages',
-    'package_calculations','notes','pdf_templates'
+    'package_calculations','notes','pdf_templates','pdf_layout_presets'
   ]) loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);

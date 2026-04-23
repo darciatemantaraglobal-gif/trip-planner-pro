@@ -125,7 +125,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
 };
 
 const STORAGE_KEY = "igh:pdf-layout-config";
-const PRESETS_KEY = "igh:pdf-layout-presets";
+const PRESETS_CACHE_KEY = "igh:pdf-layout-presets-cache";
 
 export interface IghLayoutPreset {
   id: string;
@@ -133,15 +133,27 @@ export interface IghLayoutPreset {
   config: IghLayoutConfig;
   createdAt: number;
   updatedAt: number;
+  /** Built-in preset (read-only safety net). Tidak disimpan di cloud. */
+  builtin?: boolean;
 }
 
-export function loadPresets(): IghLayoutPreset[] {
+/** Built-in preset yang selalu tersedia — safety net kalau cloud kosong. */
+export const BUILTIN_PRESET: IghLayoutPreset = {
+  id: "builtin:igh-official-default",
+  name: "IGH Official Default",
+  config: DEFAULT_IGH_LAYOUT,
+  createdAt: 0,
+  updatedAt: 0,
+  builtin: true,
+};
+
+/** Cache lokal (cepat, sinkron) — diisi ulang dari cloud setiap kali pull. */
+export function loadPresetsCache(): IghLayoutPreset[] {
   try {
-    const raw = localStorage.getItem(PRESETS_KEY);
+    const raw = localStorage.getItem(PRESETS_CACHE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as IghLayoutPreset[];
     if (!Array.isArray(parsed)) return [];
-    // Merge each preset's config against defaults so old schemas still hidrate.
     return parsed
       .filter((p) => p && typeof p.id === "string" && typeof p.name === "string" && p.config)
       .map((p) => ({ ...p, config: mergeConfig(DEFAULT_IGH_LAYOUT, p.config) }));
@@ -150,41 +162,17 @@ export function loadPresets(): IghLayoutPreset[] {
   }
 }
 
-export function savePresets(presets: IghLayoutPreset[]) {
+export function savePresetsCache(presets: IghLayoutPreset[]) {
   try {
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+    localStorage.setItem(PRESETS_CACHE_KEY, JSON.stringify(presets.filter((p) => !p.builtin)));
   } catch {
     /* noop */
   }
 }
 
-export function upsertPreset(name: string, config: IghLayoutConfig, id?: string): IghLayoutPreset {
-  const presets = loadPresets();
-  const now = Date.now();
-  if (id) {
-    const idx = presets.findIndex((p) => p.id === id);
-    if (idx >= 0) {
-      const updated: IghLayoutPreset = { ...presets[idx], name: name.trim() || presets[idx].name, config, updatedAt: now };
-      presets[idx] = updated;
-      savePresets(presets);
-      return updated;
-    }
-  }
-  const created: IghLayoutPreset = {
-    id: `preset_${now}_${Math.random().toString(36).slice(2, 8)}`,
-    name: name.trim() || `Preset ${presets.length + 1}`,
-    config,
-    createdAt: now,
-    updatedAt: now,
-  };
-  presets.push(created);
-  savePresets(presets);
-  return created;
-}
-
-export function deletePreset(id: string) {
-  const presets = loadPresets().filter((p) => p.id !== id);
-  savePresets(presets);
+/** Susun list yang ditampilkan di UI: built-in di atas, lalu cloud presets. */
+export function withBuiltins(presets: IghLayoutPreset[]): IghLayoutPreset[] {
+  return [BUILTIN_PRESET, ...presets.filter((p) => !p.builtin)];
 }
 
 export function loadIghLayoutConfig(): IghLayoutConfig {
