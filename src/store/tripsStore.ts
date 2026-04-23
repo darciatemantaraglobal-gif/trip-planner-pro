@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import {
   listTrips, createTrip, updateTrip, deleteTrip,
-  listJamaah, createJamaah, updateJamaah, deleteJamaah, getJamaah,
+  listJamaah, createJamaah, createJamaahBulk, updateJamaah, deleteJamaah, getJamaah,
   listDocs, addDoc, deleteDoc,
   type Trip, type Jamaah, type JamaahDoc, type DocCategory,
 } from "@/features/trips/tripsRepo";
@@ -55,6 +55,10 @@ interface JamaahState {
   loadingJamaah: boolean;
   fetchJamaah: (tripId: string) => Promise<void>;
   addJamaah: (draft: Omit<Jamaah, "id" | "createdAt">) => Promise<Jamaah>;
+  addJamaahBulk: (
+    drafts: Omit<Jamaah, "id" | "createdAt">[],
+    onProgress?: (uploaded: number, total: number) => void,
+  ) => Promise<Jamaah[]>;
   patchJamaah: (id: string, patch: Partial<Jamaah>) => Promise<void>;
   removeJamaah: (id: string) => Promise<void>;
   getOne: (id: string) => Promise<Jamaah | null>;
@@ -75,6 +79,13 @@ export const useJamaahStore = create<JamaahState>((set) => ({
     set((s) => ({ jamaah: [...s.jamaah, j] }));
     syncBus.emit({ type: "jamaah", action: "create", id: j.id });
     return j;
+  },
+
+  addJamaahBulk: async (drafts, onProgress) => {
+    const created = await createJamaahBulk(drafts, onProgress);
+    set((s) => ({ jamaah: [...s.jamaah, ...created] }));
+    for (const j of created) syncBus.emit({ type: "jamaah", action: "create", id: j.id });
+    return created;
   },
 
   patchJamaah: async (id, patch) => {

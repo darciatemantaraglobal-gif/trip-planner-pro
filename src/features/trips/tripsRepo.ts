@@ -225,6 +225,58 @@ export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Pro
   return j;
 }
 
+/**
+ * Bulk insert beberapa jamaah dalam satu round-trip ke Supabase.
+ * Photo upload tetap paralel (storage tidak support batch), tapi INSERT-nya
+ * cuma 1 panggilan API, jauh lebih cepat dari N kali createJamaah.
+ */
+export async function createJamaahBulk(
+  drafts: Omit<Jamaah, "id" | "createdAt">[],
+  onProgress?: (uploaded: number, total: number) => void,
+): Promise<Jamaah[]> {
+  if (drafts.length === 0) return [];
+
+  // Generate ID + booking code dulu di klien.
+  const baseList: Jamaah[] = drafts.map((d, i) => ({
+    ...d,
+    id: `j-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+    bookingCode: d.bookingCode || generateBookingCode(),
+    createdAt: new Date().toISOString(),
+  }));
+
+  // Upload semua foto paralel (kalau ada). Track progress.
+  let uploaded = 0;
+  onProgress?.(0, baseList.length);
+  const list: Jamaah[] = await Promise.all(
+    baseList.map(async (j) => {
+      let photo = j.photoDataUrl;
+      if (isSupabaseConfigured() && isDataUrl(photo)) {
+        try {
+          photo = await uploadJamaahPhoto(j.id, j.passportNumber, photo as string);
+        } catch (err) {
+          console.warn("[bulk] gagal upload foto:", err);
+        }
+      }
+      uploaded++;
+      onProgress?.(uploaded, baseList.length);
+      return { ...j, photoDataUrl: photo };
+    }),
+  );
+
+  // ⚡ SATU KALI insert untuk semua row.
+  if (isSupabaseConfigured()) {
+    const agencyId = requireAgencyId();
+    const { error } = await supabase!
+      .from("jamaah")
+      .insert(list.map((j) => jamaahToRow(j, agencyId)));
+    if (error) throw error;
+  }
+
+  // Satu kali tulis ke localStorage juga.
+  save(JAMAAH_KEY, [...load<Jamaah>(JAMAAH_KEY, []), ...list]);
+  return list;
+}
+
 export async function updateJamaah(id: string, patch: Partial<Jamaah>): Promise<Jamaah> {
   const all = load<Jamaah>(JAMAAH_KEY, []);
   const idx = all.findIndex((j) => j.id === id);

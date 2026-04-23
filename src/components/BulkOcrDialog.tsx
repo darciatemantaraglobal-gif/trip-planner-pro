@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileImage, Loader2, ScanLine, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileImage, Loader2, ScanLine, Trash2, Upload, X, Database } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { scanPassport, failedChecksumLabels } from "@/lib/ocrPassport";
 import { useJamaahStore } from "@/store/tripsStore";
+
+// ── Client-side image pre-compression ────────────────────────────────────────
+// Resize foto paspor ke maks 1200px width sebelum dikirim ke OCR. MRZ tetap
+// terbaca jelas di resolusi ini, tapi waktu Tesseract & ukuran upload turun
+// drastis (foto HP 4-8 MB → ~120-250 KB).
+async function compressImage(file: File, maxW = 1200, quality = 0.85): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  // Skip kalau file sudah kecil & format JPEG (kemungkinan sudah di-compress).
+  if (file.size < 350_000 && /jpe?g/i.test(file.type)) return file;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file; // fallback: file aneh, biarin OCR yg handle
+  }
+  const ratio = bitmap.width > maxW ? maxW / bitmap.width : 1;
+  const w = Math.max(1, Math.round(bitmap.width * ratio));
+  const h = Math.max(1, Math.round(bitmap.height * ratio));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close?.();
+    return file;
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  const blob: Blob | null = await new Promise((res) =>
+    canvas.toBlob((b) => res(b), "image/jpeg", quality),
+  );
+  if (!blob || blob.size >= file.size) return file; // gak ada gain → pakai aslinya
+  return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+}
 
 interface ScanRow {
   id: string;
@@ -44,41 +81,63 @@ const STEPS = [
 ];
 
 export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
-  const addJamaah = useJamaahStore((s) => s.addJamaah);
+  const addJamaahBulk = useJamaahStore((s) => s.addJamaahBulk);
   const [phase, setPhase] = useState<"upload" | "scanning" | "review">("upload");
   const [rows, setRows] = useState<ScanRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [compressing, setCompressing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const activeScans = useRef(0);
-  const queueRef = useRef<string[]>([]);
 
   const reset = () => {
     rows.forEach((r) => URL.revokeObjectURL(r.previewUrl));
     setRows([]);
     setPhase("upload");
     setSaving(false);
-    activeScans.current = 0;
-    queueRef.current = [];
+    setSaveProgress({ done: 0, total: 0 });
+    setCompressing(false);
   };
 
   const handleClose = () => {
+    if (saving) {
+      toast.info("Tunggu sampai proses simpan selesai dulu.");
+      return;
+    }
     reset();
     onClose();
   };
 
-  const addFiles = useCallback((files: FileList | File[]) => {
+  const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (arr.length === 0) { toast.error("Pilih file gambar (JPG/PNG/WEBP)."); return; }
-    const newRows: ScanRow[] = arr.map((file) => ({
-      id: `scan-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-      status: "queued",
-      progress: 0,
-      data: { name: "", passportNumber: "", birthDate: "", gender: "", expiryDate: "" },
-    }));
-    setRows((prev) => [...prev, ...newRows]);
+    setCompressing(true);
+    const compressId = toast.loading(`Mengoptimasi ${arr.length} foto…`);
+    try {
+      // ⚡ Compress semua file paralel sebelum dipakai untuk OCR/upload.
+      const compressed = await Promise.all(
+        arr.map((f) => compressImage(f).catch(() => f)),
+      );
+      const newRows: ScanRow[] = compressed.map((file, i) => ({
+        id: `scan-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        status: "queued",
+        progress: 0,
+        data: { name: "", passportNumber: "", birthDate: "", gender: "", expiryDate: "" },
+      }));
+      setRows((prev) => [...prev, ...newRows]);
+      const totalSavedKB = arr.reduce((s, f, i) => s + Math.max(0, f.size - compressed[i].size), 0) / 1024;
+      toast.success(
+        `${arr.length} foto siap diproses${totalSavedKB > 50 ? ` · hemat ${Math.round(totalSavedKB)} KB` : ""}`,
+        { id: compressId },
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal mengoptimasi sebagian foto.", { id: compressId });
+    } finally {
+      setCompressing(false);
+    }
   }, []);
 
   const removeRow = (id: string) => {
@@ -95,91 +154,78 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
     );
   };
 
-  const processQueue = useCallback((allRows: ScanRow[]) => {
-    const MAX_CONCURRENT = 2;
-    const runNext = () => {
-      while (activeScans.current < MAX_CONCURRENT && queueRef.current.length > 0) {
-        const nextId = queueRef.current.shift()!;
-        activeScans.current++;
-        setRows((prev) =>
-          prev.map((r) => r.id === nextId ? { ...r, status: "scanning", progress: 0 } : r)
-        );
-        const row = allRows.find((r) => r.id === nextId);
-        if (!row) { activeScans.current--; runNext(); return; }
-        scanPassport(row.file, (pct) => {
-          setRows((prev) => prev.map((r) => r.id === nextId ? { ...r, progress: pct } : r));
-        })
-          .then((result) => {
-            setRows((prev) =>
-              prev.map((r) =>
-                r.id === nextId
-                  ? {
-                      ...r,
-                      status: "done",
-                      progress: 100,
-                      mrzValid: result.mrzValid,
-                      failedChecks: failedChecksumLabels(result),
-                      source: result.source,
-                      data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", expiryDate: result.expiryDate || "" },
-                    }
-                  : r
-              )
-            );
-          })
-          .catch(() => {
-            setRows((prev) =>
-              prev.map((r) => r.id === nextId ? { ...r, status: "error", progress: 0, errorMsg: "Gagal scan" } : r)
-            );
-          })
-          .finally(() => {
-            activeScans.current--;
-            runNext();
-          });
-      }
-    };
-    runNext();
-  }, []);
-
-  const startScanning = () => {
+  // ⚡ Parallel scanner: spawn N worker promises that pull from a shared queue.
+  // 4 concurrent gives ~2x speedup vs old MAX=2 tanpa risiko OOM Tesseract.
+  const startScanning = async () => {
     if (rows.length === 0) { toast.error("Pilih minimal 1 foto paspor."); return; }
     setPhase("scanning");
-    queueRef.current = rows.map((r) => r.id);
-    activeScans.current = 0;
-    processQueue(rows);
+    const MAX_CONCURRENT = 4;
+    const queue = rows.map((r) => ({ id: r.id, file: r.file }));
+
+    const scanOne = async (item: { id: string; file: File }) => {
+      setRows((prev) => prev.map((r) => r.id === item.id ? { ...r, status: "scanning", progress: 0 } : r));
+      try {
+        const result = await scanPassport(item.file, (pct) => {
+          setRows((prev) => prev.map((r) => r.id === item.id ? { ...r, progress: pct } : r));
+        });
+        setRows((prev) => prev.map((r) =>
+          r.id === item.id
+            ? {
+                ...r,
+                status: "done",
+                progress: 100,
+                mrzValid: result.mrzValid,
+                failedChecks: failedChecksumLabels(result),
+                source: result.source,
+                data: { name: result.name || "", passportNumber: result.passportNumber || "", birthDate: result.birthDate || "", gender: result.gender || "", expiryDate: result.expiryDate || "" },
+              }
+            : r,
+        ));
+      } catch {
+        setRows((prev) => prev.map((r) =>
+          r.id === item.id ? { ...r, status: "error", progress: 0, errorMsg: "Gagal scan" } : r,
+        ));
+      }
+    };
+
+    // N worker loops menjalankan Promise.all — semua tetap "paralel" tapi dibatasi ke MAX_CONCURRENT.
+    const worker = async () => {
+      while (queue.length > 0) {
+        const next = queue.shift();
+        if (!next) return;
+        await scanOne(next);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT, rows.length) }, worker));
   };
 
   const handleSaveAll = async () => {
     const validRows = rows.filter((r) => r.data.name.trim());
     if (validRows.length === 0) { toast.error("Minimal satu jamaah harus memiliki nama."); return; }
-    const rowsSnap = [...validRows];
-    // Tutup dialog langsung — batch save jalan di background
-    handleClose();
-    toast.info(`Menyimpan ${rowsSnap.length} jamaah di latar belakang…`);
+    setSaving(true);
+    setSaveProgress({ done: 0, total: validRows.length });
+    const drafts = validRows.map((row) => ({
+      tripId,
+      name: row.data.name.trim(),
+      phone: "",
+      birthDate: row.data.birthDate,
+      passportNumber: row.data.passportNumber.trim(),
+      passportExpiry: row.data.expiryDate || undefined,
+      gender: row.data.gender,
+      photoDataUrl: undefined as string | undefined,
+      needsReview: row.mrzValid === false,
+    }));
     try {
-      const results = await Promise.allSettled(
-        rowsSnap.map((row) =>
-          addJamaah({
-            tripId,
-            name: row.data.name.trim(),
-            phone: "",
-            birthDate: row.data.birthDate,
-            passportNumber: row.data.passportNumber.trim(),
-            passportExpiry: row.data.expiryDate || undefined,
-            gender: row.data.gender,
-            photoDataUrl: row.previewUrl.startsWith("blob:") ? undefined : row.previewUrl,
-            needsReview: row.mrzValid === false,
-          })
-        )
-      );
-      const okCount = results.filter((r) => r.status === "fulfilled").length;
-      const failCount = results.length - okCount;
-      if (okCount > 0) toast.success(`${okCount} jamaah berhasil disimpan.`);
-      if (failCount > 0) toast.error(`${failCount} jamaah gagal disimpan.`);
-    } catch {
-      toast.error("Gagal menyimpan beberapa jamaah.");
-    } finally {
-      // no-op — dialog already closed
-      void 0;
+      // ⚡ SATU kali batch insert (1 round-trip ke Supabase, bukan N kali).
+      await addJamaahBulk(drafts, (done, total) => setSaveProgress({ done, total }));
+      toast.success(`${drafts.length} jamaah berhasil disimpan.`);
+      setSaving(false);
+      reset();
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan jamaah.";
+      toast.error(msg);
+      setSaving(false);
     }
   };
 
@@ -483,20 +529,41 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
           )}
         </div>
 
+        {/* Save progress bar — muncul cuma pas batch save jalan */}
+        {saving && saveProgress.total > 0 && (
+          <div className="px-5 py-2 border-t border-[hsl(var(--border))] bg-emerald-50/60 shrink-0">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-800 mb-1.5">
+              <span className="flex items-center gap-1.5">
+                <Database className="h-3.5 w-3.5 animate-pulse" />
+                Menyimpan ke database…
+              </span>
+              <span className="tabular-nums">
+                {saveProgress.done}/{saveProgress.total}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-emerald-100 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
+                style={{ width: `${Math.round((saveProgress.done / saveProgress.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-5 py-3 border-t border-[hsl(var(--border))] flex items-center justify-between gap-3 shrink-0 bg-white/80 backdrop-blur-sm">
-          <button type="button" onClick={handleClose}
-            className="h-8 px-4 rounded-xl text-[12px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors">
+          <button type="button" onClick={handleClose} disabled={saving}
+            className="h-8 px-4 rounded-xl text-[12px] font-semibold bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors disabled:opacity-40">
             Tutup
           </button>
 
           <div className="flex gap-2">
             {phase === "upload" && (
-              <button type="button" onClick={startScanning} disabled={rows.length === 0}
+              <button type="button" onClick={startScanning} disabled={rows.length === 0 || compressing}
                 className="h-8 px-4 rounded-xl text-[12px] font-bold text-white flex items-center gap-1.5 transition-all disabled:opacity-40"
                 style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}>
-                <ScanLine className="h-3.5 w-3.5" />
-                Mulai Scan ({rows.length} foto)
+                {compressing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ScanLine className="h-3.5 w-3.5" />}
+                {compressing ? "Mengoptimasi foto…" : `Mulai Scan (${rows.length} foto)`}
               </button>
             )}
             {phase === "scanning" && (() => {
