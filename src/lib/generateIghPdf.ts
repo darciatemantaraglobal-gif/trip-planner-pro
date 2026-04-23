@@ -2,44 +2,44 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage, type RGB }
 import fontkit from "@pdf-lib/fontkit";
 
 /**
- * Generator PDF berbasis template `IGH Template.pdf`.
+ * Generator PDF berbasis template `igh-blank-template.pdf`.
  *
- * Strategy:
- *   1. Load template PDF (yang sudah punya design lengkap + placeholder text).
- *   2. Tutup (mask) area placeholder dengan rectangle berwarna sama persis.
- *   3. Overlay teks hasil mapping data dari calculator pakai font Montserrat.
+ * Koordinat dikalibrasi langsung dari raster render template @ 740×1024 px.
+ * Label "Invoice to :", "Date :", "Hotel Makkah/Madinah", "Jumlah Pax :",
+ * "Harga per Pax :", "Sudah/Belum Termasuk", dan kotak orange semuanya
+ * sudah baked di template — kita tinggal overlay value-nya pakai Sk-Modernist.
  *
- * Koordinat dihitung dari rendering 740 × 1024 px → PDF 413.95 × 572.53 pt.
- * Skala ≈ 0.5594 (sama untuk x dan y).
+ * Posisi terukur (top-origin, 740×1024 px space):
+ *   - "Invoice to :"  baseline yTop=235.3, x=335.4, size=11.6
+ *   - "Date :"        baseline yTop=235.5, x=538.0, size=11.6
+ *   - "Hotel Makkah"  baseline yTop=385.1, x=50.9,  size=15.4
+ *   - "Hotel Madinah" baseline yTop=385.1, x=407.3, size=15.4
+ *   - "Jumlah Pax :"  baseline yTop=507.7, x=50.9,  size=15.4
+ *   - "Harga per Pax" baseline yTop=507.7, x=419.4, size=15.4
+ *   - PAX BOX   x≈47..161  (w114), y≈518..579 (h61)
+ *   - PRICE BOX x≈272..678 (w406), y≈518..579 (h61)
+ *   - Sudah/Belum pill baseline yTop=687.1
+ *   - Numbered list digit-baselines y ≈ 725, 753, 781, 806, 834
+ *   - Underlines  ≈ 735, 764, 791, 818, (845)
+ *   - Underline x: left 45..330, right 409..694
  */
 
-// PDF Underlay: blank template (cuma label & frame, tanpa placeholder text).
-// Data dari calculator di-"ketik" di atasnya pakai pdf-lib + Montserrat Bold.
 const TEMPLATE_URL = "/igh-blank-template.pdf";
-const FONT_REGULAR_URL = "/fonts/Montserrat-Regular.ttf";
-const FONT_BOLD_URL = "/fonts/Montserrat-Bold.ttf";
-const FONT_EXTRABOLD_URL = "/fonts/Montserrat-ExtraBold.ttf";
+const FONT_REGULAR_URL = "/fonts/Sk-Modernist-Regular.otf";
+const FONT_BOLD_URL = "/fonts/Sk-Modernist-Bold.otf";
 
 // Template canonical pixel size (matches the 150-DPI render of igh-template.pdf)
 const TPL_W_PX = 740;
-const TPL_H_PX = 1024;
 const PAGE_W = 413.9506;
 const PAGE_H = 572.532;
 const SCALE = PAGE_W / TPL_W_PX; // ≈ 0.5594
 
-// Brand colors sampled from the template artwork
-const ORANGE_TEXT: RGB = rgb(0.945, 0.471, 0.118); // #F1781E — headings & values
-const DARK: RGB = rgb(0.13, 0.13, 0.13);          // body text
-const DARK_BROWN: RGB = rgb(0.20, 0.14, 0.10);    // project name — kontras hangat vs label grey
-const GREY_MUTED: RGB = rgb(0.42, 0.42, 0.42);    // sub-info (jumlah malam, dll)
+// Brand colors — Orange #F28E34 untuk semua data isian
+const ORANGE: RGB = rgb(0xF2 / 255, 0x8E / 255, 0x34 / 255); // #F28E34
+const GREY_LABEL: RGB = rgb(0.36, 0.36, 0.36);  // small grey labels (Project :)
+const GREY_MUTED: RGB = rgb(0.45, 0.45, 0.45);  // sub-info (jumlah malam, kurs)
+const DARK: RGB = rgb(0.13, 0.13, 0.13);        // list item text
 const WHITE: RGB = rgb(1, 1, 1);
-
-// ── LAYOUT GRID (kolom & anchor — semua dalam template px space 740×1024) ──
-// Halaman dibagi 2 kolom utama (kiri & kanan) dengan margin konsisten.
-const COL_LEFT_X = 55;        // start kolom kiri (Project, Hotel Makkah, list kiri)
-const COL_RIGHT_X = 410;      // start kolom kanan (Hotel Madinah, list kanan)
-const PAGE_RIGHT_X = 700;     // batas kanan untuk teks rata-kanan
-const COL_WIDTH = 305;        // lebar konten per kolom
 
 export interface IghPdfData {
   /** Project Name → "(Nama Penawaran)" */
@@ -79,77 +79,58 @@ function pxRect(leftPx: number, topPx: number, widthPx: number, heightPx: number
   return { x, y, width: w, height: h };
 }
 
-/** Mask a region with a solid color (covers placeholder text in the template). */
-
-/** Draw text and shrink size if needed to fit max width.
- *  Final fallback: truncate with ellipsis if still over-width at minSize
- *  (prevents silent overflow into adjacent columns). */
-function drawTextFit(
-  page: PDFPage,
-  text: string,
-  opts: { leftPx: number; topPx: number; size: number; minSize?: number; font: PDFFont; color: RGB; maxWidthPx: number },
-) {
-  const max = opts.maxWidthPx * SCALE;
-  let size = opts.size;
-  const minSize = opts.minSize ?? 10;
-  while (size > minSize && opts.font.widthOfTextAtSize(text, size) > max) size -= 0.5;
-  const value =
-    opts.font.widthOfTextAtSize(text, size) > max
-      ? truncateToWidth(text, opts.font, size, max)
-      : text;
-  const x = opts.leftPx * SCALE;
-  const y = PAGE_H - opts.topPx * SCALE - size * 0.82;
-  page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
-}
-
-/** Draw text using top-left pixel coords; size is in PDF points. */
+/** Draw text using top-left pixel coords; size is in PDF points.
+ *  Optionally auto-shrinks to fit maxWidthPx (with ellipsis fallback). */
 function drawText(
   page: PDFPage,
   text: string,
-  opts: { leftPx: number; topPx: number; size: number; font: PDFFont; color: RGB; maxWidthPx?: number },
-) {
-  const x = opts.leftPx * SCALE;
-  // Approximate baseline: top + cap-height (~0.78 of size for Montserrat)
-  const y = PAGE_H - opts.topPx * SCALE - opts.size * 0.82;
-  const value = opts.maxWidthPx
-    ? truncateToWidth(text, opts.font, opts.size, opts.maxWidthPx * SCALE)
-    : text;
-  page.drawText(value, { x, y, size: opts.size, font: opts.font, color: opts.color });
-}
-
-/** Draw text right-aligned to a given right anchor (px). Auto-shrinks if maxWidth provided. */
-function drawTextRight(
-  page: PDFPage,
-  text: string,
-  opts: { rightPx: number; topPx: number; size: number; minSize?: number; font: PDFFont; color: RGB; maxWidthPx?: number },
+  opts: {
+    leftPx: number;
+    topPx: number;
+    size: number;
+    minSize?: number;
+    font: PDFFont;
+    color: RGB;
+    maxWidthPx?: number;
+  },
 ) {
   let size = opts.size;
-  const minSize = opts.minSize ?? 9;
+  const minSize = opts.minSize ?? Math.max(8, opts.size - 6);
   const maxW = opts.maxWidthPx ? opts.maxWidthPx * SCALE : Infinity;
   while (size > minSize && opts.font.widthOfTextAtSize(text, size) > maxW) size -= 0.5;
-  const value = opts.font.widthOfTextAtSize(text, size) > maxW
-    ? truncateToWidth(text, opts.font, size, maxW)
-    : text;
-  const w = opts.font.widthOfTextAtSize(value, size);
-  const x = opts.rightPx * SCALE - w;
-  const y = PAGE_H - opts.topPx * SCALE - size * 0.82;
+  const value =
+    opts.font.widthOfTextAtSize(text, size) > maxW
+      ? truncateToWidth(text, opts.font, size, maxW)
+      : text;
+  const x = opts.leftPx * SCALE;
+  // Place top of text at topPx — pdf-lib draws at baseline, cap-height ≈ size*0.78
+  const y = PAGE_H - opts.topPx * SCALE - size * 0.78;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
-/** Draw text horizontally centered inside a given pixel rectangle.
- *  Auto-shrinks down to 8pt; final fallback is ellipsis truncation so very
- *  long inputs never bleed past the box boundary. */
+/** Draw text horizontally + vertically centered inside a pixel rectangle.
+ *  Uses cap-height (~0.70 × size) for true visual centering. */
 function drawTextCentered(
   page: PDFPage,
   text: string,
-  opts: { leftPx: number; topPx: number; widthPx: number; heightPx: number; size: number; font: PDFFont; color: RGB },
+  opts: {
+    leftPx: number;
+    topPx: number;
+    widthPx: number;
+    heightPx: number;
+    size: number;
+    minSize?: number;
+    font: PDFFont;
+    color: RGB;
+  },
 ) {
   const r = pxRect(opts.leftPx, opts.topPx, opts.widthPx, opts.heightPx);
-  const maxW = r.width - 8;
+  const maxW = r.width - 16;
+  const minSize = opts.minSize ?? 10;
   let size = opts.size;
   let textW = opts.font.widthOfTextAtSize(text, size);
-  while (textW > maxW && size > 8) {
-    size -= 1;
+  while (textW > maxW && size > minSize) {
+    size -= 0.5;
     textW = opts.font.widthOfTextAtSize(text, size);
   }
   let value = text;
@@ -157,8 +138,9 @@ function drawTextCentered(
     value = truncateToWidth(text, opts.font, size, maxW);
     textW = opts.font.widthOfTextAtSize(value, size);
   }
+  const cap = size * 0.70; // visual cap height
   const x = r.x + (r.width - textW) / 2;
-  const y = r.y + (r.height - size * 0.82) / 2;
+  const y = r.y + (r.height - cap) / 2;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
@@ -189,11 +171,10 @@ function fmtIdr(n: number): string {
 
 /** Build the filled PDF (returns bytes). */
 export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
-  const [tplBytes, regBytes, boldBytes, exBoldBytes] = await Promise.all([
+  const [tplBytes, regBytes, boldBytes] = await Promise.all([
     fetchBytes(TEMPLATE_URL),
     fetchBytes(FONT_REGULAR_URL),
     fetchBytes(FONT_BOLD_URL),
-    fetchBytes(FONT_EXTRABOLD_URL),
   ]);
 
   const pdf = await PDFDocument.load(tplBytes);
@@ -201,139 +182,124 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
 
   const fontReg = await pdf.embedFont(regBytes, { subset: true });
   const fontBold = await pdf.embedFont(boldBytes, { subset: true });
-  const fontExBold = await pdf.embedFont(exBoldBytes, { subset: true }).catch(() => fontBold);
 
-  // Fallback for any glyphs not in Latin subset (defensive — shouldn't trigger for our inputs)
+  // Defensive Helvetica fallback (not actually drawn)
   void (await pdf.embedFont(StandardFonts.Helvetica));
 
   const page = pdf.getPage(0);
 
-  // ── PDF UNDERLAY MODE ──────────────────────────────────────────────────
-  // Template `igh-blank-template.pdf` cuma punya label & frame (tanpa
-  // placeholder text), jadi semua teks digambar TRANSPARAN — gak ada mask
-  // box putih di belakangnya. Semua data utama pakai Montserrat Bold/ExtraBold.
-  // Koordinat di bawah adalah TEBAKAN AWAL (px space 740×1024) — gampang
-  // di-tweak per-field tanpa risiko ngebocorin warna mask.
-
-  // ── 1. HEADER META (kanan atas) ──
-  // Label "Invoice to :" & "Date :" baked in template (sejajar horizontal).
-  // Value di-DRAW rata-kanan tepat di BAWAH masing-masing label, biar block-nya
-  // kebaca sebagai: [LABEL]
-  //                 [VALUE rata kanan]
-  // Anchor kanan: kolom invoice berakhir di x=445, kolom date berakhir di x=PAGE_RIGHT_X.
-  const META_VALUE_TOP = 273;   // tepat di bawah baris label (label baseline ~250)
-  drawTextRight(page, data.customerName || "—", {
-    rightPx: 445, topPx: META_VALUE_TOP, size: 12, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 165,
-  });
-  drawTextRight(page, data.date || "—", {
-    rightPx: PAGE_RIGHT_X, topPx: META_VALUE_TOP, size: 12, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 175,
+  // ── 1. PROJECT label + name + timeline (kiri atas) ──
+  // Template tidak punya label "Project :" — kita gambarkan biar konsisten
+  // dengan style "Invoice to :" / "Date :" (size 11, grey).
+  drawText(page, "Project :", {
+    leftPx: 55, topPx: 224, size: 11, font: fontReg, color: GREY_LABEL,
   });
 
-  // ── 2. PROJECT SECTION (kiri atas) ──
-  // Project name DI BAWAH label "Project :" (label berada di y≈250 di template),
-  // line-height lega (1.30) biar dua baris nggak nempel, warna dark-brown buat
-  // kontras hangat dengan label grey.
+  // Project Name — Orange Bold, multi-line dengan wrap di width kolom.
   const projectName = (data.projectName || "—").trim();
-  let projSize = 20;
+  let projSize = 22;
   let projLines: string[] = [projectName];
-  while (projSize > 12) {
-    projLines = wrapAtSize(projectName, fontExBold, projSize, COL_WIDTH * SCALE);
+  const projMaxW = 285 * SCALE; // kolom kiri sebelum dipotong kolom Invoice
+  while (projSize > 14) {
+    projLines = wrapAtSize(projectName, fontBold, projSize, projMaxW);
     if (projLines.length <= 2) break;
     projSize -= 1;
   }
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
-  const projLH = projSize * 1.30;
-  const PROJECT_TOP = 278; // mulai dari sini, di bawah label "Project :"
-  let py = PROJECT_TOP;
+  const projLH = projSize * 1.05;
+  let py = 247; // top of first line, sedikit di bawah label "Project :"
   for (const line of projLines) {
-    drawText(page, line, { leftPx: COL_LEFT_X, topPx: py, size: projSize, font: fontExBold, color: DARK_BROWN });
+    drawText(page, line, {
+      leftPx: 55, topPx: py, size: projSize, font: fontBold, color: ORANGE,
+    });
     py += projLH;
   }
 
-  // ── Timeline (Periode) — left-align persis di bawah Project Name ──
-  const timelineTop = py + 6;
+  // Timeline (Periode) — grey muted, persis di bawah project name
   drawText(page, data.timeline || "—", {
-    leftPx: COL_LEFT_X, topPx: timelineTop, size: 11, font: fontBold, color: GREY_MUTED, maxWidthPx: COL_WIDTH,
+    leftPx: 55, topPx: py + 6, size: 11, font: fontReg, color: GREY_MUTED, maxWidthPx: 285,
   });
 
-  // ── 3. HOTEL SECTION (dua kolom sejajar — LEFT ALIGN) ──
-  // Label "Hotel Makkah" & "Hotel Madinah" baked in template di y≈370 (kiri & kanan).
-  // Nama hotel (Bold Orange) di atas — Jumlah Malam (Regular Grey) tepat di bawahnya.
-  const HOTEL_NAME_TOP = 410;
-  const HOTEL_NIGHTS_TOP = 445;
-  drawTextFit(page, data.hotelMakkah || "—", {
-    leftPx: COL_LEFT_X, topPx: HOTEL_NAME_TOP, size: 18, minSize: 10,
-    font: fontExBold, color: ORANGE_TEXT, maxWidthPx: COL_WIDTH,
+  // ── 2. HEADER META (Invoice to & Date) ──
+  // Label baseline yTop=235 → value mulai topPx=247 (8px di bawah label),
+  // LEFT-aligned ke posisi label-nya (x=335 dan x=538).
+  drawText(page, data.customerName || "—", {
+    leftPx: 335, topPx: 247, size: 12, font: fontBold, color: ORANGE, maxWidthPx: 175,
+  });
+  drawText(page, data.date || "—", {
+    leftPx: 538, topPx: 247, size: 12, font: fontBold, color: ORANGE, maxWidthPx: 175,
+  });
+
+  // ── 3. HOTEL SECTION ──
+  // Label baseline yTop=385 → nama hotel topPx=395 (10px di bawah label), Orange Bold besar.
+  drawText(page, data.hotelMakkah || "—", {
+    leftPx: 51, topPx: 395, size: 22, minSize: 12, font: fontBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: COL_LEFT_X, topPx: HOTEL_NIGHTS_TOP, size: 11, font: fontReg, color: GREY_MUTED,
+    leftPx: 51, topPx: 433, size: 11, font: fontReg, color: GREY_MUTED,
   });
-  drawTextFit(page, data.hotelMadinah || "—", {
-    leftPx: COL_RIGHT_X, topPx: HOTEL_NAME_TOP, size: 18, minSize: 10,
-    font: fontExBold, color: ORANGE_TEXT, maxWidthPx: COL_WIDTH - 30,
+  drawText(page, data.hotelMadinah || "—", {
+    leftPx: 407, topPx: 395, size: 22, minSize: 12, font: fontBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: COL_RIGHT_X, topPx: HOTEL_NIGHTS_TOP, size: 11, font: fontReg, color: GREY_MUTED,
+    leftPx: 407, topPx: 433, size: 11, font: fontReg, color: GREY_MUTED,
   });
 
-  // ── 4. PRICING BOXES (Pax & Harga per Pax) — center vertical+horizontal ──
-  // Box oranye baked in template. Kita tinggal taruh teks tepat di tengahnya.
-  // Tambah top-padding ~3px biar nggak mepet ke atas box.
-  const PAX_BOX = { leftPx: 50, topPx: 545, widthPx: 105, heightPx: 60 };
-  const PRICE_BOX = { leftPx: 230, topPx: 545, widthPx: 470, heightPx: 60 };
+  // ── 4. PRICING BOXES (Pax & Harga per Pax) ──
+  // Box terukur dari raster: pax x47..161 w114 / price x272..678 w406, y518..579 h61.
+  const PAX_BOX = { leftPx: 47, topPx: 518, widthPx: 114, heightPx: 61 };
+  const PRICE_BOX = { leftPx: 272, topPx: 518, widthPx: 406, heightPx: 61 };
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
-    ...PAX_BOX, size: 26, font: fontExBold, color: WHITE,
+    ...PAX_BOX, size: 26, minSize: 14, font: fontBold, color: WHITE,
   });
   drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
-    ...PRICE_BOX, size: 24, font: fontExBold, color: WHITE,
+    ...PRICE_BOX, size: 22, minSize: 12, font: fontBold, color: WHITE,
   });
 
-  // ── 5. KURS NOTE (rata kiri di bawah box harga) ──
+  // ── 5. KURS NOTE ──
   const kurs = data.kursIdrPerUsd && data.kursIdrPerUsd > 0
     ? Math.round(data.kursIdrPerUsd).toLocaleString("id-ID")
     : "17.100";
   drawText(page, `* Kurs IDR ${kurs}/USD`, {
-    leftPx: COL_LEFT_X, topPx: 638, size: 10, font: fontReg, color: GREY_MUTED,
+    leftPx: 51, topPx: 638, size: 10, font: fontReg, color: GREY_MUTED,
   });
 
-  // ── 6. CHECKLIST (Sudah / Belum Termasuk) — LEFT ALIGN dengan line spacing konsisten ──
-  // Header box hijau & merah baked di template di y≈700. Line "01..05" di y≈735+.
-  // Item teks dimulai sedikit setelah nomor (offset 22px) supaya nggak nimpa nomor.
-  const LIST_TOP = 738;     // baseline baris pertama (sedikit di atas underline)
-  const LIST_ROW_H = 28;    // jarak antar baris konsisten
-  const LIST_TEXT_OFFSET = 22; // geser kanan biar nggak nabrak nomor "01"
-  drawList(page, data.included, {
-    leftPx: COL_LEFT_X + LIST_TEXT_OFFSET, topPx: LIST_TOP, widthPx: 235 - LIST_TEXT_OFFSET,
-    rowHeight: LIST_ROW_H, font: fontBold, color: DARK,
-  });
-  drawList(page, data.excluded, {
-    leftPx: COL_RIGHT_X + LIST_TEXT_OFFSET, topPx: LIST_TOP, widthPx: 235 - LIST_TEXT_OFFSET,
-    rowHeight: LIST_ROW_H, font: fontBold, color: DARK,
-  });
+  // ── 6. CHECKLIST (Sudah / Belum Termasuk) ──
+  // Digit baseline rows: 725, 753, 781, 806, 834 (spacing ~28). Item text
+  // di-CENTER horizontal di area setelah angka (left: x95..330, right: x459..694).
+  const ROW_BASELINES = [725, 753, 781, 806, 834];
+  const LEFT_AREA = { left: 95, width: 235 };
+  const RIGHT_AREA = { left: 459, width: 235 };
+  drawList(page, data.included, ROW_BASELINES, LEFT_AREA, fontBold);
+  drawList(page, data.excluded, ROW_BASELINES, RIGHT_AREA, fontBold);
 
   return pdf.save();
 }
 
-/** Draw checklist column dengan LEFT ALIGN dan line-spacing konsisten.
- *  Auto-shrink (drawTextFit) jaga supaya item panjang nggak ngelimpas kolom. */
+/** Draw checklist column dengan item teks center-horizontal di tiap row,
+ *  baseline tepat pada digit "01..05" yang sudah baked di template. */
 function drawList(
   page: PDFPage,
   items: string[],
-  opts: { leftPx: number; topPx: number; widthPx: number; rowHeight: number; font: PDFFont; color: RGB },
+  rowBaselines: number[],
+  area: { left: number; width: number },
+  font: PDFFont,
 ) {
-  const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, 5);
-  const FONT_SIZE = 11;
+  const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, rowBaselines.length);
   for (let i = 0; i < cleaned.length; i++) {
-    const top = opts.topPx + i * opts.rowHeight;
-    drawTextFit(page, cleaned[i], {
-      leftPx: opts.leftPx,
-      topPx: top,
-      size: FONT_SIZE,
-      minSize: 8,
-      font: opts.font,
-      color: opts.color,
-      maxWidthPx: opts.widthPx,
-    });
+    const baselinePx = rowBaselines[i];
+    // Convert digit-baseline to "topPx" so drawText (top-origin) lands aligned.
+    // size*0.78 is cap-height offset used inside drawText.
+    let size = 11;
+    const maxW = (area.width - 8) * SCALE;
+    while (size > 8 && font.widthOfTextAtSize(cleaned[i], size) > maxW) size -= 0.5;
+    const value = font.widthOfTextAtSize(cleaned[i], size) > maxW
+      ? truncateToWidth(cleaned[i], font, size, maxW)
+      : cleaned[i];
+    const textW = font.widthOfTextAtSize(value, size);
+    const x = (area.left + area.width / 2) * SCALE - textW / 2;
+    const y = PAGE_H - baselinePx * SCALE; // place baseline directly
+    page.drawText(value, { x, y, size, font, color: DARK });
   }
 }
 
@@ -372,10 +338,7 @@ export async function downloadIghPdf(data: IghPdfData, fileName?: string): Promi
 /** Render preview image (PNG data URL) of the filled PDF — uses pdfjs-dist. */
 export async function renderIghPdfPreview(data: IghPdfData, scale = 1.5): Promise<string> {
   const bytes = await buildIghPdf(data);
-  // Lazy import to avoid bundling pdfjs in the main chunk
   const pdfjs = await import("pdfjs-dist");
-  // Use the worker bundled by Vite
-  // @ts-expect-error - worker import handled by vite
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
   const doc = await pdfjs.getDocument({ data: bytes }).promise;
