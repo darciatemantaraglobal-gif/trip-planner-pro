@@ -13,7 +13,9 @@ import fontkit from "@pdf-lib/fontkit";
  * Skala ≈ 0.5594 (sama untuk x dan y).
  */
 
-const TEMPLATE_URL = "/igh-template.pdf";
+// PDF Underlay: blank template (cuma label & frame, tanpa placeholder text).
+// Data dari calculator di-"ketik" di atasnya pakai pdf-lib + Montserrat Bold.
+const TEMPLATE_URL = "/igh-blank-template.pdf";
 const FONT_REGULAR_URL = "/fonts/Montserrat-Regular.ttf";
 const FONT_BOLD_URL = "/fonts/Montserrat-Bold.ttf";
 const FONT_EXTRABOLD_URL = "/fonts/Montserrat-ExtraBold.ttf";
@@ -26,7 +28,6 @@ const PAGE_H = 572.532;
 const SCALE = PAGE_W / TPL_W_PX; // ≈ 0.5594
 
 // Brand colors sampled from the template artwork
-const ORANGE: RGB = rgb(0.964, 0.518, 0.149); // #F58426 — pax / price boxes
 const ORANGE_TEXT: RGB = rgb(0.945, 0.471, 0.118); // #F1781E — headings & values
 const DARK: RGB = rgb(0.13, 0.13, 0.13);
 const WHITE: RGB = rgb(1, 1, 1);
@@ -70,10 +71,6 @@ function pxRect(leftPx: number, topPx: number, widthPx: number, heightPx: number
 }
 
 /** Mask a region with a solid color (covers placeholder text in the template). */
-function mask(page: PDFPage, color: RGB, leftPx: number, topPx: number, widthPx: number, heightPx: number) {
-  const r = pxRect(leftPx, topPx, widthPx, heightPx);
-  page.drawRectangle({ ...r, color });
-}
 
 /** Draw text and shrink size if needed to fit max width (no truncation). */
 function drawTextFit(
@@ -170,22 +167,24 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
 
   const page = pdf.getPage(0);
 
-  // ── 3. Invoice to (Nama Customer) — placeholder "(Nama Customer)" ──
-  // Mask diperlebar biar nutup sisa karakter "(" / "_" dari template.
-  mask(page, WHITE, 332, 236, 200, 36);
+  // ── PDF UNDERLAY MODE ──────────────────────────────────────────────────
+  // Template `igh-blank-template.pdf` cuma punya label & frame (tanpa
+  // placeholder text), jadi semua teks digambar TRANSPARAN — gak ada mask
+  // box putih di belakangnya. Semua data utama pakai Montserrat Bold/ExtraBold.
+  // Koordinat di bawah adalah TEBAKAN AWAL (px space 740×1024) — gampang
+  // di-tweak per-field tanpa risiko ngebocorin warna mask.
+
+  // ── Invoice to (Nama Customer) ──
   drawText(page, data.customerName || "—", {
     leftPx: 343, topPx: 250, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 180,
   });
 
-  // ── 4. Date — placeholder "(Tanggal)" ──
-  mask(page, WHITE, 528, 236, 185, 36);
+  // ── Date ──
   drawText(page, data.date || "—", {
     leftPx: 540, topPx: 250, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
   });
 
-  // ── 1. Project Name — placeholder "(Nama Penawaran)" ──
-  // Mask DI BAWAH label "Project :" (label ~y 218–240). Geser turun supaya gak nimpa label.
-  mask(page, WHITE, 42, 250, 290, 75);
+  // ── Project Name (di bawah label "Project :") ──
   const projectName = (data.projectName || "—").trim();
   let projSize = 22;
   let projLines: string[] = [projectName];
@@ -197,56 +196,44 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
   const projLH = projSize * 1.12;
   const projTotalH = projLines.length * projLH;
-  // Center vertically dalam area mask y=250–325 (75px tinggi)
   let py = 252 + (75 - projTotalH) / 2;
   for (const line of projLines) {
     drawText(page, line, { leftPx: 55, topPx: py, size: projSize, font: fontExBold, color: ORANGE_TEXT });
     py += projLH;
   }
 
-  // ── 2. Timeline — placeholder "5 Juli - 11 Juli 2026" ──
-  mask(page, WHITE, 42, 326, 295, 26);
+  // ── Timeline ──
   drawText(page, data.timeline || "—", {
-    leftPx: 55, topPx: 330, size: 11, font: fontReg, color: DARK, maxWidthPx: 280,
+    leftPx: 55, topPx: 330, size: 11, font: fontBold, color: DARK, maxWidthPx: 280,
   });
 
-  // ── 5. Hotel Makkah ──
-  // Label "Hotel Makkah" ~y 374–390. Nama hotel ditarok di BAWAHnya (y ~395+).
-  mask(page, WHITE, 42, 393, 325, 42);
+  // ── Hotel Makkah (nama + malam) ──
   drawTextFit(page, data.hotelMakkah || "—", {
     leftPx: 55, topPx: 400, size: 20, minSize: 10, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 305,
   });
-  mask(page, WHITE, 42, 437, 205, 24);
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 55, topPx: 442, size: 11, font: fontReg, color: DARK,
+    leftPx: 55, topPx: 442, size: 11, font: fontBold, color: DARK,
   });
 
-  // ── 6. Hotel Madinah ──
-  mask(page, WHITE, 397, 393, 295, 42);
+  // ── Hotel Madinah (nama + malam) ──
   drawTextFit(page, data.hotelMadinah || "—", {
     leftPx: 410, topPx: 400, size: 20, minSize: 10, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 275,
   });
-  mask(page, WHITE, 397, 437, 205, 24);
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 410, topPx: 442, size: 11, font: fontReg, color: DARK,
+    leftPx: 410, topPx: 442, size: 11, font: fontBold, color: DARK,
   });
 
-  // ── 7. Pax orange box ──
-  // Box: x 45–155 (110 wide), y 520–585 (65 tall). Angka putih center.
-  mask(page, ORANGE, 45, 520, 110, 65);
+  // ── Jumlah Pax (di tengah box oranye) ──
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
     leftPx: 45, topPx: 520, widthPx: 110, heightPx: 65, size: 28, font: fontExBold, color: WHITE,
   });
 
-  // ── 8. Harga per Pax orange box ──
-  // Box: x 275–680 (405 wide), y 520–585 (65 tall).
-  mask(page, ORANGE, 275, 520, 405, 65);
+  // ── Harga per Pax (di tengah box oranye) ──
   drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
     leftPx: 275, topPx: 520, widthPx: 405, heightPx: 65, size: 24, font: fontExBold, color: WHITE,
   });
 
-  // ── 9. Kurs note — second asterisk line ──
-  mask(page, WHITE, 45, 622, 320, 18);
+  // ── Kurs note ──
   const kurs = data.kursIdrPerUsd && data.kursIdrPerUsd > 0
     ? Math.round(data.kursIdrPerUsd).toLocaleString("id-ID")
     : "17.100";
@@ -254,15 +241,14 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
     leftPx: 55, topPx: 624, size: 11, font: fontReg, color: DARK,
   });
 
-  // ── 10. Bullet list — Sudah Termasuk (left column) ──
-  // Rows: 5 rows × ~27 px tall starting at y≈710. Content area x 90–325 (skip "01" label & line).
+  // ── Sudah Termasuk (kolom kiri) ──
   drawList(page, data.included, {
-    leftPx: 90, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK, maskColor: WHITE,
+    leftPx: 90, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK,
   });
 
-  // ── 11. Bullet list — Belum Termasuk (right column) ──
+  // ── Belum Termasuk (kolom kanan) ──
   drawList(page, data.excluded, {
-    leftPx: 450, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK, maskColor: WHITE,
+    leftPx: 450, topPx: 710, widthPx: 235, rowHeight: 27, font: fontBold, color: DARK,
   });
 
   return pdf.save();
@@ -271,13 +257,11 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
 function drawList(
   page: PDFPage,
   items: string[],
-  opts: { leftPx: number; topPx: number; widthPx: number; rowHeight: number; font: PDFFont; color: RGB; maskColor: RGB },
+  opts: { leftPx: number; topPx: number; widthPx: number; rowHeight: number; font: PDFFont; color: RGB },
 ) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, 5);
   for (let i = 0; i < 5; i++) {
     const top = opts.topPx + i * opts.rowHeight;
-    // Mask placeholder text in the row (leave the row separator lines + numbers visible)
-    mask(page, opts.maskColor, opts.leftPx, top + 4, opts.widthPx, opts.rowHeight - 8);
     const text = cleaned[i];
     if (text) {
       drawTextCentered(page, text, {
