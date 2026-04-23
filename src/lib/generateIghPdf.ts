@@ -277,9 +277,9 @@ function drawList(
     const baselinePx = rowBaselines[i];
     // Convert digit-baseline to "topPx" so drawText (top-origin) lands aligned.
     // size*0.78 is cap-height offset used inside drawText.
-    let size = 11;
+    let size = 10;
     const maxW = (area.width - 8) * SCALE;
-    while (size > 8 && font.widthOfTextAtSize(cleaned[i], size) > maxW) size -= 0.5;
+    while (size > 7 && font.widthOfTextAtSize(cleaned[i], size) > maxW) size -= 0.5;
     const value = font.widthOfTextAtSize(cleaned[i], size) > maxW
       ? truncateToWidth(cleaned[i], font, size, maxW)
       : cleaned[i];
