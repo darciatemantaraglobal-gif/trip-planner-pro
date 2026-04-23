@@ -8,13 +8,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ClipboardCopy, RotateCcw, X } from "lucide-react";
+import { Bookmark, ClipboardCopy, Pencil, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   DEFAULT_IGH_LAYOUT,
+  deletePreset,
+  loadPresets,
   saveIghLayoutConfig,
+  upsertPreset,
   type IghFontFamily,
   type IghLayoutConfig,
+  type IghLayoutPreset,
   type IghSection,
 } from "@/lib/ighPdfConfig";
 
@@ -103,6 +107,9 @@ function TextRow({ label, value, placeholder, multiline, onChange }: TextRowProp
 
 export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
   const [local, setLocal] = useState<IghLayoutConfig>(config);
+  const [presets, setPresets] = useState<IghLayoutPreset[]>(() => loadPresets());
+  const [activePresetId, setActivePresetId] = useState<string | "">("");
+  const [presetName, setPresetName] = useState("");
 
   // Debounce upstream notify by 350ms biar slider drag/typing ga lag.
   useEffect(() => {
@@ -113,6 +120,52 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local]);
+
+  function refreshPresets() {
+    setPresets(loadPresets());
+  }
+
+  function handleApplyPreset(id: string) {
+    setActivePresetId(id);
+    if (!id) return;
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    setLocal(p.config);
+    setPresetName(p.name);
+    toast.success(`Preset "${p.name}" diterapkan`);
+  }
+
+  function handleSaveAsNew() {
+    const name = presetName.trim();
+    if (!name) {
+      toast.error("Kasih nama preset dulu");
+      return;
+    }
+    const created = upsertPreset(name, local);
+    refreshPresets();
+    setActivePresetId(created.id);
+    toast.success(`Preset "${created.name}" disimpan`);
+  }
+
+  function handleUpdateActive() {
+    if (!activePresetId) {
+      toast.error("Pilih preset dulu, atau pakai Save as New");
+      return;
+    }
+    const updated = upsertPreset(presetName, local, activePresetId);
+    refreshPresets();
+    toast.success(`Preset "${updated.name}" diperbarui`);
+  }
+
+  function handleDeleteActive() {
+    if (!activePresetId) return;
+    const p = presets.find((x) => x.id === activePresetId);
+    deletePreset(activePresetId);
+    refreshPresets();
+    setActivePresetId("");
+    setPresetName("");
+    toast.success(`Preset "${p?.name ?? ""}" dihapus`);
+  }
 
   function patch<K extends keyof IghLayoutConfig>(
     section: K,
@@ -153,6 +206,73 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {/* PRESETS */}
+        <section className="space-y-2 rounded-lg border border-orange-200 bg-orange-50/50 p-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-orange-700 flex items-center gap-1">
+            <Bookmark className="h-3 w-3" />
+            Presets
+          </h4>
+          <Select
+            value={activePresetId || "__none__"}
+            onValueChange={(v) => handleApplyPreset(v === "__none__" ? "" : v)}
+          >
+            <SelectTrigger className="h-7 text-[10px]">
+              <SelectValue placeholder="Pilih preset…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="text-[10px] italic text-slate-500">
+                — tidak ada —
+              </SelectItem>
+              {presets.length === 0 && (
+                <div className="px-2 py-1.5 text-[10px] italic text-slate-400">
+                  Belum ada preset tersimpan
+                </div>
+              )}
+              {presets.map((p) => (
+                <SelectItem key={p.id} value={p.id} className="text-[10px]">
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            placeholder="Nama preset baru…"
+            className="h-7 text-[10px]"
+          />
+          <div className="flex gap-1">
+            <button
+              onClick={handleSaveAsNew}
+              title="Save as new preset"
+              className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors"
+            >
+              <Save className="h-3 w-3" />
+              Save as New
+            </button>
+            <button
+              onClick={handleUpdateActive}
+              disabled={!activePresetId}
+              title="Update preset aktif dengan config sekarang"
+              className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+              Update
+            </button>
+            <button
+              onClick={handleDeleteActive}
+              disabled={!activePresetId}
+              title="Hapus preset aktif"
+              className="h-7 w-7 inline-flex items-center justify-center rounded-md text-rose-500 bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="text-[9px] text-slate-500 leading-snug">
+            Simpan beberapa kombinasi (mis. "Umrah 9-hari", "Haji Plus") dan switch dengan satu klik.
+          </p>
+        </section>
+
         {/* FONT FAMILY (global) */}
         <section className="space-y-2">
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
