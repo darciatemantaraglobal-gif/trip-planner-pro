@@ -13,11 +13,13 @@ import { toast } from "sonner";
 import {
   BUILTIN_PRESET,
   DEFAULT_IGH_LAYOUT,
+  GROUP_LAYOUT,
   loadPresetsCache,
   saveIghLayoutConfig,
   withBuiltins,
   type IghFontFamily,
   type IghLayoutConfig,
+  type IghLayoutMode,
   type IghLayoutPreset,
   type IghSection,
 } from "@/lib/ighPdfConfig";
@@ -45,6 +47,7 @@ const SECTION_LABELS: { key: IghSection; label: string }[] = [
 
 interface Props {
   config: IghLayoutConfig;
+  mode?: IghLayoutMode;
   onChange: (next: IghLayoutConfig) => void;
   onClose: () => void;
 }
@@ -112,7 +115,7 @@ function TextRow({ label, value, placeholder, multiline, onChange }: TextRowProp
   );
 }
 
-export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
+export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: Props) {
   const [local, setLocal] = useState<IghLayoutConfig>(config);
   const [cloudPresets, setCloudPresets] = useState<IghLayoutPreset[]>(() => loadPresetsCache());
   const [activePresetId, setActivePresetId] = useState<string | "">("");
@@ -128,7 +131,7 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
   useEffect(() => {
     const t = window.setTimeout(() => {
       onChange(local);
-      saveIghLayoutConfig(local);
+      saveIghLayoutConfig(local, mode);
     }, 350);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -261,8 +264,8 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
   }
 
   function handleReset() {
-    setLocal(DEFAULT_IGH_LAYOUT);
-    toast.message("Reset ke default");
+    setLocal(mode === "group" ? GROUP_LAYOUT : DEFAULT_IGH_LAYOUT);
+    toast.message(`Reset ke default (${mode === "group" ? "Grup" : "Private"})`);
   }
 
   return (

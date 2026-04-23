@@ -193,12 +193,49 @@ export const BUILTIN_PRESET: IghLayoutPreset = {
   builtin: true,
 };
 
-/** Built-in starter buat template Grup. Tersimpan lokal—user bisa Save as New
- *  ke cloud dengan nama lain (mis. "Grup Standard Standard"). */
+/** Layout 1:1 dengan template `IGH_Blank_Template_Group.pdf` (kicau.jpg).
+ *  Project name di atas, Date kiri / Invoice kanan, hotel Makkah/Madinah
+ *  sejajar baris label, tabel 4 kolom centered di divider asli template,
+ *  checklist sejajar nomor 01..05. Semua font Poppins, warna data ORANGE. */
+export const GROUP_LAYOUT: IghLayoutConfig = {
+  projectName: { xPx: 55, topPx: 90, size: 26, lineGapPx: 4 },
+  // Group template: Date di kiri, Invoice to di kanan (kebalik dari Private)
+  metaInfo: { customerXPx: 365, dateXPx: 55, topPx: 273, size: 12 },
+  hotel: { makkahXPx: 55, madinahXPx: 384, topPx: 343, size: 22 },
+  // Pricing private boxes tidak dipakai di group mode — biarin default.
+  pricing: { paxXPx: 47, priceXPx: 272, topPx: 518, size: 22, yOffsetPdf: -8 },
+  groupPricing: {
+    topPx: 440,
+    rowSpacingPx: 28,
+    // Column centers diukur dari divider tabel asli (36/215/397/555/706).
+    paxCenterXPx: 126,
+    quadCenterXPx: 306,
+    tripleCenterXPx: 476,
+    doubleCenterXPx: 631,
+    quadXOffsetPx: 0,
+    tripleXOffsetPx: 0,
+    doubleXOffsetPx: 0,
+    cellHeightPx: 24,
+    size: 14,
+    currencySymbol: "$",
+  },
+  checklist: {
+    leftXPx: 200,
+    rightXPx: 542,
+    firstBaselinePx: 775,
+    rowSpacingPx: 26,
+    yOffsetPx: 0,
+    size: 10,
+  },
+  fonts: { family: "Poppins", overrides: {} },
+};
+
+/** Built-in starter buat template Grup, dikalibrasi 1:1 ke kicau.jpg.
+ *  User bisa Save as New ke cloud dengan nama lain (mis. "Grup Standard Standard"). */
 export const BUILTIN_GROUP_PRESET: IghLayoutPreset = {
   id: "builtin:igh-grup-standard",
   name: "Grup Standard",
-  config: DEFAULT_IGH_LAYOUT,
+  config: GROUP_LAYOUT,
   createdAt: 0,
   updatedAt: 0,
   builtin: true,
@@ -234,20 +271,35 @@ export function withBuiltins(presets: IghLayoutPreset[]): IghLayoutPreset[] {
   return [...BUILTIN_PRESETS, ...presets.filter((p) => !p.builtin)];
 }
 
-export function loadIghLayoutConfig(): IghLayoutConfig {
+export type IghLayoutMode = "private" | "group";
+
+const MODE_STORAGE_KEYS: Record<IghLayoutMode, string> = {
+  private: STORAGE_KEY,
+  group: "igh:pdf-layout-config-group",
+};
+
+const MODE_DEFAULTS: Record<IghLayoutMode, IghLayoutConfig> = {
+  private: DEFAULT_IGH_LAYOUT,
+  group: GROUP_LAYOUT,
+};
+
+/** Load layout untuk mode tertentu. Per-mode storage biar tuning Grup
+ *  ga ngerusak preset Private (dan sebaliknya). */
+export function loadIghLayoutConfig(mode: IghLayoutMode = "private"): IghLayoutConfig {
+  const def = MODE_DEFAULTS[mode];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_IGH_LAYOUT;
+    const raw = localStorage.getItem(MODE_STORAGE_KEYS[mode]);
+    if (!raw) return def;
     const parsed = JSON.parse(raw) as Partial<IghLayoutConfig>;
-    return mergeConfig(DEFAULT_IGH_LAYOUT, parsed);
+    return mergeConfig(def, parsed);
   } catch {
-    return DEFAULT_IGH_LAYOUT;
+    return def;
   }
 }
 
-export function saveIghLayoutConfig(cfg: IghLayoutConfig) {
+export function saveIghLayoutConfig(cfg: IghLayoutConfig, mode: IghLayoutMode = "private") {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    localStorage.setItem(MODE_STORAGE_KEYS[mode], JSON.stringify(cfg));
   } catch {
     /* noop */
   }

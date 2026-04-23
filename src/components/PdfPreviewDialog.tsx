@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Download, Loader2, Sliders, X, Zap, ZapOff } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIghPdf, renderIghPdfPreview, type IghPdfData } from "@/lib/generateIghPdf";
-import { loadIghLayoutConfig, type IghLayoutConfig } from "@/lib/ighPdfConfig";
+import { loadIghLayoutConfig, type IghLayoutConfig, type IghLayoutMode } from "@/lib/ighPdfConfig";
 import { PdfLayoutTuner } from "./PdfLayoutTuner";
 
 interface Props {
@@ -26,7 +26,14 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   const [tunerOpen, setTunerOpen] = useState<boolean>(() => {
     try { return localStorage.getItem(TUNER_STORAGE_KEY) === "1"; } catch { return false; }
   });
-  const [layout, setLayout] = useState<IghLayoutConfig>(() => loadIghLayoutConfig());
+  const mode: IghLayoutMode = data.mode === "group" ? "group" : "private";
+  const [layout, setLayout] = useState<IghLayoutConfig>(() => loadIghLayoutConfig(mode));
+
+  // Kalau mode berubah (user pindah dari private → group calc), reload layout
+  // dari storage mode yang sesuai.
+  useEffect(() => {
+    setLayout(loadIghLayoutConfig(mode));
+  }, [mode]);
 
   useEffect(() => {
     try { localStorage.setItem(LIVE_STORAGE_KEY, live ? "1" : "0"); } catch {/* noop */}
@@ -122,6 +129,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   const tunerPanel = tunerOpen ? (
     <PdfLayoutTuner
       config={layout}
+      mode={mode}
       onChange={setLayout}
       onClose={() => setTunerOpen(false)}
     />
