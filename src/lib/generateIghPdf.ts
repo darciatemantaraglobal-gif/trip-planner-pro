@@ -19,6 +19,7 @@ export type { IghLayoutConfig } from "./ighPdfConfig";
  */
 
 const TEMPLATE_URL = "/igh-blank-template.pdf";
+const TEMPLATE_GROUP_URL = "/templates/IGH_Blank_Template_Group.pdf";
 
 // Template canonical pixel size (matches the 150-DPI render of igh-template.pdf)
 const TPL_W_PX = 740;
@@ -31,6 +32,15 @@ const ORANGE: RGB = rgb(0xF2 / 255, 0x8E / 255, 0x34 / 255);
 const GREY_MUTED: RGB = rgb(0.45, 0.45, 0.45);
 const DARK: RGB = rgb(0.13, 0.13, 0.13);
 const WHITE: RGB = rgb(1, 1, 1);
+
+export interface IghGroupPricingRow {
+  /** Label kolom Total Pax (mis. "10-15"). */
+  paxLabel: string;
+  /** Harga per-pax sudah dalam display currency (USD/SAR/IDR). 0/undefined = "—". */
+  quad?: number;
+  triple?: number;
+  double?: number;
+}
 
 export interface IghPdfData {
   projectName: string;
@@ -46,6 +56,10 @@ export interface IghPdfData {
   kursIdrPerUsd?: number;
   included: string[];
   excluded: string[];
+  /** Mode template. Default 'private' (template lama). */
+  mode?: "private" | "group";
+  /** Data tabel grup — dipakai cuma kalau mode='group'. */
+  groupPricing?: IghGroupPricingRow[];
 }
 
 // ── Coordinate helpers ─────────────────────────────────────────────────────
@@ -145,6 +159,15 @@ function fmtIdr(n: number): string {
   return "Rp. " + Math.round(n).toLocaleString("id-ID");
 }
 
+/** Format harga dengan symbol prefix (mis. "$815"). 0/undefined → "—". */
+function fmtMoney(n: number | undefined, symbol: string): string {
+  if (!n || !Number.isFinite(n) || n <= 0) return "—";
+  const rounded = Math.round(n);
+  // USD/SAR pakai pemisah "," (en-US). Kalau Rp, biarin id-ID.
+  const locale = symbol.trim().toLowerCase().startsWith("rp") ? "id-ID" : "en-US";
+  return `${symbol}${rounded.toLocaleString(locale)}`;
+}
+
 /** Pilih nilai dari override teks vs data kalkulator. */
 function pick(override: string | undefined, fallback: string): string {
   const v = (override ?? "").trim();
@@ -153,7 +176,8 @@ function pick(override: string | undefined, fallback: string): string {
 
 export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
   const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
-  const tplBytes = await fetchBytes(TEMPLATE_URL);
+  const isGroup = data.mode === "group";
+  const tplBytes = await fetchBytes(isGroup ? TEMPLATE_GROUP_URL : TEMPLATE_URL);
 
   const pdf = await PDFDocument.load(tplBytes);
   pdf.registerFontkit(fontkit);
@@ -246,20 +270,52 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + 38, size: 9, font: hotelReg, color: DARK,
   });
 
-  // ── 4. PRICING BOXES (Pax & Harga per Pax) ──
-  const priceBold = fontFor("pricing", "bold");
-  const PAX_BOX = { leftPx: cfg.pricing.paxXPx, topPx: cfg.pricing.topPx, widthPx: 114, heightPx: 61 };
-  const PRICE_BOX = { leftPx: cfg.pricing.priceXPx, topPx: cfg.pricing.topPx, widthPx: 406, heightPx: 61 };
-  const paxText = pick(cfg.pricing.paxText, String(Math.max(0, data.pax || 0)));
-  const priceText = pick(cfg.pricing.priceText, fmtIdr(data.pricePerPaxIDR || 0));
-  drawTextCentered(page, paxText, {
-    ...PAX_BOX, size: cfg.pricing.size + 4, minSize: 14, font: priceBold, color: WHITE,
-    yOffsetPdf: cfg.pricing.yOffsetPdf,
-  });
-  drawTextCentered(page, priceText, {
-    ...PRICE_BOX, size: cfg.pricing.size, minSize: 12, font: priceBold, color: WHITE,
-    yOffsetPdf: cfg.pricing.yOffsetPdf,
-  });
+  // ── 4. PRICING ──
+  if (isGroup) {
+    // Group template: tabel 4 kolom (Total Pax | Quad | Triple | Double),
+    // multi-row stacked. Color ORANGE, true center horizontal & vertical.
+    const gp = cfg.groupPricing;
+    const groupBold = fontFor("groupPricing", "bold");
+    const rows = data.groupPricing ?? [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const topPx = gp.topPx + i * gp.rowSpacingPx;
+      // Lebar kolom virtual buat truncation budget; cukup besar.
+      const COL_W = 110;
+      // Helper: render satu sel di X-center tertentu, true-center vertikal.
+      const cell = (centerXPx: number, text: string) => {
+        drawTextCentered(page, text, {
+          leftPx: centerXPx - COL_W / 2,
+          topPx,
+          widthPx: COL_W,
+          heightPx: gp.cellHeightPx,
+          size: gp.size,
+          minSize: 9,
+          font: groupBold,
+          color: ORANGE,
+        });
+      };
+      cell(gp.paxCenterXPx, row.paxLabel || "—");
+      cell(gp.quadCenterXPx + gp.quadXOffsetPx, fmtMoney(row.quad, gp.currencySymbol));
+      cell(gp.tripleCenterXPx + gp.tripleXOffsetPx, fmtMoney(row.triple, gp.currencySymbol));
+      cell(gp.doubleCenterXPx + gp.doubleXOffsetPx, fmtMoney(row.double, gp.currencySymbol));
+    }
+  } else {
+    // Private template: 2 kotak orange (Pax + Harga per Pax).
+    const priceBold = fontFor("pricing", "bold");
+    const PAX_BOX = { leftPx: cfg.pricing.paxXPx, topPx: cfg.pricing.topPx, widthPx: 114, heightPx: 61 };
+    const PRICE_BOX = { leftPx: cfg.pricing.priceXPx, topPx: cfg.pricing.topPx, widthPx: 406, heightPx: 61 };
+    const paxText = pick(cfg.pricing.paxText, String(Math.max(0, data.pax || 0)));
+    const priceText = pick(cfg.pricing.priceText, fmtIdr(data.pricePerPaxIDR || 0));
+    drawTextCentered(page, paxText, {
+      ...PAX_BOX, size: cfg.pricing.size + 4, minSize: 14, font: priceBold, color: WHITE,
+      yOffsetPdf: cfg.pricing.yOffsetPdf,
+    });
+    drawTextCentered(page, priceText, {
+      ...PRICE_BOX, size: cfg.pricing.size, minSize: 12, font: priceBold, color: WHITE,
+      yOffsetPdf: cfg.pricing.yOffsetPdf,
+    });
+  }
 
   // ── 5. CHECKLIST ──
   const listFont = fontFor("checklist", "semiBold");

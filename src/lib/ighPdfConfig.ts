@@ -7,7 +7,13 @@
  */
 
 export type IghFontFamily = "Montserrat" | "Poppins" | "Sk-Modernist";
-export type IghSection = "projectName" | "metaInfo" | "pricing" | "checklist" | "hotel";
+export type IghSection =
+  | "projectName"
+  | "metaInfo"
+  | "pricing"
+  | "groupPricing"
+  | "checklist"
+  | "hotel";
 
 /** URL dari tiap weight per family. Semua di-load via fontkit pdf-lib. */
 export const FONT_FAMILY_URLS: Record<IghFontFamily, { regular: string; semiBold: string; bold: string }> = {
@@ -83,6 +89,32 @@ export interface IghLayoutConfig {
     paxText?: string;
     priceText?: string;
   };
+  /** Group pricing table (template `IGH_Blank_Template_Group.pdf`).
+   *  4 kolom: Total Pax | Quad | Triple | Double, multi-row stacked vertical. */
+  groupPricing: {
+    /** Y baris pertama (top-px). */
+    topPx: number;
+    /** Jarak vertikal antar baris (px). */
+    rowSpacingPx: number;
+    /** X center kolom Total Pax. */
+    paxCenterXPx: number;
+    /** X center kolom Quad. */
+    quadCenterXPx: number;
+    /** X center kolom Triple. */
+    tripleCenterXPx: number;
+    /** X center kolom Double. */
+    doubleCenterXPx: number;
+    /** X-offset independen per kolom harga (px). */
+    quadXOffsetPx: number;
+    tripleXOffsetPx: number;
+    doubleXOffsetPx: number;
+    /** Tinggi virtual cell utk true vertical centering (px). */
+    cellHeightPx: number;
+    /** Font size text harga / pax. */
+    size: number;
+    /** Currency symbol prefix (mis. "$" atau "Rp"). */
+    currencySymbol: string;
+  };
   checklist: {
     /** X column kiri (Sudah) — tengah kolom */
     leftXPx: number;
@@ -113,6 +145,20 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   metaInfo: { customerXPx: 335, dateXPx: 538, topPx: 259, size: 13 },
   hotel: { makkahXPx: 51, madinahXPx: 407, topPx: 395, size: 22 },
   pricing: { paxXPx: 47, priceXPx: 272, topPx: 518, size: 22, yOffsetPdf: -8 },
+  groupPricing: {
+    topPx: 510,
+    rowSpacingPx: 28,
+    paxCenterXPx: 95,
+    quadCenterXPx: 280,
+    tripleCenterXPx: 465,
+    doubleCenterXPx: 650,
+    quadXOffsetPx: 0,
+    tripleXOffsetPx: 0,
+    doubleXOffsetPx: 0,
+    cellHeightPx: 24,
+    size: 14,
+    currencySymbol: "$",
+  },
   checklist: {
     leftXPx: 212,   // tengah kolom kiri (95 + 235/2)
     rightXPx: 576,  // tengah kolom kanan (459 + 235/2)
@@ -147,6 +193,19 @@ export const BUILTIN_PRESET: IghLayoutPreset = {
   builtin: true,
 };
 
+/** Built-in starter buat template Grup. Tersimpan lokal—user bisa Save as New
+ *  ke cloud dengan nama lain (mis. "Grup Standard Standard"). */
+export const BUILTIN_GROUP_PRESET: IghLayoutPreset = {
+  id: "builtin:igh-grup-standard",
+  name: "Grup Standard",
+  config: DEFAULT_IGH_LAYOUT,
+  createdAt: 0,
+  updatedAt: 0,
+  builtin: true,
+};
+
+export const BUILTIN_PRESETS: IghLayoutPreset[] = [BUILTIN_PRESET, BUILTIN_GROUP_PRESET];
+
 /** Cache lokal (cepat, sinkron) — diisi ulang dari cloud setiap kali pull. */
 export function loadPresetsCache(): IghLayoutPreset[] {
   try {
@@ -172,7 +231,7 @@ export function savePresetsCache(presets: IghLayoutPreset[]) {
 
 /** Susun list yang ditampilkan di UI: built-in di atas, lalu cloud presets. */
 export function withBuiltins(presets: IghLayoutPreset[]): IghLayoutPreset[] {
-  return [BUILTIN_PRESET, ...presets.filter((p) => !p.builtin)];
+  return [...BUILTIN_PRESETS, ...presets.filter((p) => !p.builtin)];
 }
 
 export function loadIghLayoutConfig(): IghLayoutConfig {
@@ -204,6 +263,7 @@ export function mergeConfig(
     metaInfo: { ...base.metaInfo, ...(override.metaInfo ?? {}) },
     hotel: { ...base.hotel, ...(override.hotel ?? {}) },
     pricing: { ...base.pricing, ...(override.pricing ?? {}) },
+    groupPricing: { ...base.groupPricing, ...(override.groupPricing ?? {}) },
     checklist: { ...base.checklist, ...(override.checklist ?? {}) },
     fonts: {
       ...base.fonts,

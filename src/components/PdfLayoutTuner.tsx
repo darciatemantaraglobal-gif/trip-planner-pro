@@ -38,7 +38,8 @@ const SECTION_LABELS: { key: IghSection; label: string }[] = [
   { key: "projectName", label: "Project Name" },
   { key: "metaInfo", label: "Meta Info" },
   { key: "hotel", label: "Hotel" },
-  { key: "pricing", label: "Pricing" },
+  { key: "pricing", label: "Pricing (Private)" },
+  { key: "groupPricing", label: "Pricing (Group)" },
   { key: "checklist", label: "Checklist" },
 ];
 
@@ -589,6 +590,94 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
           <p className="text-[9px] text-slate-400 leading-snug">
             Negatif = naik, positif = turun. Tuning visual center kotak orange.
           </p>
+        </section>
+
+        {/* GROUP PRICING TABLE */}
+        <section className="space-y-2 rounded-lg border border-orange-100 bg-orange-50/30 p-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-orange-700">
+            Pricing Table — Group
+          </h4>
+          <p className="text-[9px] text-slate-500 leading-snug">
+            Khusus template <span className="font-semibold">IGH Blank Template Group</span> —
+            tabel 4 kolom (Pax · Quad · Triple · Double). Aktif kalau PDF di-generate
+            dari Kalkulator Grup.
+          </p>
+          <SliderRow
+            label="Y Position (baris pertama)"
+            value={local.groupPricing.topPx}
+            min={420} max={620} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { topPx: v })}
+          />
+          <SliderRow
+            label="Row Spacing (antar baris)"
+            value={local.groupPricing.rowSpacingPx}
+            min={14} max={48} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { rowSpacingPx: v })}
+          />
+          <SliderRow
+            label="X Center · Total Pax"
+            value={local.groupPricing.paxCenterXPx}
+            min={20} max={250} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { paxCenterXPx: v })}
+          />
+          <SliderRow
+            label="X Center · Quad"
+            value={local.groupPricing.quadCenterXPx}
+            min={150} max={400} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { quadCenterXPx: v })}
+          />
+          <SliderRow
+            label="X Center · Triple"
+            value={local.groupPricing.tripleCenterXPx}
+            min={300} max={560} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { tripleCenterXPx: v })}
+          />
+          <SliderRow
+            label="X Center · Double"
+            value={local.groupPricing.doubleCenterXPx}
+            min={460} max={720} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { doubleCenterXPx: v })}
+          />
+          <div className="pt-1 border-t border-orange-100/80" />
+          <p className="text-[9px] font-semibold text-slate-600">
+            X-Offset per kolom (geser independen):
+          </p>
+          <SliderRow
+            label="↔ Quad X-Offset"
+            value={local.groupPricing.quadXOffsetPx}
+            min={-40} max={40} step={0.5} unit="px"
+            onChange={(v) => patch("groupPricing", { quadXOffsetPx: v })}
+          />
+          <SliderRow
+            label="↔ Triple X-Offset"
+            value={local.groupPricing.tripleXOffsetPx}
+            min={-40} max={40} step={0.5} unit="px"
+            onChange={(v) => patch("groupPricing", { tripleXOffsetPx: v })}
+          />
+          <SliderRow
+            label="↔ Double X-Offset"
+            value={local.groupPricing.doubleXOffsetPx}
+            min={-40} max={40} step={0.5} unit="px"
+            onChange={(v) => patch("groupPricing", { doubleXOffsetPx: v })}
+          />
+          <SliderRow
+            label="Cell Height (vertical center)"
+            value={local.groupPricing.cellHeightPx}
+            min={14} max={48} step={1} unit="px"
+            onChange={(v) => patch("groupPricing", { cellHeightPx: v })}
+          />
+          <SliderRow
+            label="Font Size"
+            value={local.groupPricing.size}
+            min={9} max={22} step={0.5} unit="pt"
+            onChange={(v) => patch("groupPricing", { size: v })}
+          />
+          <TextRow
+            label="Currency Symbol"
+            value={local.groupPricing.currencySymbol}
+            placeholder="$ / Rp / SAR"
+            onChange={(v) => patch("groupPricing", { currencySymbol: v })}
+          />
         </section>
 
         {/* CHECKLIST */}

@@ -6,6 +6,12 @@ Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn
 - **Client**: `src/lib/supabase.ts` — pakai `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Helper `isSupabaseConfigured()` jadi feature flag.
 - **Schema**: `supabase/schema.sql` — tables (trips, jamaah, jamaah_docs, packages, package_calculations, notes, pdf_templates, pdf_layout_presets) + storage buckets (jamaah-photos, jamaah-docs, pdf-templates). Jalankan sekali di SQL Editor Supabase. Untuk DB existing yang sudah dijalankan sebelumnya, jalankan migration `supabase/migrations/2026_04_23_pdf_layout_presets.sql`.
 
+**PDF Templates (private vs group):**
+- Template assets: `/igh-blank-template.pdf` (Private) dan `/templates/IGH_Blank_Template_Group.pdf` (Group). Generator (`generateIghPdf.ts`) auto-pick berdasarkan `IghPdfData.mode` (default `'private'`).
+- Group mode mengganti pricing boxes private dengan tabel 4 kolom (Total Pax · Quad · Triple · Double), 1 baris per tier dari `groupMatrix.cells`. Harga di-format pakai `currencySymbol` config (default `$`).
+- Calculator mode `umroh_group` otomatis kirim `mode: 'group'` + `groupPricing` rows dari `groupMatrix`.
+- Section `groupPricing` di `IghLayoutConfig` punya slider Y-position (1 baris), row spacing, X-center per kolom, X-offset independen Quad/Triple/Double, cell height (true vertical centering), font size, dan currency symbol.
+
 **PDF Layout Tuner Presets (cloud-synced):**
 - Tabel `pdf_layout_presets` (id text PK, agency_id, name, payload jsonb, timestamps) per-agency RLS.
 - Built-in preset `IGH Official Default` (id `builtin:igh-official-default`) selalu muncul di dropdown sebagai safety net read-only — tidak disimpan di cloud.
