@@ -16,7 +16,10 @@ import {
   type CanvasElement,
   type SmartKey,
   type ShapeKind,
+  type FontFamily,
   SMART_KEY_LABELS,
+  FONT_FAMILY_LABELS,
+  FONT_FAMILY_CSS,
   getPageDimsPt,
 } from "./types";
 import { CanvasTemplateView } from "./renderHtml";
@@ -520,6 +523,7 @@ export function CanvasTemplateEditor({
         h: hPct,
         z: 5,
         fontSize: it.fontSizePt,
+        fontFamily: it.fontFamily,
         fontWeight: it.bold ? "bold" : "normal",
         fontStyle: it.italic ? "italic" : "normal",
         align: "left",
@@ -1192,6 +1196,7 @@ function TextFields({
       h: el.h,
       z: el.z,
       fontSize: el.fontSize,
+      fontFamily: el.fontFamily,
       fontWeight: el.fontWeight,
       fontStyle: el.fontStyle,
       align: el.align,
@@ -1231,6 +1236,7 @@ function TextFields({
       </FieldGroup>
       <FontFields
         size={el.fontSize}
+        family={el.fontFamily}
         weight={el.fontWeight}
         style={el.fontStyle}
         align={el.align}
@@ -1260,6 +1266,7 @@ function SmartFields({
       text: SMART_KEY_LABELS[el.smartKey] ?? "Teks",
       x: el.x, y: el.y, w: el.w, h: el.h, z: el.z,
       fontSize: el.fontSize,
+      fontFamily: el.fontFamily,
       fontWeight: el.fontWeight,
       fontStyle: el.fontStyle,
       align: el.align,
@@ -1307,6 +1314,7 @@ function SmartFields({
       </div>
       <FontFields
         size={el.fontSize}
+        family={el.fontFamily}
         weight={el.fontWeight}
         style={el.fontStyle}
         align={el.align}
@@ -1480,11 +1488,12 @@ function BulletFields({
 }
 
 function FontFields({
-  size, weight, style, align, color, bg,
+  size, family, weight, style, align, color, bg,
   onChange,
   onCommit,
 }: {
   size: number;
+  family: FontFamily | undefined;
   weight: "normal" | "bold";
   style: "normal" | "italic";
   align: "left" | "center" | "right";
@@ -1495,6 +1504,20 @@ function FontFields({
 }) {
   return (
     <>
+      <FieldGroup label="Jenis Font">
+        <select
+          value={family ?? "sans"}
+          onChange={(e) => { onChange({ fontFamily: e.target.value as FontFamily } as Partial<CanvasElement>); onCommit(); }}
+          className="w-full h-8 text-[11px] border border-slate-200 rounded px-2"
+          style={{ fontFamily: FONT_FAMILY_CSS[(family ?? "sans") as FontFamily] }}
+        >
+          {(Object.keys(FONT_FAMILY_LABELS) as FontFamily[]).map((k) => (
+            <option key={k} value={k} style={{ fontFamily: FONT_FAMILY_CSS[k] }}>
+              {FONT_FAMILY_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </FieldGroup>
       <div className="grid grid-cols-2 gap-2">
         <NumField label="Ukuran (pt)" value={size} onChange={(v) => onChange({ fontSize: v } as Partial<CanvasElement>)} onCommit={onCommit} />
         <FieldGroup label="Style">

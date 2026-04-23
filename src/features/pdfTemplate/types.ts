@@ -34,10 +34,64 @@ export interface BaseElement {
   rotation?: number;
 }
 
+export type FontFamily =
+  | "sans"
+  | "serif"
+  | "mono"
+  | "manrope"
+  | "inter"
+  | "poppins"
+  | "montserrat"
+  | "playfair"
+  | "lora"
+  | "roboto";
+
+export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
+  sans: "Sans-serif (Helvetica)",
+  serif: "Serif (Times)",
+  mono: "Monospace (Courier)",
+  manrope: "Manrope",
+  inter: "Inter",
+  poppins: "Poppins",
+  montserrat: "Montserrat",
+  playfair: "Playfair Display",
+  lora: "Lora",
+  roboto: "Roboto",
+};
+
+/** Mapping to CSS font-family stack for HTML preview. */
+export const FONT_FAMILY_CSS: Record<FontFamily, string> = {
+  sans: "Helvetica, Arial, sans-serif",
+  serif: '"Times New Roman", Times, serif',
+  mono: '"Courier New", Courier, monospace',
+  manrope: '"Manrope", system-ui, sans-serif',
+  inter: '"Inter", system-ui, sans-serif',
+  poppins: '"Poppins", system-ui, sans-serif',
+  montserrat: '"Montserrat", system-ui, sans-serif',
+  playfair: '"Playfair Display", Georgia, serif',
+  lora: '"Lora", Georgia, serif',
+  roboto: '"Roboto", system-ui, sans-serif',
+};
+
+/** Mapping to jsPDF builtin font (PDF export only supports helvetica/times/courier). */
+export const FONT_FAMILY_PDF: Record<FontFamily, "helvetica" | "times" | "courier"> = {
+  sans: "helvetica",
+  serif: "times",
+  mono: "courier",
+  manrope: "helvetica",
+  inter: "helvetica",
+  poppins: "helvetica",
+  montserrat: "helvetica",
+  playfair: "times",
+  lora: "times",
+  roboto: "helvetica",
+};
+
 export interface TextElement extends BaseElement {
   type: "text";
   text: string;
   fontSize: number; // pt
+  fontFamily?: FontFamily;
   fontWeight: "normal" | "bold";
   fontStyle: "normal" | "italic";
   align: "left" | "center" | "right";
@@ -85,6 +139,7 @@ export interface SmartElement extends BaseElement {
   type: "smart";
   smartKey: SmartKey;
   fontSize: number;
+  fontFamily?: FontFamily;
   fontWeight: "normal" | "bold";
   fontStyle: "normal" | "italic";
   color: string;

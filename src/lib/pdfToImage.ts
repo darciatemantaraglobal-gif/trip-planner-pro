@@ -16,6 +16,10 @@ export interface PdfPageInfo {
   pageCount: number;
 }
 
+export type DetectedFontFamily =
+  | "sans" | "serif" | "mono"
+  | "manrope" | "inter" | "poppins" | "montserrat" | "playfair" | "lora" | "roboto";
+
 export interface PdfTextItem {
   /** Raw text string */
   str: string;
@@ -31,6 +35,25 @@ export interface PdfTextItem {
   italic: boolean;
   /** Hex color, defaults to #000 (PDF.js doesn't expose color in textContent) */
   color: string;
+  /** Detected font family (best-effort match to a curated list) */
+  fontFamily: DetectedFontFamily;
+  /** Original font name from the PDF (debug/inspection) */
+  rawFontName: string;
+}
+
+function detectFontFamily(name: string): DetectedFontFamily {
+  const n = name.toLowerCase();
+  if (/poppins/.test(n)) return "poppins";
+  if (/montserrat/.test(n)) return "montserrat";
+  if (/playfair/.test(n)) return "playfair";
+  if (/lora/.test(n)) return "lora";
+  if (/roboto/.test(n)) return "roboto";
+  if (/inter\b|interregular/.test(n)) return "inter";
+  if (/manrope/.test(n)) return "manrope";
+  // Generic fallbacks
+  if (/courier|mono|consolas|menlo/.test(n)) return "mono";
+  if (/times|serif|georgia|garamond|baskerville|cambria|playbill|merriweather/.test(n)) return "serif";
+  return "sans";
 }
 
 export interface PdfEditableInfo extends PdfPageInfo {
@@ -186,11 +209,23 @@ export async function pdfFirstPageToEditable(
     const xPt = e;
     const yPt = heightPt - f - ascent;
 
-    // Heuristic style from fontName
-    const fontName: string = rawItem.fontName || "";
-    const lower = fontName.toLowerCase();
+    // Try to resolve the real font name via PDF.js commonObjs (fallback to id)
+    const internalName: string = rawItem.fontName || "";
+    let realName = internalName;
+    try {
+      const obj: any = (page as any).commonObjs?.has?.(internalName)
+        ? (page as any).commonObjs.get(internalName)
+        : null;
+      if (obj && typeof obj.name === "string") realName = obj.name;
+      else if (obj && typeof obj.fallbackName === "string") realName = obj.fallbackName;
+    } catch {
+      /* ignore */
+    }
+
+    const lower = realName.toLowerCase();
     const bold = /bold|black|heavy|semibold|demibold/.test(lower);
     const italic = /italic|oblique/.test(lower);
+    const family = detectFontFamily(realName);
 
     // Sample dominant color from rendered canvas before we mask it
     const sampledColor = sampleTextColor(
@@ -209,6 +244,8 @@ export async function pdfFirstPageToEditable(
       bold,
       italic,
       color: sampledColor ?? "#000000",
+      fontFamily: family,
+      rawFontName: realName,
     });
   }
 

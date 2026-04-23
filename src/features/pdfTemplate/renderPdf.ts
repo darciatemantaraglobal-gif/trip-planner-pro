@@ -8,7 +8,7 @@ import type {
   ShapeElement,
   BulletElement,
 } from "./types";
-import { getPageDimsPt } from "./types";
+import { getPageDimsPt, FONT_FAMILY_PDF } from "./types";
 import {
   resolveSmartValue,
   resolveBulletItems,
@@ -105,6 +105,7 @@ function drawTextBox(
   text: string,
   opts: {
     fontSize: number;
+    fontFamily?: import("./types").FontFamily;
     fontWeight: "normal" | "bold";
     fontStyle?: "normal" | "italic";
     align: "left" | "center" | "right";
@@ -127,7 +128,8 @@ function drawTextBox(
   if (!text) return;
 
   doc.setFontSize(opts.fontSize);
-  doc.setFont("helvetica", fontStyleString(opts.fontWeight, opts.fontStyle ?? "normal"));
+  const pdfFamily = opts.fontFamily ? FONT_FAMILY_PDF[opts.fontFamily] : "helvetica";
+  doc.setFont(pdfFamily, fontStyleString(opts.fontWeight, opts.fontStyle ?? "normal"));
   applyText(doc, opts.color);
 
   const innerW = Math.max(1, box.w - padX * 2);
@@ -151,6 +153,7 @@ function drawTextBox(
 function drawTextEl(doc: jsPDF, el: TextElement, box: BoxPt) {
   drawTextBox(doc, box, el.text, {
     fontSize: el.fontSize,
+    fontFamily: el.fontFamily,
     fontWeight: el.fontWeight,
     fontStyle: el.fontStyle,
     align: el.align,
@@ -180,6 +183,7 @@ function drawSmartEl(doc: jsPDF, el: SmartElement, box: BoxPt, ctx: BindingConte
   const value = `${el.prefix ?? ""}${resolveSmartValue(el.smartKey, ctx, el.format)}${el.suffix ?? ""}`;
   drawTextBox(doc, box, value, {
     fontSize: el.fontSize,
+    fontFamily: el.fontFamily,
     fontWeight: el.fontWeight,
     fontStyle: el.fontStyle,
     align: el.align,

@@ -8,7 +8,7 @@ import type {
   ShapeElement,
   BulletElement,
 } from "./types";
-import { getPageDimsPt } from "./types";
+import { getPageDimsPt, FONT_FAMILY_CSS } from "./types";
 import {
   resolveSmartValue,
   resolveBulletItems,
@@ -160,9 +160,14 @@ function textBaseStyle(
   padX: number,
   padY: number,
   ptToPx: number,
-  lineHeight = 1.2
+  lineHeight = 1.2,
+  fontFamily?: keyof typeof FONT_FAMILY_CSS
 ): CSSProperties {
+  const fam = fontFamily
+    ? FONT_FAMILY_CSS[fontFamily]
+    : "Helvetica, Arial, sans-serif";
   return {
+    fontFamily: fam,
     fontSize: `${fontSize * ptToPx}px`,
     fontWeight,
     fontStyle,
@@ -195,7 +200,8 @@ function TextView({ el, ptToPx }: { el: TextElement; ptToPx: number }) {
           el.paddingX ?? 4,
           el.paddingY ?? 2,
           ptToPx,
-          el.lineHeight ?? 1.2
+          el.lineHeight ?? 1.2,
+          el.fontFamily
         )}
       >
         <span style={{ display: "inline-block", width: "100%" }}>{el.text}</span>
@@ -245,7 +251,9 @@ function SmartView({
           el.backgroundColor,
           el.paddingX ?? 4,
           el.paddingY ?? 2,
-          ptToPx
+          ptToPx,
+          1.2,
+          el.fontFamily
         )}
       >
         <span style={{ display: "inline-block", width: "100%" }}>{value}</span>
