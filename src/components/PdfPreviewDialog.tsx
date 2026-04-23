@@ -52,18 +52,11 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-2xl bg-white flex flex-col max-h-[90vh]">
-        <div className="px-5 pt-4 pb-3 border-b border-[hsl(var(--border))] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl gradient-primary flex items-center justify-center shrink-0">
-              <FileText className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <DialogTitle className="text-[13.5px] font-bold">Preview PDF Penawaran</DialogTitle>
-              <p className="text-[10.5px] text-muted-foreground mt-0.5">
-                Template IGH Tour · data dari kalkulator dipetakan otomatis
-              </p>
-            </div>
-          </div>
+        <div className="px-5 pt-4 pb-3 border-b border-[hsl(var(--border))] shrink-0" style={{ fontFamily: "'Poppins', sans-serif" }}>
+          <DialogTitle className="text-[11px] font-medium text-slate-400/80">Preview PDF Penawaran</DialogTitle>
+          <p className="text-[9.5px] text-slate-400/70 mt-0.5 font-normal">
+            Template IGH Tour · data dari kalkulator dipetakan otomatis
+          </p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 bg-slate-100">
