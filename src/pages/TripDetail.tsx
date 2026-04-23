@@ -623,6 +623,7 @@ function JamaahPreviewDialog({
 // ── JAMAAH CARD ────────────────────────────────────────────────────────────────
 function JamaahCard({ jamaah, tripId, onDelete, onPreview }: { jamaah: Jamaah; tripId: string; onDelete: (j: Jamaah) => void; onPreview: (j: Jamaah) => void }) {
   const { formatDate } = useRegional();
+  const navigate = useNavigate();
 
   return (
     <div
@@ -682,14 +683,24 @@ function JamaahCard({ jamaah, tripId, onDelete, onPreview }: { jamaah: Jamaah; t
         </span>
       )}
 
-      {/* Delete */}
-      <button
-        className="absolute top-3 right-3 h-6 w-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 text-[hsl(var(--muted-foreground))] transition-all"
-        onClick={(e) => { e.stopPropagation(); onDelete(jamaah); }}
-        data-testid={`btn-delete-jamaah-${jamaah.id}`}
-      >
-        <Trash2 strokeWidth={1.5} className="h-3.5 w-3.5" />
-      </button>
+      {/* Action buttons (edit + delete) */}
+      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+        <button
+          className="h-6 w-6 rounded-full flex items-center justify-center hover:bg-orange-50 hover:text-[hsl(var(--primary))] text-[hsl(var(--muted-foreground))] transition-colors"
+          onClick={(e) => { e.stopPropagation(); navigate(`/paket/${tripId}/jamaah/${jamaah.id}`); }}
+          title="Edit data jamaah"
+          data-testid={`btn-edit-jamaah-${jamaah.id}`}
+        >
+          <Pencil strokeWidth={1.5} className="h-3.5 w-3.5" />
+        </button>
+        <button
+          className="h-6 w-6 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 text-[hsl(var(--muted-foreground))] transition-colors"
+          onClick={(e) => { e.stopPropagation(); onDelete(jamaah); }}
+          data-testid={`btn-delete-jamaah-${jamaah.id}`}
+        >
+          <Trash2 strokeWidth={1.5} className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

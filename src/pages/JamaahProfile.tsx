@@ -32,11 +32,11 @@ function fileToBase64(file: File): Promise<string> {
 
 // ── Doc category config ────────────────────────────────────────────────────────
 const DOC_CATEGORIES: { key: DocCategory; label: string; icon: React.ElementType; color: string }[] = [
-  { key: "passport", label: "Paspor / KTP", icon: ShieldCheck, color: "text-[hsl(var(--primary))]" },
-  { key: "visa",     label: "Visa",          icon: FileText,    color: "text-[hsl(var(--primary))]" },
-  { key: "ticket",   label: "Tiket Pesawat", icon: Plane,       color: "text-[hsl(var(--primary))]" },
-  { key: "medical",  label: "Kesehatan",     icon: HeartPulse,  color: "text-[hsl(var(--primary))]" },
-  { key: "other",    label: "Lainnya",       icon: FolderOpen,  color: "text-[hsl(var(--primary))]" },
+  { key: "passport", label: "Paspor",                 icon: ShieldCheck, color: "text-[hsl(var(--primary))]" },
+  { key: "medical",  label: "Buku Vaksin",            icon: HeartPulse,  color: "text-[hsl(var(--primary))]" },
+  { key: "other",    label: "Foto Background Putih",  icon: FolderOpen,  color: "text-[hsl(var(--primary))]" },
+  { key: "visa",     label: "Visa",                   icon: FileText,    color: "text-[hsl(var(--primary))]" },
+  { key: "ticket",   label: "Tiket Pesawat",          icon: Plane,       color: "text-[hsl(var(--primary))]" },
 ];
 
 // ── Payment section ───────────────────────────────────────────────────────────
@@ -550,19 +550,28 @@ export default function JamaahProfile() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Back */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/trips/${tripId}`)}
-          className="rounded-xl h-9 w-9 hover:bg-[hsl(var(--secondary))]">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="text-sm text-[hsl(var(--muted-foreground))]">
-          <span className="cursor-pointer hover:text-[hsl(var(--primary))]" onClick={() => navigate("/")}>Paket Trip</span>
-          <span className="mx-1.5">›</span>
-          <span className="cursor-pointer hover:text-[hsl(var(--primary))]" onClick={() => navigate(`/trips/${tripId}`)}>{trip?.name}</span>
-          <span className="mx-1.5">›</span>
-          <span className="font-medium text-[hsl(var(--card-foreground))]">{person.name}</span>
+      {/* Top bar: Kembali ke Paket + Simpan (saat editing) */}
+      <div className="flex items-center justify-between gap-3 sticky top-0 z-10 bg-[hsl(var(--background))]/80 backdrop-blur-sm py-1 -mx-2 px-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/paket/${tripId}`)}
+            className="h-9 rounded-xl gap-1.5 shrink-0">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Kembali ke Paket</span>
+          </Button>
+          <div className="text-sm text-[hsl(var(--muted-foreground))] truncate">
+            <span className="cursor-pointer hover:text-[hsl(var(--primary))]" onClick={() => navigate("/")}>Paket Trip</span>
+            <span className="mx-1.5">›</span>
+            <span className="cursor-pointer hover:text-[hsl(var(--primary))]" onClick={() => navigate(`/paket/${tripId}`)}>{trip?.name}</span>
+            <span className="mx-1.5">›</span>
+            <span className="font-medium text-[hsl(var(--card-foreground))]">{person.name}</span>
+          </div>
         </div>
+        {editing && (
+          <Button size="sm" onClick={handleSave} disabled={saving}
+            className="h-9 rounded-xl gradient-primary text-white hover:opacity-90 shrink-0">
+            <Save className="h-3.5 w-3.5 mr-1.5" /> {saving ? "Menyimpan…" : "Simpan"}
+          </Button>
+        )}
       </div>
 
       {/* Profile card */}
