@@ -51,15 +51,20 @@ export interface JamaahDoc {
   createdAt: string;
 }
 
-export const TRIPS_KEY = "travelhub.trips.v2";
-export const JAMAAH_KEY = "travelhub.jamaah.v2";
-export const DOCS_KEY = "travelhub.docs.v2";
+// Source of truth = Supabase. We keep a small in-memory cache here so synchronous
+// callers (legacy code paths) still work between cloud syncs. Nothing is
+// persisted to localStorage — restart the page to refetch from the cloud.
+export const TRIPS_KEY = "trips";
+export const JAMAAH_KEY = "jamaah";
+export const DOCS_KEY = "docs";
 
+const _cache: Record<string, unknown[]> = {};
 function load<T>(key: string, def: T[]): T[] {
-  try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T[]) : def; }
-  catch { return def; }
+  return ((_cache[key] as T[] | undefined) ?? def).slice() as T[];
 }
-function save<T>(key: string, data: T[]) { localStorage.setItem(key, JSON.stringify(data)); }
+function save<T>(key: string, data: T[]) {
+  _cache[key] = data.slice();
+}
 
 // ── Mappers (snake_case ↔ camelCase) ────────────────────────────────────────
 

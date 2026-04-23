@@ -26,18 +26,15 @@ export interface Package {
 
 export type PackageDraft = Omit<Package, "id" | "createdAt" | "updatedAt">;
 
-export const PACKAGES_KEY = "travelhub.packages.v2";
+// Source of truth = Supabase. In-memory cache only — no localStorage.
+export const PACKAGES_KEY = "packages";
 
+let _cache: Package[] = [];
 function loadStore(): Package[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(PACKAGES_KEY);
-    return raw ? (JSON.parse(raw) as Package[]) : [];
-  } catch { return []; }
+  return _cache.slice();
 }
 function saveStore(items: Package[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(PACKAGES_KEY, JSON.stringify(items));
+  _cache = items.slice();
 }
 
 const fromRow = (r: Record<string, unknown>): Package => ({

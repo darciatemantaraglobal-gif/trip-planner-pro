@@ -226,3 +226,10 @@ src/
 - **Marketing Kit Auto-Flyer** (DONE Apr 2026): `src/components/FlyerDialog.tsx` using `html-to-image`. 3 templates (sunset/emerald/midnight). Renders 540×720 promo PNG with logo, trip details, price, slot left, CTA. Download + WebShare API. "Flyer" button in TripDetail header.
 - **PWA Offline Mode** (DONE Apr 2026): Workbox runtimeCaching for Supabase REST (NetworkFirst, 3-day TTL) and Storage (CacheFirst, 7-day TTL). Existing OfflineBar shows banner + reconnect toast.
 - **Client-Facing Portal** (DONE Apr 2026): `/cek/:code` public route + `jamaah.booking_code` UNIQUE column + SECURITY DEFINER RPC `get_booking_status` (granted to anon). `PublicCheck.tsx` shows trip card + payment status badge + history. `BookingCodeShare` in JamaahProfile gives copy link + WhatsApp share.
+
+## PDF Generator Refactor (April 2026)
+
+- **New IGH Template Engine** (`src/lib/generateIghPdf.ts`): pdf-lib + fontkit + Montserrat. Loads `public/igh-template.pdf` as background, masks template placeholders with white/orange rects, then overlays mapped data from calculatorStore (Project Name, Timeline, Customer, Date, Hotel Makkah/Madinah + nights, Pax + Harga in orange boxes, Sudah/Belum Termasuk lists). Coords mapped from 740×1024 designer → 413.95×572.53 pt PDF (scale ≈ 0.5594).
+- `PdfPreviewDialog` rebuilt to render preview as PNG via `pdfjs-dist`, with Download button.
+- **Removed**: legacy `src/lib/generatePdf.ts`, `src/features/pdfTemplate/` (CanvasTemplateEditor, renderHtml, templateStore), `src/pages/TemplatePreview.tsx`, `/template-preview` route.
+- **localStorage purged** for trips/jamaah/docs/packages — repos now use in-memory cache only; Supabase remains source of truth (`src/features/trips/tripsRepo.ts`, `src/features/packages/packagesRepo.ts`).
