@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { differenceInCalendarDays, format, parse, isValid } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -133,6 +135,24 @@ function makeDefault(): CalcState {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const M = { fontFamily: "'Manrope', sans-serif" };
+
+// Parse a range string like "01 Juli 2026 - 07 Juli 2026" → { from, to }
+function parseRangeStrict(s: string): { from?: Date; to?: Date } | null {
+  if (!s?.trim()) return null;
+  const parts = s.split(/\s*(?:-|–|s\/d|sd|sampai)\s*/i);
+  const tryParse = (raw: string): Date | undefined => {
+    if (!raw?.trim()) return undefined;
+    for (const fmt of ["dd MMMM yyyy", "dd MMM yyyy", "d MMMM yyyy", "d MMM yyyy", "yyyy-MM-dd", "dd/MM/yyyy"]) {
+      const d = parse(raw.trim(), fmt, new Date(), { locale: idLocale });
+      if (isValid(d)) return d;
+    }
+    const d = new Date(raw);
+    return isValid(d) ? d : undefined;
+  };
+  const from = tryParse(parts[0]);
+  if (!from) return null;
+  return { from, to: tryParse(parts[1] ?? "") };
+}
 
 function fmtSAR(v: number) {
   if (!v) return "—";
@@ -555,12 +575,27 @@ export default function Calculator() {
   const ighPdfData = useMemo<IghPdfData>(() => {
     const makkahHotel = calc.hotels.find((h) => /makk?ah/i.test(h.label));
     const madinahHotel = calc.hotels.find((h) => /madin/i.test(h.label));
+
+    // Format timeline "DD MMMM YYYY - DD MMMM YYYY (N hari)" pakai date-fns
+    let timeline = calc.dateRange || "";
+    const range = parseRangeStrict(calc.dateRange);
+    if (range?.from) {
+      const fromStr = format(range.from, "dd MMMM yyyy", { locale: idLocale });
+      if (range.to) {
+        const toStr = format(range.to, "dd MMMM yyyy", { locale: idLocale });
+        const days = differenceInCalendarDays(range.to, range.from) + 1;
+        timeline = `${fromStr} - ${toStr} (${days} hari)`;
+      } else {
+        timeline = fromStr;
+      }
+    }
+
     return {
       projectName:
         calc.title?.trim() ||
         calc.packageName?.trim() ||
         (calc.customerName ? `Umroh ${calc.customerName}` : "Penawaran Paket"),
-      timeline: calc.dateRange || "",
+      timeline,
       customerName: calc.customerName || "—",
       date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }),
       hotelMakkah: calc.hotelMakkahName || makkahHotel?.label || "",
@@ -664,9 +699,13 @@ export default function Calculator() {
         notes: descriptionParts.length ? descriptionParts.join(" | ") : undefined,
       };
 
-      await createPackage(draft);
+      const newPkg = await createPackage(draft);
       toast.success("Paket Trip berhasil dibuat!", {
         description: `${name} · ${formatCurrency(quote.finalPrice)}`,
+        action: {
+          label: "Lihat Paket",
+          onClick: () => navigate(`/packages/${newPkg.id}`),
+        },
       });
       navigate("/packages");
     } catch (err) {

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const DISPLAY_FMT = "dd MMM yyyy";
+const DISPLAY_FMT = "dd MMMM yyyy";
 
 function formatRange(range: DateRange | undefined): string {
   if (!range?.from) return "";
@@ -24,7 +24,7 @@ function parseRange(value: string): DateRange | undefined {
   const parts = value.split(/\s*(?:-|–|s\/d|sd|sampai)\s*/i);
   const tryParse = (raw: string): Date | undefined => {
     if (!raw) return undefined;
-    for (const fmt of [DISPLAY_FMT, "d MMM yyyy", "dd MMMM yyyy", "yyyy-MM-dd", "dd/MM/yyyy"]) {
+    for (const fmt of [DISPLAY_FMT, "dd MMM yyyy", "d MMMM yyyy", "d MMM yyyy", "yyyy-MM-dd", "dd/MM/yyyy"]) {
       const d = parse(raw.trim(), fmt, new Date(), { locale: idLocale });
       if (isValid(d)) return d;
     }
