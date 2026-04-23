@@ -2,6 +2,8 @@
  * Konfigurasi koordinat untuk generator PDF IGH.
  * Dipakai oleh `generateIghPdf.ts` dan komponen `PdfLayoutTuner` untuk
  * tuning visual real-time tanpa edit kode.
+ *
+ * Semua koordinat dalam "template space" 740-px wide (top-left origin).
  */
 
 export type IghFontFamily = "Montserrat" | "Poppins" | "Sk-Modernist";
@@ -29,29 +31,74 @@ export const FONT_FAMILY_URLS: Record<IghFontFamily, { regular: string; semiBold
 
 export interface IghLayoutConfig {
   projectName: {
-    /** Top px (template space, 740-wide) baris pertama project name */
+    /** X (top-left, template px) */
+    xPx: number;
+    /** Y (top-left, template px) baris pertama */
     topPx: number;
     /** Font size awal (auto-shrink kalau kepanjangan) */
     size: number;
-    /** Multiplier line-height (1.0 = rapat, 1.5 = longgar) */
-    lineHeightMul: number;
+    /** Jarak vertikal absolut (px) antar baris bila project name multi-line */
+    lineGapPx: number;
+    /** Override teks. Kosong = pakai data dari kalkulator. */
+    text?: string;
   };
   metaInfo: {
-    /** Top px untuk teks "IGH Tour" (Invoice to) & tanggal */
+    /** X invoice/customer */
+    customerXPx: number;
+    /** X tanggal */
+    dateXPx: number;
+    /** Y untuk kedua field (sejajar) */
     topPx: number;
+    /** Font size */
+    size: number;
+    /** Override teks */
+    customerText?: string;
+    dateText?: string;
+  };
+  hotel: {
+    /** X kolom Makkah */
+    makkahXPx: number;
+    /** X kolom Madinah */
+    madinahXPx: number;
+    /** Y nama hotel */
+    topPx: number;
+    /** Font size nama hotel */
+    size: number;
+    /** Override teks */
+    makkahText?: string;
+    madinahText?: string;
   };
   pricing: {
-    /** Y-offset (pdf-units) untuk teks dalam kotak orange.
-     *  Negatif = naik (pdf-coord). Positif = turun. */
+    /** X kotak Pax */
+    paxXPx: number;
+    /** X kotak Harga */
+    priceXPx: number;
+    /** Y top kotak (kedua kotak sejajar) */
+    topPx: number;
+    /** Font size harga (pax akan +4) */
+    size: number;
+    /** Vertical center offset (pdf-units). Negatif = naik, positif = turun. */
     yOffsetPdf: number;
+    /** Override teks */
+    paxText?: string;
+    priceText?: string;
   };
   checklist: {
-    /** Baseline (top-px) row pertama */
+    /** X column kiri (Sudah) — tengah kolom */
+    leftXPx: number;
+    /** X column kanan (Belum) — tengah kolom */
+    rightXPx: number;
+    /** Baseline (top-px) row pertama (digit "01") */
     firstBaselinePx: number;
     /** Jarak antar baris (px) */
     rowSpacingPx: number;
+    /** Y offset untuk geser teks ke atas/bawah supaya pas di tengah dua garis */
+    yOffsetPx: number;
     /** Font size item teks */
     size: number;
+    /** Override teks (newline-separated, max 5 baris) */
+    includedText?: string;
+    excludedText?: string;
   };
   fonts: {
     /** Default family untuk semua section (kecuali yg di-override) */
@@ -62,10 +109,18 @@ export interface IghLayoutConfig {
 }
 
 export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
-  projectName: { topPx: 257, size: 22, lineHeightMul: 1.45 },
-  metaInfo: { topPx: 259 },
-  pricing: { yOffsetPdf: -8 },
-  checklist: { firstBaselinePx: 715, rowSpacingPx: 28, size: 10 },
+  projectName: { xPx: 55, topPx: 257, size: 22, lineGapPx: 4 },
+  metaInfo: { customerXPx: 335, dateXPx: 538, topPx: 259, size: 13 },
+  hotel: { makkahXPx: 51, madinahXPx: 407, topPx: 395, size: 22 },
+  pricing: { paxXPx: 47, priceXPx: 272, topPx: 518, size: 22, yOffsetPdf: -8 },
+  checklist: {
+    leftXPx: 212,   // tengah kolom kiri (95 + 235/2)
+    rightXPx: 576,  // tengah kolom kanan (459 + 235/2)
+    firstBaselinePx: 715,
+    rowSpacingPx: 28,
+    yOffsetPx: 0,
+    size: 10,
+  },
   fonts: { family: "Poppins", overrides: {} },
 };
 
@@ -98,6 +153,7 @@ export function mergeConfig(
   return {
     projectName: { ...base.projectName, ...(override.projectName ?? {}) },
     metaInfo: { ...base.metaInfo, ...(override.metaInfo ?? {}) },
+    hotel: { ...base.hotel, ...(override.hotel ?? {}) },
     pricing: { ...base.pricing, ...(override.pricing ?? {}) },
     checklist: { ...base.checklist, ...(override.checklist ?? {}) },
     fonts: {

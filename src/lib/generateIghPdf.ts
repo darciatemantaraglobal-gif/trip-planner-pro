@@ -14,24 +14,8 @@ export type { IghLayoutConfig } from "./ighPdfConfig";
 /**
  * Generator PDF berbasis template `igh-blank-template.pdf`.
  *
- * Koordinat dikalibrasi langsung dari raster render template @ 740×1024 px.
- * Label "Invoice to :", "Date :", "Hotel Makkah/Madinah", "Jumlah Pax :",
- * "Harga per Pax :", "Sudah/Belum Termasuk", dan kotak orange semuanya
- * sudah baked di template — kita tinggal overlay value-nya pakai Sk-Modernist.
- *
- * Posisi terukur (top-origin, 740×1024 px space):
- *   - "Invoice to :"  baseline yTop=235.3, x=335.4, size=11.6
- *   - "Date :"        baseline yTop=235.5, x=538.0, size=11.6
- *   - "Hotel Makkah"  baseline yTop=385.1, x=50.9,  size=15.4
- *   - "Hotel Madinah" baseline yTop=385.1, x=407.3, size=15.4
- *   - "Jumlah Pax :"  baseline yTop=507.7, x=50.9,  size=15.4
- *   - "Harga per Pax" baseline yTop=507.7, x=419.4, size=15.4
- *   - PAX BOX   x≈47..161  (w114), y≈518..579 (h61)
- *   - PRICE BOX x≈272..678 (w406), y≈518..579 (h61)
- *   - Sudah/Belum pill baseline yTop=687.1
- *   - Numbered list digit-baselines y ≈ 725, 753, 781, 806, 834
- *   - Underlines  ≈ 735, 764, 791, 818, (845)
- *   - Underline x: left 45..330, right 409..694
+ * Semua koordinat hidup di `ighPdfConfig.ts` dan bisa di-tune via PdfLayoutTuner.
+ * Override teks per-section juga didukung (kalau diisi, menimpa data kalkulator).
  */
 
 const TEMPLATE_URL = "/igh-blank-template.pdf";
@@ -43,42 +27,29 @@ const PAGE_H = 572.532;
 const SCALE = PAGE_W / TPL_W_PX; // ≈ 0.5594
 
 // Brand colors — Orange #F28E34 untuk semua data isian
-const ORANGE: RGB = rgb(0xF2 / 255, 0x8E / 255, 0x34 / 255); // #F28E34
-const GREY_LABEL: RGB = rgb(0.36, 0.36, 0.36);  // small grey labels (Project :)
-const GREY_MUTED: RGB = rgb(0.45, 0.45, 0.45);  // sub-info (jumlah malam, kurs)
-const DARK: RGB = rgb(0.13, 0.13, 0.13);        // list item text
+const ORANGE: RGB = rgb(0xF2 / 255, 0x8E / 255, 0x34 / 255);
+const GREY_MUTED: RGB = rgb(0.45, 0.45, 0.45);
+const DARK: RGB = rgb(0.13, 0.13, 0.13);
 const WHITE: RGB = rgb(1, 1, 1);
 
 export interface IghPdfData {
-  /** Project Name → "(Nama Penawaran)" */
   projectName: string;
-  /** Timeline → tanggal keberangkatan */
   timeline: string;
-  /** Invoice to → nama customer */
   customerName: string;
-  /** Tanggal cetak / penawaran */
   date: string;
-  /** Hotel Makkah */
   hotelMakkah: string;
   makkahNights: number;
-  /** Hotel Madinah */
   hotelMadinah: string;
   madinahNights: number;
-  /** Jumlah Pax */
   pax: number;
-  /** Harga per Pax (IDR) */
   pricePerPaxIDR: number;
-  /** Kurs IDR per USD (untuk catatan kaki). 0/undefined = pakai default 17.100 */
   kursIdrPerUsd?: number;
-  /** Bullet list — Sudah Termasuk (max 5 ditampilkan) */
   included: string[];
-  /** Bullet list — Belum Termasuk (max 5 ditampilkan) */
   excluded: string[];
 }
 
 // ── Coordinate helpers ─────────────────────────────────────────────────────
 
-/** Convert top-left pixel coords (in 740×1024 template space) to PDF rectangle. */
 function pxRect(leftPx: number, topPx: number, widthPx: number, heightPx: number) {
   const x = leftPx * SCALE;
   const w = widthPx * SCALE;
@@ -87,8 +58,6 @@ function pxRect(leftPx: number, topPx: number, widthPx: number, heightPx: number
   return { x, y, width: w, height: h };
 }
 
-/** Draw text using top-left pixel coords; size is in PDF points.
- *  Optionally auto-shrinks to fit maxWidthPx (with ellipsis fallback). */
 function drawText(
   page: PDFPage,
   text: string,
@@ -111,13 +80,10 @@ function drawText(
       ? truncateToWidth(text, opts.font, size, maxW)
       : text;
   const x = opts.leftPx * SCALE;
-  // Place top of text at topPx — pdf-lib draws at baseline, cap-height ≈ size*0.78
   const y = PAGE_H - opts.topPx * SCALE - size * 0.78;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
-/** Draw text horizontally + vertically centered inside a pixel rectangle.
- *  Uses cap-height (~0.70 × size) for true visual centering. */
 function drawTextCentered(
   page: PDFPage,
   text: string,
@@ -147,10 +113,8 @@ function drawTextCentered(
     value = truncateToWidth(text, opts.font, size, maxW);
     textW = opts.font.widthOfTextAtSize(value, size);
   }
-  const cap = size * 0.70; // visual cap height
+  const cap = size * 0.70;
   const x = r.x + (r.width - textW) / 2;
-  // yOffsetPdf < 0 = naik (pdf coord), > 0 = turun. Geser dari geometric center
-  // biar pas visual center kotak orange.
   const yOff = opts.yOffsetPdf ?? 0;
   const y = r.y + (r.height - cap) / 2 + yOff;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
@@ -181,7 +145,12 @@ function fmtIdr(n: number): string {
   return "Rp. " + Math.round(n).toLocaleString("id-ID");
 }
 
-/** Build the filled PDF (returns bytes). Optional `layout` override koordinat. */
+/** Pilih nilai dari override teks vs data kalkulator. */
+function pick(override: string | undefined, fallback: string): string {
+  const v = (override ?? "").trim();
+  return v.length > 0 ? override! : fallback;
+}
+
 export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
   const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
   const tplBytes = await fetchBytes(TEMPLATE_URL);
@@ -189,7 +158,6 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   const pdf = await PDFDocument.load(tplBytes);
   pdf.registerFontkit(fontkit);
 
-  // Kumpulin semua family yang dipakai (default + overrides) → load tiap weight sekali.
   const usedFamilies = new Set<IghFontFamily>([cfg.fonts.family]);
   for (const fam of Object.values(cfg.fonts.overrides ?? {})) {
     if (fam) usedFamilies.add(fam);
@@ -211,10 +179,8 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     }),
   );
 
-  // Defensive Helvetica fallback (not actually drawn)
   void (await pdf.embedFont(StandardFonts.Helvetica));
 
-  /** Resolve font (regular/semiBold/bold) untuk section tertentu, hormatin override. */
   const fontFor = (section: IghSection, weight: "regular" | "semiBold" | "bold"): PDFFont => {
     const fam = cfg.fonts.overrides?.[section] ?? cfg.fonts.family;
     const set = familyFonts[fam] ?? familyFonts[cfg.fonts.family];
@@ -223,13 +189,11 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
 
   const page = pdf.getPage(0);
 
-  // ── 1. PROJECT name + timeline (kiri atas) ──
-  // Label "Project :" sudah baked di template, jadi tidak perlu digambar lagi.
-  // Project Name — Orange Bold, multi-line dengan wrap di width kolom.
-  const projectName = (data.projectName || "—").trim();
+  // ── 1. PROJECT name + timeline ──
+  const projectName = pick(cfg.projectName.text, (data.projectName || "—").trim());
   let projSize = cfg.projectName.size;
   let projLines: string[] = [projectName];
-  const projMaxW = 285 * SCALE; // kolom kiri sebelum dipotong kolom Invoice
+  const projMaxW = 285 * SCALE;
   const projBold = fontFor("projectName", "bold");
   const projReg = fontFor("projectName", "regular");
   while (projSize > 14) {
@@ -238,93 +202,107 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     projSize -= 1;
   }
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
-  const projLH = projSize * cfg.projectName.lineHeightMul;
+  // Pakai lineGap absolut (px) supaya user bisa rapetin/longgarin tanpa tergantung font size.
+  const projLH = projSize + cfg.projectName.lineGapPx;
   let py = cfg.projectName.topPx;
   for (const line of projLines) {
     drawText(page, line, {
-      leftPx: 55, topPx: py, size: projSize, font: projBold, color: ORANGE,
+      leftPx: cfg.projectName.xPx, topPx: py, size: projSize, font: projBold, color: ORANGE,
     });
     py += projLH;
   }
 
-  // Timeline (Periode) — grey muted, persis di bawah project name
+  // Timeline (Periode)
   drawText(page, data.timeline || "—", {
-    leftPx: 55, topPx: py + 6, size: 11, font: projReg, color: GREY_MUTED, maxWidthPx: 285,
+    leftPx: cfg.projectName.xPx, topPx: py + 6, size: 11, font: projReg, color: GREY_MUTED, maxWidthPx: 285,
   });
 
   // ── 2. HEADER META (Invoice to & Date) ──
   const metaReg = fontFor("metaInfo", "regular");
-  drawText(page, data.customerName || "—", {
-    leftPx: 335, topPx: cfg.metaInfo.topPx, size: 13, font: metaReg, color: ORANGE, maxWidthPx: 175,
+  drawText(page, pick(cfg.metaInfo.customerText, data.customerName || "—"), {
+    leftPx: cfg.metaInfo.customerXPx, topPx: cfg.metaInfo.topPx, size: cfg.metaInfo.size,
+    font: metaReg, color: ORANGE, maxWidthPx: 175,
   });
-  drawText(page, data.date || "—", {
-    leftPx: 538, topPx: cfg.metaInfo.topPx, size: 13, font: metaReg, color: ORANGE, maxWidthPx: 175,
+  drawText(page, pick(cfg.metaInfo.dateText, data.date || "—"), {
+    leftPx: cfg.metaInfo.dateXPx, topPx: cfg.metaInfo.topPx, size: cfg.metaInfo.size,
+    font: metaReg, color: ORANGE, maxWidthPx: 175,
   });
 
   // ── 3. HOTEL SECTION ──
   const hotelBold = fontFor("hotel", "bold");
   const hotelReg = fontFor("hotel", "regular");
-  drawText(page, data.hotelMakkah || "—", {
-    leftPx: 51, topPx: 395, size: 22, minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
+  drawText(page, pick(cfg.hotel.makkahText, data.hotelMakkah || "—"), {
+    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
+    minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 51, topPx: 433, size: 9, font: hotelReg, color: DARK,
+    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + 38, size: 9, font: hotelReg, color: DARK,
   });
-  drawText(page, data.hotelMadinah || "—", {
-    leftPx: 407, topPx: 395, size: 22, minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
+  drawText(page, pick(cfg.hotel.madinahText, data.hotelMadinah || "—"), {
+    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
+    minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 407, topPx: 433, size: 9, font: hotelReg, color: DARK,
+    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + 38, size: 9, font: hotelReg, color: DARK,
   });
 
   // ── 4. PRICING BOXES (Pax & Harga per Pax) ──
   const priceBold = fontFor("pricing", "bold");
-  const PAX_BOX = { leftPx: 47, topPx: 518, widthPx: 114, heightPx: 61 };
-  const PRICE_BOX = { leftPx: 272, topPx: 518, widthPx: 406, heightPx: 61 };
-  drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
-    ...PAX_BOX, size: 26, minSize: 14, font: priceBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
+  const PAX_BOX = { leftPx: cfg.pricing.paxXPx, topPx: cfg.pricing.topPx, widthPx: 114, heightPx: 61 };
+  const PRICE_BOX = { leftPx: cfg.pricing.priceXPx, topPx: cfg.pricing.topPx, widthPx: 406, heightPx: 61 };
+  const paxText = pick(cfg.pricing.paxText, String(Math.max(0, data.pax || 0)));
+  const priceText = pick(cfg.pricing.priceText, fmtIdr(data.pricePerPaxIDR || 0));
+  drawTextCentered(page, paxText, {
+    ...PAX_BOX, size: cfg.pricing.size + 4, minSize: 14, font: priceBold, color: WHITE,
+    yOffsetPdf: cfg.pricing.yOffsetPdf,
   });
-  drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
-    ...PRICE_BOX, size: 22, minSize: 12, font: priceBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
+  drawTextCentered(page, priceText, {
+    ...PRICE_BOX, size: cfg.pricing.size, minSize: 12, font: priceBold, color: WHITE,
+    yOffsetPdf: cfg.pricing.yOffsetPdf,
   });
 
-  // ── 5. CHECKLIST (Sudah / Belum Termasuk) ──
+  // ── 5. CHECKLIST ──
   const listFont = fontFor("checklist", "semiBold");
   const ROW_BASELINES = Array.from({ length: 5 }, (_, i) =>
-    cfg.checklist.firstBaselinePx + i * cfg.checklist.rowSpacingPx,
+    cfg.checklist.firstBaselinePx + i * cfg.checklist.rowSpacingPx + cfg.checklist.yOffsetPx,
   );
-  const LEFT_AREA = { left: 95, width: 235 };
-  const RIGHT_AREA = { left: 459, width: 235 };
-  drawList(page, data.included, ROW_BASELINES, LEFT_AREA, listFont, cfg.checklist.size);
-  drawList(page, data.excluded, ROW_BASELINES, RIGHT_AREA, listFont, cfg.checklist.size);
+  const includedItems = splitOverrideOrUse(cfg.checklist.includedText, data.included);
+  const excludedItems = splitOverrideOrUse(cfg.checklist.excludedText, data.excluded);
+  drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size);
+  drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size);
 
   return pdf.save();
 }
 
-/** Draw checklist column dengan item teks center-horizontal di tiap row,
- *  baseline tepat pada digit "01..05" yang sudah baked di template. */
+function splitOverrideOrUse(override: string | undefined, fallback: string[]): string[] {
+  const v = (override ?? "").trim();
+  if (!v) return fallback;
+  return v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+}
+
+/** Draw checklist column dengan teks center-horizontal. `centerXPx` = tengah kolom. */
 function drawList(
   page: PDFPage,
   items: string[],
   rowBaselines: number[],
-  area: { left: number; width: number },
+  centerXPx: number,
   font: PDFFont,
   baseSize = 10,
 ) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, rowBaselines.length);
+  // Width budget per row ~ 235px (kolom asli template).
+  const COL_WIDTH = 235;
+  const maxW = (COL_WIDTH - 8) * SCALE;
   for (let i = 0; i < cleaned.length; i++) {
     const baselinePx = rowBaselines[i];
-    // Convert digit-baseline to "topPx" so drawText (top-origin) lands aligned.
-    // size*0.78 is cap-height offset used inside drawText.
     let size = baseSize;
-    const maxW = (area.width - 8) * SCALE;
     while (size > 7 && font.widthOfTextAtSize(cleaned[i], size) > maxW) size -= 0.5;
     const value = font.widthOfTextAtSize(cleaned[i], size) > maxW
       ? truncateToWidth(cleaned[i], font, size, maxW)
       : cleaned[i];
     const textW = font.widthOfTextAtSize(value, size);
-    const x = (area.left + area.width / 2) * SCALE - textW / 2;
-    const y = PAGE_H - baselinePx * SCALE; // place baseline directly
+    const x = centerXPx * SCALE - textW / 2;
+    const y = PAGE_H - baselinePx * SCALE;
     page.drawText(value, { x, y, size, font, color: DARK });
   }
 }
@@ -346,7 +324,6 @@ function wrapAtSize(text: string, font: PDFFont, size: number, maxWidth: number)
   return lines.length ? lines : [text];
 }
 
-/** Build & trigger browser download. */
 export async function downloadIghPdf(
   data: IghPdfData,
   fileName?: string,
@@ -365,7 +342,6 @@ export async function downloadIghPdf(
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-/** Render preview image (PNG data URL) of the filled PDF — uses pdfjs-dist. */
 export async function renderIghPdfPreview(
   data: IghPdfData,
   scale = 1.5,

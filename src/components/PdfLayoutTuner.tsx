@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -68,24 +69,56 @@ function SliderRow({ label, value, min, max, step, unit, onChange }: SliderRowPr
   );
 }
 
+interface TextRowProps {
+  label: string;
+  value: string;
+  placeholder?: string;
+  multiline?: boolean;
+  onChange: (v: string) => void;
+}
+
+function TextRow({ label, value, placeholder, multiline, onChange }: TextRowProps) {
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] font-medium text-slate-700">{label}</div>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className="w-full text-[10px] font-mono rounded-md border border-slate-200 bg-white px-2 py-1.5 placeholder:text-slate-300 focus:outline-none focus:ring-1 focus:ring-orange-300 resize-y"
+        />
+      ) : (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="h-7 text-[10px] font-mono"
+        />
+      )}
+    </div>
+  );
+}
+
 export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
   const [local, setLocal] = useState<IghLayoutConfig>(config);
 
-  // Debounce upstream notify by 200ms biar slider drag ga lag.
+  // Debounce upstream notify by 350ms biar slider drag/typing ga lag.
   useEffect(() => {
     const t = window.setTimeout(() => {
       onChange(local);
       saveIghLayoutConfig(local);
-    }, 200);
+    }, 350);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local]);
 
   function patch<K extends keyof IghLayoutConfig>(
     section: K,
-    patch: Partial<IghLayoutConfig[K]>,
+    p: Partial<IghLayoutConfig[K]>,
   ) {
-    setLocal((prev) => ({ ...prev, [section]: { ...prev[section], ...patch } }));
+    setLocal((prev) => ({ ...prev, [section]: { ...prev[section], ...p } }));
   }
 
   async function handleCopy() {
@@ -196,85 +229,35 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
             Project Name
           </h4>
+          <TextRow
+            label="Edit Teks (override)"
+            value={local.projectName.text ?? ""}
+            placeholder="Kosong = pakai data kalkulator"
+            onChange={(v) => patch("projectName", { text: v })}
+          />
+          <SliderRow
+            label="X Position"
+            value={local.projectName.xPx}
+            min={20} max={300} step={1} unit="px"
+            onChange={(v) => patch("projectName", { xPx: v })}
+          />
           <SliderRow
             label="Y Position"
             value={local.projectName.topPx}
-            min={220}
-            max={300}
-            step={1}
-            unit="px"
+            min={220} max={300} step={1} unit="px"
             onChange={(v) => patch("projectName", { topPx: v })}
           />
           <SliderRow
             label="Font Size"
             value={local.projectName.size}
-            min={14}
-            max={28}
-            step={1}
-            unit="pt"
+            min={14} max={28} step={1} unit="pt"
             onChange={(v) => patch("projectName", { size: v })}
           />
           <SliderRow
-            label="Line Height"
-            value={local.projectName.lineHeightMul}
-            min={1.0}
-            max={2.0}
-            step={0.05}
-            unit="×"
-            onChange={(v) => patch("projectName", { lineHeightMul: v })}
-          />
-        </section>
-
-        {/* PRICING BOXES */}
-        <section className="space-y-2">
-          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            Pricing Boxes (Pax / Price)
-          </h4>
-          <SliderRow
-            label="Y Offset (vertical center)"
-            value={local.pricing.yOffsetPdf}
-            min={-20}
-            max={20}
-            step={0.5}
-            unit="pt"
-            onChange={(v) => patch("pricing", { yOffsetPdf: v })}
-          />
-          <p className="text-[9px] text-slate-400 leading-snug">
-            Negatif = naik, positif = turun. Geser untuk center vertical di kotak orange.
-          </p>
-        </section>
-
-        {/* CHECKLIST */}
-        <section className="space-y-2">
-          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            Checklist (Sudah / Belum)
-          </h4>
-          <SliderRow
-            label="Y baris pertama"
-            value={local.checklist.firstBaselinePx}
-            min={690}
-            max={740}
-            step={1}
-            unit="px"
-            onChange={(v) => patch("checklist", { firstBaselinePx: v })}
-          />
-          <SliderRow
-            label="Row Spacing"
-            value={local.checklist.rowSpacingPx}
-            min={20}
-            max={40}
-            step={0.5}
-            unit="px"
-            onChange={(v) => patch("checklist", { rowSpacingPx: v })}
-          />
-          <SliderRow
-            label="Font Size"
-            value={local.checklist.size}
-            min={7}
-            max={14}
-            step={0.5}
-            unit="pt"
-            onChange={(v) => patch("checklist", { size: v })}
+            label="Line Gap (jarak antar baris)"
+            value={local.projectName.lineGapPx}
+            min={-4} max={20} step={0.5} unit="px"
+            onChange={(v) => patch("projectName", { lineGapPx: v })}
           />
         </section>
 
@@ -283,15 +266,191 @@ export function PdfLayoutTuner({ config, onChange, onClose }: Props) {
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
             Meta Info (Invoice / Date)
           </h4>
+          <TextRow
+            label="Invoice to (override)"
+            value={local.metaInfo.customerText ?? ""}
+            placeholder="Kosong = pakai nama customer"
+            onChange={(v) => patch("metaInfo", { customerText: v })}
+          />
+          <TextRow
+            label="Date (override)"
+            value={local.metaInfo.dateText ?? ""}
+            placeholder="Kosong = pakai tanggal"
+            onChange={(v) => patch("metaInfo", { dateText: v })}
+          />
+          <SliderRow
+            label="X Invoice"
+            value={local.metaInfo.customerXPx}
+            min={280} max={520} step={1} unit="px"
+            onChange={(v) => patch("metaInfo", { customerXPx: v })}
+          />
+          <SliderRow
+            label="X Date"
+            value={local.metaInfo.dateXPx}
+            min={460} max={700} step={1} unit="px"
+            onChange={(v) => patch("metaInfo", { dateXPx: v })}
+          />
           <SliderRow
             label="Y Position"
             value={local.metaInfo.topPx}
-            min={235}
-            max={290}
-            step={1}
-            unit="px"
+            min={235} max={290} step={1} unit="px"
             onChange={(v) => patch("metaInfo", { topPx: v })}
           />
+          <SliderRow
+            label="Font Size"
+            value={local.metaInfo.size}
+            min={9} max={18} step={0.5} unit="pt"
+            onChange={(v) => patch("metaInfo", { size: v })}
+          />
+        </section>
+
+        {/* HOTEL */}
+        <section className="space-y-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Hotel (Makkah / Madinah)
+          </h4>
+          <TextRow
+            label="Hotel Makkah (override)"
+            value={local.hotel.makkahText ?? ""}
+            placeholder="Kosong = pakai data"
+            onChange={(v) => patch("hotel", { makkahText: v })}
+          />
+          <TextRow
+            label="Hotel Madinah (override)"
+            value={local.hotel.madinahText ?? ""}
+            placeholder="Kosong = pakai data"
+            onChange={(v) => patch("hotel", { madinahText: v })}
+          />
+          <SliderRow
+            label="X Makkah"
+            value={local.hotel.makkahXPx}
+            min={20} max={200} step={1} unit="px"
+            onChange={(v) => patch("hotel", { makkahXPx: v })}
+          />
+          <SliderRow
+            label="X Madinah"
+            value={local.hotel.madinahXPx}
+            min={350} max={560} step={1} unit="px"
+            onChange={(v) => patch("hotel", { madinahXPx: v })}
+          />
+          <SliderRow
+            label="Y Position"
+            value={local.hotel.topPx}
+            min={360} max={440} step={1} unit="px"
+            onChange={(v) => patch("hotel", { topPx: v })}
+          />
+          <SliderRow
+            label="Font Size"
+            value={local.hotel.size}
+            min={14} max={28} step={0.5} unit="pt"
+            onChange={(v) => patch("hotel", { size: v })}
+          />
+        </section>
+
+        {/* PRICING */}
+        <section className="space-y-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Pricing Boxes (Pax / Price)
+          </h4>
+          <TextRow
+            label="Pax (override)"
+            value={local.pricing.paxText ?? ""}
+            placeholder="Kosong = pakai jumlah pax"
+            onChange={(v) => patch("pricing", { paxText: v })}
+          />
+          <TextRow
+            label="Harga (override)"
+            value={local.pricing.priceText ?? ""}
+            placeholder='Kosong = pakai "Rp. 0"'
+            onChange={(v) => patch("pricing", { priceText: v })}
+          />
+          <SliderRow
+            label="X Pax Box"
+            value={local.pricing.paxXPx}
+            min={20} max={200} step={1} unit="px"
+            onChange={(v) => patch("pricing", { paxXPx: v })}
+          />
+          <SliderRow
+            label="X Price Box"
+            value={local.pricing.priceXPx}
+            min={200} max={400} step={1} unit="px"
+            onChange={(v) => patch("pricing", { priceXPx: v })}
+          />
+          <SliderRow
+            label="Y Position"
+            value={local.pricing.topPx}
+            min={480} max={560} step={1} unit="px"
+            onChange={(v) => patch("pricing", { topPx: v })}
+          />
+          <SliderRow
+            label="Font Size (Harga)"
+            value={local.pricing.size}
+            min={14} max={32} step={0.5} unit="pt"
+            onChange={(v) => patch("pricing", { size: v })}
+          />
+          <SliderRow
+            label="Vertical Center Offset"
+            value={local.pricing.yOffsetPdf}
+            min={-20} max={20} step={0.5} unit="pt"
+            onChange={(v) => patch("pricing", { yOffsetPdf: v })}
+          />
+          <p className="text-[9px] text-slate-400 leading-snug">
+            Negatif = naik, positif = turun. Tuning visual center kotak orange.
+          </p>
+        </section>
+
+        {/* CHECKLIST */}
+        <section className="space-y-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Checklist (Sudah / Belum)
+          </h4>
+          <TextRow
+            label="Sudah Termasuk (override)"
+            value={local.checklist.includedText ?? ""}
+            placeholder="1 baris per item, kosong = pakai data"
+            multiline
+            onChange={(v) => patch("checklist", { includedText: v })}
+          />
+          <TextRow
+            label="Belum Termasuk (override)"
+            value={local.checklist.excludedText ?? ""}
+            placeholder="1 baris per item, kosong = pakai data"
+            multiline
+            onChange={(v) => patch("checklist", { excludedText: v })}
+          />
+          <SliderRow
+            label="X Kolom Kiri (center)"
+            value={local.checklist.leftXPx}
+            min={120} max={320} step={1} unit="px"
+            onChange={(v) => patch("checklist", { leftXPx: v })}
+          />
+          <SliderRow
+            label="X Kolom Kanan (center)"
+            value={local.checklist.rightXPx}
+            min={460} max={680} step={1} unit="px"
+            onChange={(v) => patch("checklist", { rightXPx: v })}
+          />
+          <SliderRow
+            label="Y Baris Pertama"
+            value={local.checklist.firstBaselinePx}
+            min={690} max={740} step={1} unit="px"
+            onChange={(v) => patch("checklist", { firstBaselinePx: v })}
+          />
+          <SliderRow
+            label="Checklist Y Offset"
+            value={local.checklist.yOffsetPx}
+            min={-15} max={15} step={0.5} unit="px"
+            onChange={(v) => patch("checklist", { yOffsetPx: v })}
+          />
+          <SliderRow
+            label="Font Size"
+            value={local.checklist.size}
+            min={7} max={14} step={0.5} unit="pt"
+            onChange={(v) => patch("checklist", { size: v })}
+          />
+          <p className="text-[9px] text-slate-400 leading-snug">
+            Y Offset menggeser semua teks naik/turun supaya pas di tengah dua garis.
+          </p>
         </section>
       </div>
 
