@@ -153,6 +153,18 @@ export function CanvasTemplateEditor({
     }));
   }
 
+  function replaceSelected(newEl: CanvasElement) {
+    if (!selectedId) return;
+    setTemplate((t) => {
+      const newT = {
+        ...t,
+        elements: t.elements.map((e) => (e.id === selectedId ? newEl : e)),
+      };
+      commitToHistory(newT);
+      return newT;
+    });
+  }
+
   function patchSelectedAndCommit(updates: Partial<CanvasElement>) {
     if (!selectedId) return;
     setTemplate((t) => {
@@ -926,6 +938,7 @@ export function CanvasTemplateEditor({
               <PropertyPanel
                 el={selected}
                 onChange={patchSelected}
+                onReplace={replaceSelected}
                 onCommit={() => commitToHistory(latestTemplate.current)}
                 onDelete={deleteSelected}
                 onDuplicate={duplicateSelected}
@@ -1089,6 +1102,7 @@ function AlignmentBar({ onAlign }: { onAlign: (m: AlignMode) => void }) {
 function PropertyPanel({
   el,
   onChange,
+  onReplace,
   onCommit,
   onDelete,
   onDuplicate,
@@ -1098,6 +1112,7 @@ function PropertyPanel({
 }: {
   el: CanvasElement;
   onChange: (u: Partial<CanvasElement>) => void;
+  onReplace: (newEl: CanvasElement) => void;
   onCommit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -1121,8 +1136,8 @@ function PropertyPanel({
 
       <PositionFields el={el} onChange={onChange} onCommit={onCommit} />
 
-      {el.type === "text" && <TextFields el={el} onChange={onChange} onCommit={onCommit} />}
-      {el.type === "smart" && <SmartFields el={el} onChange={onChange} onCommit={onCommit} />}
+      {el.type === "text" && <TextFields el={el} onChange={onChange} onReplace={onReplace} onCommit={onCommit} />}
+      {el.type === "smart" && <SmartFields el={el} onChange={onChange} onReplace={onReplace} onCommit={onCommit} />}
       {el.type === "shape" && <ShapeFields el={el} onChange={onChange} onCommit={onCommit} />}
       {el.type === "image" && <ImageFields el={el} onChange={onChange} onCommit={onCommit} />}
       {el.type === "bullet" && <BulletFields el={el} onChange={onChange} onCommit={onCommit} />}
@@ -1158,12 +1173,36 @@ function PositionFields({ el, onChange, onCommit }: { el: CanvasElement; onChang
 function TextFields({
   el,
   onChange,
+  onReplace,
   onCommit,
 }: {
   el: Extract<CanvasElement, { type: "text" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onReplace: (newEl: CanvasElement) => void;
   onCommit: () => void;
 }) {
+  function convertToSmart(key: SmartKey) {
+    const newEl: Extract<CanvasElement, { type: "smart" }> = {
+      id: el.id,
+      type: "smart",
+      smartKey: key,
+      x: el.x,
+      y: el.y,
+      w: el.w,
+      h: el.h,
+      z: el.z,
+      fontSize: el.fontSize,
+      fontWeight: el.fontWeight,
+      fontStyle: el.fontStyle,
+      align: el.align,
+      color: el.color,
+      backgroundColor: el.backgroundColor,
+      paddingX: el.paddingX,
+      paddingY: el.paddingY,
+      format: "plain",
+    };
+    onReplace(newEl);
+  }
   return (
     <>
       <FieldGroup label="Isi Teks">
@@ -1174,6 +1213,21 @@ function TextFields({
           rows={3}
           className="w-full text-[12px] p-2 border border-slate-200 rounded resize-none"
         />
+      </FieldGroup>
+      <FieldGroup label="Auto-isi dari Data Customer">
+        <select
+          value=""
+          onChange={(e) => { if (e.target.value) convertToSmart(e.target.value as SmartKey); }}
+          className="w-full h-8 text-[11px] border border-orange-300 bg-orange-50 rounded px-2 text-orange-900 font-medium"
+        >
+          <option value="">— Jadiin slot otomatis... —</option>
+          {(Object.keys(SMART_KEY_LABELS) as SmartKey[]).map((k) => (
+            <option key={k} value={k}>{SMART_KEY_LABELS[k]}</option>
+          ))}
+        </select>
+        <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+          Pilih biar teks ini auto-isi dari data Calculator pas bikin penawaran. Contoh: tag "PT Sahabat Tour" jadi <em>Nama Customer</em>.
+        </p>
       </FieldGroup>
       <FontFields
         size={el.fontSize}
@@ -1196,10 +1250,31 @@ function SmartFields({
 }: {
   el: Extract<CanvasElement, { type: "smart" }>;
   onChange: (u: Partial<CanvasElement>) => void;
+  onReplace: (newEl: CanvasElement) => void;
   onCommit: () => void;
 }) {
+  function convertToText() {
+    const newEl: Extract<CanvasElement, { type: "text" }> = {
+      id: el.id,
+      type: "text",
+      text: SMART_KEY_LABELS[el.smartKey] ?? "Teks",
+      x: el.x, y: el.y, w: el.w, h: el.h, z: el.z,
+      fontSize: el.fontSize,
+      fontWeight: el.fontWeight,
+      fontStyle: el.fontStyle,
+      align: el.align,
+      color: el.color,
+      backgroundColor: el.backgroundColor,
+      paddingX: el.paddingX,
+      paddingY: el.paddingY,
+    };
+    onReplace(newEl);
+  }
   return (
     <>
+      <div className="px-2 py-1.5 rounded bg-orange-50 border border-orange-200 text-[10px] text-orange-900 leading-snug">
+        <strong>Slot Otomatis</strong> — isinya bakal auto-isi pas bikin penawaran. Sekarang lagi nampilin contoh dummy.
+      </div>
       <FieldGroup label="Field Sumber">
         <select
           value={el.smartKey}
@@ -1240,6 +1315,12 @@ function SmartFields({
         onChange={(p) => onChange(p)}
         onCommit={onCommit}
       />
+      <button
+        onClick={convertToText}
+        className="w-full h-7 text-[11px] rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+      >
+        ← Balikin jadi teks biasa
+      </button>
     </>
   );
 }
