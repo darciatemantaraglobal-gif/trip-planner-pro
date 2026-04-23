@@ -633,6 +633,20 @@ export default function Calculator() {
         stars >= 3 ? "Bintang 3" : undefined;
 
       const facilities = calc.includedItems?.filter((s) => s.trim()) ?? [];
+      const exclusions = calc.excludedItems?.filter((s) => s.trim()) ?? [];
+
+      const airline =
+        calc.tickets?.find((t) => t.airline?.trim())?.airline?.trim() || undefined;
+
+      const descriptionParts = [
+        calc.subtitle?.trim(),
+        calc.tier?.trim(),
+        calc.hotelMakkahName ? `Hotel Makkah: ${calc.hotelMakkahName}` : "",
+        calc.hotelMadinahName ? `Hotel Madinah: ${calc.hotelMadinahName}` : "",
+        airline ? `Maskapai: ${airline}` : "",
+        calc.customerName ? `Customer: ${calc.customerName}` : "",
+        exclusions.length ? `Belum termasuk: ${exclusions.join(", ")}` : "",
+      ].filter(Boolean);
 
       const draft: PackageDraft = {
         name,
@@ -644,18 +658,21 @@ export default function Calculator() {
         status: "Calculated",
         emoji,
         departureDate: parsed.start || undefined,
+        airline,
         hotelLevel: hotelLevel as PackageDraft["hotelLevel"],
         facilities: facilities.length ? facilities : undefined,
-        notes: [calc.subtitle, calc.tier, calc.customerName ? `Customer: ${calc.customerName}` : ""]
-          .filter(Boolean).join(" | ") || undefined,
+        notes: descriptionParts.length ? descriptionParts.join(" | ") : undefined,
       };
 
-      const newPkg = await createPackage(draft);
-      toast.success(`Paket "${newPkg.name}" berhasil dibuat!`);
+      await createPackage(draft);
+      toast.success("Paket Trip berhasil dibuat!", {
+        description: `${name} · ${formatCurrency(quote.finalPrice)}`,
+      });
       navigate("/packages");
     } catch (err) {
       console.error("create package failed", err);
-      toast.error("Gagal membuat Paket. Coba lagi.");
+      const msg = err instanceof Error ? err.message : "Coba lagi.";
+      toast.error("Gagal membuat Paket Trip", { description: msg });
     } finally {
       setCreatingTrip(false);
     }
@@ -1647,7 +1664,7 @@ function PdfExportCard({
           </Button>
           <Button
             onClick={onCreateTrip}
-            disabled={creatingTrip}
+            disabled={creatingTrip || finalPrice === 0}
             variant="outline"
             className="w-full h-10 md:h-11 rounded-xl border-orange-300 text-orange-700 hover:bg-orange-50 text-sm"
             style={M}
