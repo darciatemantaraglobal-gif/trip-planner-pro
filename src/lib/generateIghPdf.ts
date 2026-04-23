@@ -171,20 +171,21 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   const page = pdf.getPage(0);
 
   // ── 3. Invoice to (Nama Customer) — placeholder "(Nama Customer)" ──
-  mask(page, WHITE, 335, 240, 195, 28);
+  // Mask diperlebar biar nutup sisa karakter "(" / "_" dari template.
+  mask(page, WHITE, 332, 236, 200, 36);
   drawText(page, data.customerName || "—", {
-    leftPx: 343, topPx: 248, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 180,
+    leftPx: 343, topPx: 250, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 180,
   });
 
   // ── 4. Date — placeholder "(Tanggal)" ──
-  mask(page, WHITE, 530, 240, 180, 28);
+  mask(page, WHITE, 528, 236, 185, 36);
   drawText(page, data.date || "—", {
-    leftPx: 540, topPx: 248, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
+    leftPx: 540, topPx: 250, size: 13, font: fontBold, color: ORANGE_TEXT, maxWidthPx: 170,
   });
 
   // ── 1. Project Name — placeholder "(Nama Penawaran)" ──
-  // Placeholder occupies y 240–305. Mask starts BELOW "Project :" label (≈y 220–238).
-  mask(page, WHITE, 45, 240, 285, 70);
+  // Mask DI BAWAH label "Project :" (label ~y 218–240). Geser turun supaya gak nimpa label.
+  mask(page, WHITE, 42, 250, 290, 75);
   const projectName = (data.projectName || "—").trim();
   let projSize = 22;
   let projLines: string[] = [projectName];
@@ -196,41 +197,42 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
   const projLH = projSize * 1.12;
   const projTotalH = projLines.length * projLH;
-  let py = 245 + (65 - projTotalH) / 2;
+  // Center vertically dalam area mask y=250–325 (75px tinggi)
+  let py = 252 + (75 - projTotalH) / 2;
   for (const line of projLines) {
     drawText(page, line, { leftPx: 55, topPx: py, size: projSize, font: fontExBold, color: ORANGE_TEXT });
     py += projLH;
   }
 
   // ── 2. Timeline — placeholder "5 Juli - 11 Juli 2026" ──
-  mask(page, WHITE, 45, 312, 290, 22);
+  mask(page, WHITE, 42, 326, 295, 26);
   drawText(page, data.timeline || "—", {
-    leftPx: 55, topPx: 318, size: 11, font: fontReg, color: DARK, maxWidthPx: 280,
+    leftPx: 55, topPx: 330, size: 11, font: fontReg, color: DARK, maxWidthPx: 280,
   });
 
   // ── 5. Hotel Makkah ──
-  // Hotel name placeholder y 386–428 (~42 px). Font ~20pt with shrink-to-fit.
-  mask(page, WHITE, 45, 384, 320, 44);
+  // Label "Hotel Makkah" ~y 374–390. Nama hotel ditarok di BAWAHnya (y ~395+).
+  mask(page, WHITE, 42, 393, 325, 42);
   drawTextFit(page, data.hotelMakkah || "—", {
-    leftPx: 55, topPx: 392, size: 20, minSize: 11, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 305,
+    leftPx: 55, topPx: 400, size: 20, minSize: 10, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 305,
   });
-  mask(page, WHITE, 45, 432, 200, 22);
+  mask(page, WHITE, 42, 437, 205, 24);
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 55, topPx: 436, size: 11, font: fontReg, color: DARK,
+    leftPx: 55, topPx: 442, size: 11, font: fontReg, color: DARK,
   });
 
   // ── 6. Hotel Madinah ──
-  mask(page, WHITE, 400, 384, 290, 44);
+  mask(page, WHITE, 397, 393, 295, 42);
   drawTextFit(page, data.hotelMadinah || "—", {
-    leftPx: 410, topPx: 392, size: 20, minSize: 11, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 275,
+    leftPx: 410, topPx: 400, size: 20, minSize: 10, font: fontExBold, color: ORANGE_TEXT, maxWidthPx: 275,
   });
-  mask(page, WHITE, 400, 432, 200, 22);
+  mask(page, WHITE, 397, 437, 205, 24);
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 410, topPx: 436, size: 11, font: fontReg, color: DARK,
+    leftPx: 410, topPx: 442, size: 11, font: fontReg, color: DARK,
   });
 
   // ── 7. Pax orange box ──
-  // Box: x 45–155 (110 wide), y 520–585 (65 tall). Big white digit.
+  // Box: x 45–155 (110 wide), y 520–585 (65 tall). Angka putih center.
   mask(page, ORANGE, 45, 520, 110, 65);
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
     leftPx: 45, topPx: 520, widthPx: 110, heightPx: 65, size: 28, font: fontExBold, color: WHITE,
