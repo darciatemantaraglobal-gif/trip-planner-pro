@@ -95,7 +95,8 @@ function projectNameLineCount(text: string, baseSize: number): number {
 type ElementKey =
   | "projectName"
   | "metaInfo"
-  | "hotel"
+  | "hotelMakkah"
+  | "hotelMadinah"
   | "pricing"
   | "groupPricing"
   | "checklist";
@@ -156,22 +157,32 @@ function buildElements(
     });
   }
 
-  // ── Hotel (Makkah + Madinah, plus subtitle "X Malam" di topPx+38) ──
+  // ── Hotel (Makkah + Madinah dipisah jadi 2 object terpilih sendiri-sendiri) ──
+  // Tiap kolom punya nama hotel + subtitle "X Malam" (size 9) di topPx+38.
   {
     const s = layout.hotel.size;
-    const left = Math.min(layout.hotel.makkahXPx, layout.hotel.madinahXPx);
-    const right = Math.max(layout.hotel.makkahXPx, layout.hotel.madinahXPx);
-    // maxWidthPx=285 per kolom, tapi visual hotel name biasanya pendek; pakai 220.
     const top = textBoxY(layout.hotel.topPx, s);
     // Subtitle "X Malam" pada topPx+38 size=9 → bottom ≈ topPx + 38 + 9*1.752
     const subtitleBottom = layout.hotel.topPx + 38 + 9 * (TEXT_TOP_OFFSET_RATIO + TEXT_HEIGHT_RATIO);
+    const colHeight = subtitleBottom - top;
+    const COL_WIDTH = 220; // visual nama hotel biasanya pendek
+
     els.push({
-      key: "hotel",
-      label: "Hotel",
-      xPx: left,
+      key: "hotelMakkah",
+      label: "Hotel Makkah",
+      xPx: layout.hotel.makkahXPx,
       yPx: top,
-      widthPx: right - left + 220,
-      heightPx: subtitleBottom - top,
+      widthPx: COL_WIDTH,
+      heightPx: colHeight,
+      size: s,
+    });
+    els.push({
+      key: "hotelMadinah",
+      label: "Hotel Madinah",
+      xPx: layout.hotel.madinahXPx,
+      yPx: top,
+      widthPx: COL_WIDTH,
+      heightPx: colHeight,
       size: s,
     });
   }
@@ -262,10 +273,16 @@ function applyTranslate(
         topPx: layout.metaInfo.topPx + dyPx,
       };
       break;
-    case "hotel":
+    case "hotelMakkah":
       next.hotel = {
         ...layout.hotel,
         makkahXPx: layout.hotel.makkahXPx + dxPx,
+        topPx: layout.hotel.topPx + dyPx,
+      };
+      break;
+    case "hotelMadinah":
+      next.hotel = {
+        ...layout.hotel,
         madinahXPx: layout.hotel.madinahXPx + dxPx,
         topPx: layout.hotel.topPx + dyPx,
       };
@@ -315,7 +332,8 @@ function applyResize(
     case "metaInfo":
       next.metaInfo = { ...layout.metaInfo, size: clamped };
       break;
-    case "hotel":
+    case "hotelMakkah":
+    case "hotelMadinah":
       next.hotel = { ...layout.hotel, size: clamped };
       break;
     case "pricing":
@@ -483,8 +501,14 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         }
         setGuides({ x: xGuides, y: yGuides });
         // Apply same dx/dy ke setiap elemen yg di-drag (posisi relatif terjaga).
+        // Catatan: hotelMakkah & hotelMadinah berbagi field topPx — kalau dua-duanya
+        // terpilih, vertical delta hanya diterapkan sekali (via Makkah) biar gak doubled.
         let next = layout;
-        for (const k of st.keys) next = applyTranslate(next, k, dx, dy);
+        const hasBothHotel = st.keys.has("hotelMakkah") && st.keys.has("hotelMadinah");
+        for (const k of st.keys) {
+          const dyForKey = hasBothHotel && k === "hotelMadinah" ? 0 : dy;
+          next = applyTranslate(next, k, dx, dyForKey);
+        }
         setGhost(next);
       } else {
         // Resize: ukur jarak diagonal dari titik sudut yang berlawanan.
