@@ -17,6 +17,31 @@ const TEMPLATE_HEIGHT_PX = 1024;
 const MIN_FONT_SIZE = 6;
 const MAX_FONT_SIZE = 64;
 
+// ── Geometri PDF (sinkron sama generateIghPdf.ts) ──────────────────────────
+// PAGE_W=413.9506pt, TPL_W_PX=740 → SCALE = 0.5594.
+// Konversi font-size (PDF point) → template-px: 1/SCALE ≈ 1.788.
+const PDF_SCALE = 413.9506 / TEMPLATE_WIDTH_PX;
+const PT_TO_TPL_PX = 1 / PDF_SCALE;
+
+/**
+ * `drawText` di generateIghPdf naruh BASELINE di:
+ *   y_baseline_from_top_pt = topPx*SCALE + size*0.78
+ * Jadi di template-px:
+ *   baseline_tpl = topPx + size * 0.78 / SCALE ≈ topPx + size*1.394
+ *   cap_top_tpl  = baseline_tpl - 0.7*size/SCALE ≈ topPx + size*0.143
+ *   descender_tpl ≈ baseline_tpl + 0.2*size/SCALE ≈ topPx + size*1.752
+ * Total tinggi visual text ≈ size * 1.61 template-px, mulai sedikit di bawah topPx.
+ */
+const TEXT_TOP_OFFSET_RATIO = 0.143; // cap-top relatif terhadap topPx, dlm satuan size
+const TEXT_HEIGHT_RATIO = 1.61;       // tinggi cap-to-descender, dlm satuan size
+
+function textBoxY(topPx: number, size: number): number {
+  return topPx + size * TEXT_TOP_OFFSET_RATIO;
+}
+function textBoxH(size: number): number {
+  return size * TEXT_HEIGHT_RATIO;
+}
+
 type ElementKey =
   | "projectName"
   | "metaInfo"
@@ -37,91 +62,117 @@ interface OverlayElement {
   size: number;
 }
 
-/** Estimasi bounding-box visual buat tiap section dari config aktif. */
+/** Bounding-box visual yg presisi sesuai geometri PDF beneran. */
 function buildElements(layout: IghLayoutConfig, mode: IghLayoutMode): OverlayElement[] {
   const els: OverlayElement[] = [];
 
-  // ── Project Name ──
-  els.push({
-    key: "projectName",
-    label: "Project Name",
-    xPx: layout.projectName.xPx,
-    yPx: layout.projectName.topPx - layout.projectName.size,
-    widthPx: 280,
-    heightPx: layout.projectName.size + 8,
-    size: layout.projectName.size,
-  });
-
-  // ── Meta Info (customer + date) ──
+  // ── Project Name ── (drawText, maxWidthPx=285)
   {
-    const left = Math.min(layout.metaInfo.customerXPx, layout.metaInfo.dateXPx);
-    const right = Math.max(layout.metaInfo.customerXPx, layout.metaInfo.dateXPx);
+    const s = layout.projectName.size;
     els.push({
-      key: "metaInfo",
-      label: "Meta Info",
-      xPx: left - 4,
-      yPx: layout.metaInfo.topPx - layout.metaInfo.size,
-      widthPx: right - left + 140,
-      heightPx: layout.metaInfo.size + 6,
-      size: layout.metaInfo.size,
+      key: "projectName",
+      label: "Project Name",
+      xPx: layout.projectName.xPx,
+      yPx: textBoxY(layout.projectName.topPx, s),
+      widthPx: 285,
+      heightPx: textBoxH(s),
+      size: s,
     });
   }
 
-  // ── Hotel (Makkah + Madinah) ──
+  // ── Meta Info (customer + date, sejajar) ──
   {
+    const s = layout.metaInfo.size;
+    const left = Math.min(layout.metaInfo.customerXPx, layout.metaInfo.dateXPx);
+    const right = Math.max(layout.metaInfo.customerXPx, layout.metaInfo.dateXPx);
+    // Tiap kolom ada budget maxWidthPx=175 di drawText.
+    els.push({
+      key: "metaInfo",
+      label: "Meta Info",
+      xPx: left,
+      yPx: textBoxY(layout.metaInfo.topPx, s),
+      widthPx: right - left + 175,
+      heightPx: textBoxH(s),
+      size: s,
+    });
+  }
+
+  // ── Hotel (Makkah + Madinah, plus subtitle "X Malam" di topPx+38) ──
+  {
+    const s = layout.hotel.size;
     const left = Math.min(layout.hotel.makkahXPx, layout.hotel.madinahXPx);
     const right = Math.max(layout.hotel.makkahXPx, layout.hotel.madinahXPx);
+    // maxWidthPx=285 per kolom, tapi visual hotel name biasanya pendek; pakai 220.
+    const top = textBoxY(layout.hotel.topPx, s);
+    // Subtitle "X Malam" pada topPx+38 size=9 → bottom ≈ topPx + 38 + 9*1.752
+    const subtitleBottom = layout.hotel.topPx + 38 + 9 * (TEXT_TOP_OFFSET_RATIO + TEXT_HEIGHT_RATIO);
     els.push({
       key: "hotel",
       label: "Hotel",
-      xPx: left - 4,
-      yPx: layout.hotel.topPx - layout.hotel.size,
-      widthPx: right - left + 200,
-      heightPx: layout.hotel.size + 6,
-      size: layout.hotel.size,
+      xPx: left,
+      yPx: top,
+      widthPx: right - left + 220,
+      heightPx: subtitleBottom - top,
+      size: s,
     });
   }
 
   if (mode === "group") {
-    // ── Pricing Table (Group) ──
-    const left = layout.groupPricing.paxCenterXPx - 80;
-    const right = layout.groupPricing.doubleCenterXPx + 80;
+    // ── Pricing Table (Group) — N rows, 4 kolom ──
+    // Cell width fix di generator = 110px, height = cellHeightPx, top row baris pertama.
+    // Baris sebenernya tergantung data; pakai estimasi 6 untuk visual handle.
+    const gp = layout.groupPricing;
+    const ROWS = 6;
+    const left = gp.paxCenterXPx - 55; // 110/2
+    const right = gp.doubleCenterXPx + gp.doubleXOffsetPx + 55;
     els.push({
       key: "groupPricing",
       label: "Pricing Table",
       xPx: left,
-      yPx: layout.groupPricing.topPx - 8,
+      yPx: gp.topPx,
       widthPx: right - left,
-      heightPx: layout.groupPricing.rowSpacingPx * 6,
-      size: layout.groupPricing.size,
+      heightPx: (ROWS - 1) * gp.rowSpacingPx + gp.cellHeightPx,
+      size: gp.size,
     });
   } else {
-    // ── Pricing (Private) ──
-    const left = Math.min(layout.pricing.paxXPx, layout.pricing.priceXPx);
-    const right = Math.max(layout.pricing.paxXPx, layout.pricing.priceXPx);
+    // ── Pricing (Private) — 2 kotak orange, lebar fix 114 + 406 ──
+    // Generator: PAX_BOX widthPx=114, PRICE_BOX widthPx=406, both heightPx=61, topPx=topPx
+    const p = layout.pricing;
+    const left = Math.min(p.paxXPx, p.priceXPx);
+    const paxRight = p.paxXPx + 114;
+    const priceRight = p.priceXPx + 406;
+    const right = Math.max(paxRight, priceRight);
     els.push({
       key: "pricing",
       label: "Pricing",
-      xPx: left - 4,
-      yPx: layout.pricing.topPx - layout.pricing.size,
-      widthPx: right - left + 220,
-      heightPx: layout.pricing.size + 12,
-      size: layout.pricing.size,
+      xPx: left,
+      yPx: p.topPx,
+      widthPx: right - left,
+      heightPx: 61,
+      size: p.size,
     });
   }
 
-  // ── Checklist ──
+  // ── Checklist — 5 baris, baselinePx = posisi BASELINE (bukan top!) ──
   {
-    const left = Math.min(layout.checklist.leftXPx, layout.checklist.rightXPx);
-    const right = Math.max(layout.checklist.leftXPx, layout.checklist.rightXPx);
+    const c = layout.checklist;
+    const s = c.size;
+    // Cap-top untuk row pertama: baselinePx - 0.7*size/SCALE
+    const capTop = c.firstBaselinePx - 0.7 * s * PT_TO_TPL_PX;
+    // Descender row terakhir (row index 4): baseline + 0.2*size/SCALE
+    const lastBaseline = c.firstBaselinePx + 4 * c.rowSpacingPx + c.yOffsetPx;
+    const descBottom = lastBaseline + 0.2 * s * PT_TO_TPL_PX;
+    // Lebar kolom asli template = 235px. Box = dari kiri kolom kiri sampai kanan kolom kanan.
+    const left = Math.min(c.leftXPx, c.rightXPx) - 235 / 2;
+    const right = Math.max(c.leftXPx, c.rightXPx) + 235 / 2;
     els.push({
       key: "checklist",
       label: "Checklist",
-      xPx: left - 90,
-      yPx: layout.checklist.firstBaselinePx - layout.checklist.size,
-      widthPx: right - left + 200,
-      heightPx: layout.checklist.rowSpacingPx * 5 + 8,
-      size: layout.checklist.size,
+      xPx: left,
+      yPx: capTop,
+      widthPx: right - left,
+      heightPx: descBottom - capTop,
+      size: s,
     });
   }
 
