@@ -25,6 +25,7 @@ import {
 import { CanvasTemplateView } from "./renderHtml";
 import { PLACEHOLDER_CTX, type BindingContext } from "./dataBinding";
 import { pdfFirstPageToEditable, type PdfTextItem } from "@/lib/pdfToImage";
+import { detectSmartKey } from "./placeholderDetect";
 
 interface Props {
   open: boolean;
@@ -513,15 +514,34 @@ export function CanvasTemplateEditor({
       const yPct = (it.yPt / heightPt) * 100;
       const wPct = Math.max(2, (it.widthPt / widthPt) * 100 + 1.5);
       const hPct = Math.max(1.5, (it.fontSizePt * 1.25 / heightPt) * 100);
-      return {
-        id: uid(`pdftxt-${i}`),
-        type: "text",
-        text: it.str,
+      const baseGeom = {
         x: Math.max(0, Math.min(100, xPct)),
         y: Math.max(0, Math.min(100, yPct)),
         w: Math.min(100, wPct),
         h: hPct,
         z: 5,
+      };
+      const detectedKey = detectSmartKey(it.str);
+      if (detectedKey) {
+        return {
+          id: uid(`pdfsmart-${i}`),
+          type: "smart",
+          smartKey: detectedKey,
+          ...baseGeom,
+          fontSize: it.fontSizePt,
+          fontFamily: it.fontFamily,
+          fontWeight: it.bold ? "bold" : "normal",
+          fontStyle: it.italic ? "italic" : "normal",
+          align: "left",
+          color: it.color || "#000000",
+          format: detectedKey === "pricePerPax" || detectedKey === "priceTotal" ? "currency-idr" : "plain",
+        } as CanvasElement;
+      }
+      return {
+        id: uid(`pdftxt-${i}`),
+        type: "text",
+        text: it.str,
+        ...baseGeom,
         fontSize: it.fontSizePt,
         fontFamily: it.fontFamily,
         fontWeight: it.bold ? "bold" : "normal",
@@ -531,6 +551,41 @@ export function CanvasTemplateEditor({
         lineHeight: 1,
       } as CanvasElement;
     });
+  }
+
+  function autoTagPlaceholders() {
+    let count = 0;
+    setTemplate((t) => {
+      const newElements = t.elements.map((el) => {
+        if (el.type !== "text") return el;
+        const key = detectSmartKey(el.text);
+        if (!key) return el;
+        count += 1;
+        const smartEl: CanvasElement = {
+          id: el.id,
+          type: "smart",
+          smartKey: key,
+          x: el.x, y: el.y, w: el.w, h: el.h, z: el.z,
+          fontSize: el.fontSize,
+          fontFamily: el.fontFamily,
+          fontWeight: el.fontWeight,
+          fontStyle: el.fontStyle,
+          align: el.align,
+          color: el.color,
+          backgroundColor: el.backgroundColor,
+          paddingX: el.paddingX,
+          paddingY: el.paddingY,
+          format: key === "pricePerPax" || key === "priceTotal" ? "currency-idr" : "plain",
+        };
+        return smartEl;
+      });
+      const newT = { ...t, elements: newElements };
+      commitToHistory(newT);
+      return newT;
+    });
+    setTimeout(() => {
+      alert(count > 0 ? `Beres! ${count} placeholder ke-tag jadi slot otomatis.` : "Gak ketemu placeholder yang bisa di-auto-tag.");
+    }, 50);
   }
 
   async function setBgImageFromFile(file: File) {
@@ -689,6 +744,13 @@ export function CanvasTemplateEditor({
                 Hapus latar
               </button>
             )}
+            <button
+              onClick={autoTagPlaceholders}
+              className="h-7 px-2 rounded text-[11px] bg-violet-100 hover:bg-violet-200 text-violet-800 font-semibold flex items-center gap-1"
+              title="Scan semua teks, deteksi placeholder dalam kurung kayak (Nama Customer), (Tanggal), trus auto-tag jadi slot otomatis"
+            >
+              ✨ Auto-Tag Placeholder
+            </button>
             <input
               ref={bgFileRef}
               type="file"
