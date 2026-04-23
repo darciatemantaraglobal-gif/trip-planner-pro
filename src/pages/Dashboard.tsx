@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train, AlertCircle, Clock, Star, ChevronRight, Wallet } from "lucide-react";
+import { Plus, MapPin, Calendar as CalendarIcon, Trash2, Plane, Camera, Calculator, Users, CheckCircle, TrendingUp, ArrowRight, FileBarChart, Bus, Train, AlertCircle, Clock, Star, ChevronRight, Wallet, RefreshCw } from "lucide-react";
 import { useTripsStore, type Trip } from "@/store/tripsStore";
 import { listAllAgencyJamaah } from "@/features/trips/tripsRepo";
 import { listAllAgencyPayments, sumPaid, type Payment } from "@/features/payments/paymentsRepo";
@@ -712,6 +712,7 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [tab, setTab] = useState<"all" | "upcoming" | "done">("all");
   const [totalJamaah, setTotalJamaah] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const STATUS_LABELS: Record<string, string> = {
     Draft: t.status_draft,
@@ -730,6 +731,24 @@ export default function Dashboard() {
       .catch(() => { if (alive) setTotalJamaah(0); });
     return () => { alive = false; };
   }, [trips.length]);
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const [, , jamaah] = await Promise.all([
+        fetchTrips(),
+        refreshPackages(),
+        listAllAgencyJamaah().catch(() => [] as Jamaah[]),
+      ]);
+      setTotalJamaah(jamaah.length);
+      toast.success("Data dashboard diperbarui dari Supabase.");
+    } catch (err) {
+      toast.error(`Gagal memuat ulang: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const filtered = trips.filter((t) => {
     if (tab === "all") return true;
@@ -804,8 +823,24 @@ export default function Dashboard() {
                   </p>
                 )}
               </div>
-              <div className="hidden md:flex h-12 w-12 rounded-2xl bg-white/70 backdrop-blur shrink-0 items-center justify-center shadow-sm border border-orange-100">
-                <Plane strokeWidth={1.5} className="h-6 w-6 text-orange-500" />
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  title="Muat ulang data dari Supabase"
+                  aria-label="Refresh dashboard"
+                  className="group inline-flex items-center gap-1.5 h-8 md:h-9 px-2.5 md:px-3 rounded-full bg-white/80 backdrop-blur border border-orange-200/70 text-orange-700 hover:bg-white hover:border-orange-300 shadow-sm text-[11px] md:text-[12px] font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw
+                    strokeWidth={2.2}
+                    className={cn("h-3.5 w-3.5 md:h-4 md:w-4", refreshing && "animate-spin")}
+                  />
+                  <span className="hidden sm:inline">{refreshing ? "Memuat…" : "Refresh"}</span>
+                </button>
+                <div className="hidden md:flex h-12 w-12 rounded-2xl bg-white/70 backdrop-blur items-center justify-center shadow-sm border border-orange-100">
+                  <Plane strokeWidth={1.5} className="h-6 w-6 text-orange-500" />
+                </div>
               </div>
             </div>
           </div>
