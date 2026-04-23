@@ -720,6 +720,47 @@ export default function Calculator() {
     const makkahHotel = calc.hotels.find((h) => /makk?ah/i.test(h.label));
     const madinahHotel = calc.hotels.find((h) => /madin/i.test(h.label));
 
+    // Auto-derive "Sudah Termasuk" dari form: visa, tiket, hotel, F&B, destinasi.
+    // Cuma item yg punya label & ada price > 0 (atau set manual) yg ikut.
+    const derivedIncluded: string[] = [];
+    for (const v of calc.visas) {
+      const label = v.label?.trim();
+      if (label) derivedIncluded.push(label);
+    }
+    for (const t of calc.tickets) {
+      const label = t.label?.trim();
+      if (label) {
+        derivedIncluded.push(t.flightType ? `Tiket ${label} (${t.flightType})` : `Tiket ${label}`);
+      }
+    }
+    if (makkahHotel?.label) {
+      derivedIncluded.push(`Hotel Makkah ${makkahHotel.label} (${makkahHotel.days || 0} Malam)`);
+    }
+    if (madinahHotel?.label) {
+      derivedIncluded.push(`Hotel Madinah ${madinahHotel.label} (${madinahHotel.days || 0} Malam)`);
+    }
+    for (const d of calc.destinations) {
+      const label = d.label?.trim();
+      if (label) derivedIncluded.push(label);
+    }
+    for (const f of calc.fnbs) {
+      const label = f.label?.trim();
+      if (label) derivedIncluded.push(`Konsumsi ${label}`);
+    }
+
+    // Default "Belum Termasuk" yg umum di package umroh — user bisa override
+    // lewat calc.excludedItems kalau perlu.
+    const defaultExcluded = [
+      "Pengeluaran pribadi (laundry, telepon, dll)",
+      "Vaksin Meningitis",
+      "Kelebihan bagasi pesawat",
+      "Tour tambahan di luar itinerary",
+      "Biaya pembuatan paspor",
+    ];
+
+    const userIncluded = calc.includedItems.map((s) => s.trim()).filter(Boolean);
+    const userExcluded = calc.excludedItems.map((s) => s.trim()).filter(Boolean);
+
     // Format timeline "DD MMMM YYYY - DD MMMM YYYY (N hari)" pakai date-fns
     let timeline = calc.dateRange || "";
     const range = parseRangeStrict(calc.dateRange);
@@ -749,8 +790,8 @@ export default function Calculator() {
       pax: calc.pax || 0,
       pricePerPaxIDR: quote?.perPaxFinal ?? 0,
       kursIdrPerUsd: effectiveRates.USD,
-      included: calc.includedItems.filter((s) => s.trim()),
-      excluded: calc.excludedItems.filter((s) => s.trim()),
+      included: userIncluded.length > 0 ? userIncluded : derivedIncluded.slice(0, 5),
+      excluded: userExcluded.length > 0 ? userExcluded : defaultExcluded,
     };
   }, [calc, quote, effectiveRates.USD]);
 
