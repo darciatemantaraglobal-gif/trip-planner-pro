@@ -188,13 +188,8 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
 
   const page = pdf.getPage(0);
 
-  // ── 1. PROJECT label + name + timeline (kiri atas) ──
-  // Template tidak punya label "Project :" — kita gambarkan biar konsisten
-  // dengan style "Invoice to :" / "Date :" (size 11, grey).
-  drawText(page, "Project :", {
-    leftPx: 55, topPx: 224, size: 11, font: fontReg, color: GREY_LABEL,
-  });
-
+  // ── 1. PROJECT name + timeline (kiri atas) ──
+  // Label "Project :" sudah baked di template, jadi tidak perlu digambar lagi.
   // Project Name — Orange Bold, multi-line dengan wrap di width kolom.
   const projectName = (data.projectName || "—").trim();
   let projSize = 22;
@@ -224,10 +219,10 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   // Label baseline yTop=235 → value mulai topPx=247 (8px di bawah label),
   // LEFT-aligned ke posisi label-nya (x=335 dan x=538).
   drawText(page, data.customerName || "—", {
-    leftPx: 335, topPx: 247, size: 12, font: fontBold, color: ORANGE, maxWidthPx: 175,
+    leftPx: 335, topPx: 247, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
   });
   drawText(page, data.date || "—", {
-    leftPx: 538, topPx: 247, size: 12, font: fontBold, color: ORANGE, maxWidthPx: 175,
+    leftPx: 538, topPx: 247, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
   });
 
   // ── 3. HOTEL SECTION ──
@@ -236,13 +231,13 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
     leftPx: 51, topPx: 395, size: 22, minSize: 12, font: fontBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: 51, topPx: 433, size: 11, font: fontReg, color: GREY_MUTED,
+    leftPx: 51, topPx: 433, size: 9, font: fontReg, color: DARK,
   });
   drawText(page, data.hotelMadinah || "—", {
     leftPx: 407, topPx: 395, size: 22, minSize: 12, font: fontBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: 407, topPx: 433, size: 11, font: fontReg, color: GREY_MUTED,
+    leftPx: 407, topPx: 433, size: 9, font: fontReg, color: DARK,
   });
 
   // ── 4. PRICING BOXES (Pax & Harga per Pax) ──
@@ -256,15 +251,7 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
     ...PRICE_BOX, size: 22, minSize: 12, font: fontBold, color: WHITE,
   });
 
-  // ── 5. KURS NOTE ──
-  const kurs = data.kursIdrPerUsd && data.kursIdrPerUsd > 0
-    ? Math.round(data.kursIdrPerUsd).toLocaleString("id-ID")
-    : "17.100";
-  drawText(page, `* Kurs IDR ${kurs}/USD`, {
-    leftPx: 51, topPx: 638, size: 10, font: fontReg, color: GREY_MUTED,
-  });
-
-  // ── 6. CHECKLIST (Sudah / Belum Termasuk) ──
+  // ── 5. CHECKLIST (Sudah / Belum Termasuk) ──
   // Digit baseline rows: 725, 753, 781, 806, 834 (spacing ~28). Item text
   // di-CENTER horizontal di area setelah angka (left: x95..330, right: x459..694).
   const ROW_BASELINES = [725, 753, 781, 806, 834];
