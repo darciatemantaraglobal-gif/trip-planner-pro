@@ -346,8 +346,29 @@ interface Props {
 }
 
 type DragState =
-  | { kind: "move"; key: ElementKey; startX: number; startY: number; startSize: number }
+  | { kind: "move"; keys: ElementKey[]; startX: number; startY: number }
   | { kind: "resize"; key: ElementKey; corner: 0 | 1 | 2 | 3; startX: number; startY: number; startSize: number; startDiag: number };
+
+/** Gabungkan beberapa OverlayElement jadi 1 bounding-box pseudo-element buat snap. */
+function unionBox(els: OverlayElement[]): OverlayElement | null {
+  if (!els.length) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const e of els) {
+    minX = Math.min(minX, e.xPx);
+    minY = Math.min(minY, e.yPx);
+    maxX = Math.max(maxX, e.xPx + e.widthPx);
+    maxY = Math.max(maxY, e.yPx + e.heightPx);
+  }
+  return {
+    key: els[0].key,
+    label: "group",
+    xPx: minX,
+    yPx: minY,
+    widthPx: maxX - minX,
+    heightPx: maxY - minY,
+    size: els[0].size,
+  };
+}
 
 const SNAP_THRESHOLD_TPL = 6; // template-px (~3 CSS-px di display ratio 0.5)
 
@@ -405,7 +426,7 @@ function applySnap(
 export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled, projectNameText = "" }: Props) {
   // Ghost layout dipakai cuma selama drag aktif. Null = pakai `layout`.
   const [ghost, setGhost] = useState<IghLayoutConfig | null>(null);
-  const [selected, setSelected] = useState<ElementKey | null>(null);
+  const [selected, setSelected] = useState<Set<ElementKey>>(() => new Set());
   const [guides, setGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const dragRef = useRef<DragState | null>(null);
 
@@ -413,7 +434,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
   useEffect(() => {
     if (!enabled) {
       setGhost(null);
-      setSelected(null);
+      setSelected(new Set());
       setGuides({ x: [], y: [] });
       dragRef.current = null;
     }
@@ -445,20 +466,26 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       if (st.kind === "move") {
         const rawDx = toTemplatePx(e.clientX - st.startX);
         const rawDy = toTemplatePx(e.clientY - st.startY);
-        // Snap to other elements' edges/centers + page midline.
-        const dragged = baseElements.find((el) => el.key === st.key);
-        const others = baseElements.filter((el) => el.key !== st.key);
+        // Snap pakai bbox gabungan dari SEMUA elemen yg lagi di-drag,
+        // dan exclude semuanya dari kandidat snap.
+        const draggedSet = new Set(st.keys);
+        const draggedEls = baseElements.filter((el) => draggedSet.has(el.key));
+        const others = baseElements.filter((el) => !draggedSet.has(el.key));
+        const groupBox = unionBox(draggedEls);
         let dx = rawDx;
         let dy = rawDy;
         let xGuides: number[] = [];
         let yGuides: number[] = [];
-        if (dragged) {
-          const snapped = applySnap(dragged, others, rawDx, rawDy);
+        if (groupBox) {
+          const snapped = applySnap(groupBox, others, rawDx, rawDy);
           dx = snapped.dx; dy = snapped.dy;
           xGuides = snapped.xGuides; yGuides = snapped.yGuides;
         }
         setGuides({ x: xGuides, y: yGuides });
-        setGhost(applyTranslate(layout, st.key, dx, dy));
+        // Apply same dx/dy ke setiap elemen yg di-drag (posisi relatif terjaga).
+        let next = layout;
+        for (const k of st.keys) next = applyTranslate(next, k, dx, dy);
+        setGhost(next);
       } else {
         // Resize: ukur jarak diagonal dari titik sudut yang berlawanan.
         const curDx = e.clientX - st.startX;
@@ -494,17 +521,39 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
     [onChange, onPointerMove],
   );
 
-  function startMove(e: React.PointerEvent, key: ElementKey, currentSize: number) {
+  function startMove(e: React.PointerEvent, key: ElementKey) {
     if (!enabled) return;
     e.stopPropagation();
     e.preventDefault();
-    setSelected(key);
+    const shift = e.shiftKey || e.metaKey || e.ctrlKey;
+    // Tentukan selection set baru + keys yg akan di-drag.
+    let nextSelected: Set<ElementKey>;
+    if (shift) {
+      // Shift-click: toggle membership tanpa mulai drag (kecuali kalau
+      // setelah toggle elemen ini tetap selected, baru drag group).
+      nextSelected = new Set(selected);
+      if (nextSelected.has(key)) {
+        nextSelected.delete(key);
+      } else {
+        nextSelected.add(key);
+      }
+      setSelected(nextSelected);
+      // Kalau di-deselect, jangan mulai drag.
+      if (!nextSelected.has(key)) return;
+    } else if (selected.has(key) && selected.size > 1) {
+      // Klik biasa di anggota grup yg sudah selected → drag seluruh grup,
+      // selection tidak berubah.
+      nextSelected = selected;
+    } else {
+      // Klik biasa di luar grup → singleton selection.
+      nextSelected = new Set([key]);
+      setSelected(nextSelected);
+    }
     dragRef.current = {
       kind: "move",
-      key,
+      keys: Array.from(nextSelected),
       startX: e.clientX,
       startY: e.clientY,
-      startSize: currentSize,
     };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -521,7 +570,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
     if (!enabled) return;
     e.stopPropagation();
     e.preventDefault();
-    setSelected(key);
+    setSelected(new Set([key]));
     const diag = Math.max(8, Math.hypot(cssWidth, cssHeight));
     dragRef.current = {
       kind: "resize",
@@ -556,7 +605,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         height: imgRect.height,
         pointerEvents: "none",
       }}
-      onPointerDown={() => setSelected(null)}
+      onPointerDown={() => setSelected(new Set())}
     >
       {/* Snap guide lines — merah, full-width/height, hilang pas drag selesai */}
       {guides.x.map((vx, i) => (
@@ -598,7 +647,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         style={{ pointerEvents: "auto" }}
         onPointerDown={(e) => {
           e.stopPropagation();
-          setSelected(null);
+          setSelected(new Set());
         }}
       />
 
@@ -609,8 +658,13 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         const maxH = imgRect.height - top - 1;
         const cssW = Math.max(24, el.widthPx * scale);
         const cssH = Math.max(18, Math.min(el.heightPx * scale, maxH));
-        const isSelected = selected === el.key;
-        const isDragging = dragRef.current?.key === el.key && ghost !== null;
+        const isSelected = selected.has(el.key);
+        const draggingState = dragRef.current;
+        const isDragging =
+          ghost !== null &&
+          draggingState !== null &&
+          ((draggingState.kind === "move" && draggingState.keys.includes(el.key)) ||
+            (draggingState.kind === "resize" && draggingState.key === el.key));
         return (
           <div
             key={el.key}
@@ -634,7 +688,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
               boxShadow: isDragging ? "0 8px 18px rgba(15,23,42,0.18)" : undefined,
               opacity: isDragging ? 0.85 : 1,
             }}
-            onPointerDown={(e) => startMove(e, el.key, el.size)}
+            onPointerDown={(e) => startMove(e, el.key)}
           >
             {/* Label tag pojok kiri-atas */}
             <span
@@ -651,8 +705,8 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
               )}
             </span>
 
-            {/* Resize handles 4 sudut — cuma muncul saat selected */}
-            {isSelected &&
+            {/* Resize handles 4 sudut — cuma muncul saat single selection */}
+            {isSelected && selected.size === 1 &&
               ([0, 1, 2, 3] as const).map((corner) => {
                 const positions = [
                   { left: -4, top: -4, cursor: "nwse-resize" },
