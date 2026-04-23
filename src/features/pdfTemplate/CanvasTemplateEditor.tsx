@@ -25,7 +25,7 @@ import {
 import { CanvasTemplateView } from "./renderHtml";
 import { PLACEHOLDER_CTX, type BindingContext } from "./dataBinding";
 import { pdfFirstPageToEditable, type PdfTextItem } from "@/lib/pdfToImage";
-import { detectSmartKey } from "./placeholderDetect";
+import { detectSmartKey, detectLabelKey, isNightsPattern } from "./placeholderDetect";
 
 interface Props {
   open: boolean;
@@ -556,35 +556,98 @@ export function CanvasTemplateEditor({
   function autoTagPlaceholders() {
     let count = 0;
     setTemplate((t) => {
-      const newElements = t.elements.map((el) => {
-        if (el.type !== "text") return el;
-        const key = detectSmartKey(el.text);
-        if (!key) return el;
-        count += 1;
-        const smartEl: CanvasElement = {
-          id: el.id,
+      const claimed = new Set<string>(); // ids already converted
+      const elements = [...t.elements];
+
+      function toSmart(srcEl: any, key: SmartKey): CanvasElement {
+        return {
+          id: srcEl.id,
           type: "smart",
           smartKey: key,
-          x: el.x, y: el.y, w: el.w, h: el.h, z: el.z,
-          fontSize: el.fontSize,
-          fontFamily: el.fontFamily,
-          fontWeight: el.fontWeight,
-          fontStyle: el.fontStyle,
-          align: el.align,
-          color: el.color,
-          backgroundColor: el.backgroundColor,
-          paddingX: el.paddingX,
-          paddingY: el.paddingY,
+          x: srcEl.x, y: srcEl.y, w: srcEl.w, h: srcEl.h, z: srcEl.z,
+          fontSize: srcEl.fontSize,
+          fontFamily: srcEl.fontFamily,
+          fontWeight: srcEl.fontWeight,
+          fontStyle: srcEl.fontStyle,
+          align: srcEl.align,
+          color: srcEl.color,
+          backgroundColor: srcEl.backgroundColor,
+          paddingX: srcEl.paddingX,
+          paddingY: srcEl.paddingY,
           format: key === "pricePerPax" || key === "priceTotal" ? "currency-idr" : "plain",
-        };
-        return smartEl;
-      });
-      const newT = { ...t, elements: newElements };
+        } as CanvasElement;
+      }
+
+      // Pass 1: parenthesized placeholders → directly become smart slot
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el.type !== "text") continue;
+        const key = detectSmartKey(el.text);
+        if (!key) continue;
+        elements[i] = toSmart(el, key);
+        claimed.add(el.id);
+        count += 1;
+      }
+
+      // Pass 2: label-pair matching — find a label, find nearest "value" text below or right
+      const labelInfos = elements
+        .map((el, idx) => ({ el, idx, key: el.type === "text" ? detectLabelKey(el.text) : null }))
+        .filter((x) => x.key) as Array<{ el: any; idx: number; key: SmartKey }>;
+
+      for (const lbl of labelInfos) {
+        // Skip nights — handled by Pass 3
+        if (lbl.key === "makkahNights" || lbl.key === "madinahNights") continue;
+
+        let best: { idx: number; score: number } | null = null;
+        for (let j = 0; j < elements.length; j++) {
+          const cand = elements[j];
+          if (j === lbl.idx) continue;
+          if (cand.type !== "text") continue;
+          if (claimed.has(cand.id)) continue;
+          // Don't pair label-with-label
+          if (detectLabelKey((cand as any).text)) continue;
+          // Skip nights pattern (handled below)
+          if (isNightsPattern((cand as any).text)) continue;
+
+          const dy = cand.y - lbl.el.y; // positive = below
+          const dx = Math.abs(cand.x - lbl.el.x);
+          const dxRight = cand.x - (lbl.el.x + lbl.el.w); // positive = to the right of label
+          // BELOW: candidate is just below the label, similar x column
+          const isBelow = dy > 0 && dy < Math.max(8, lbl.el.h * 4) && dx < 18;
+          // RIGHT: candidate is on the same row to the right of the label
+          const isRight = Math.abs(cand.y - lbl.el.y) < lbl.el.h * 1.5 && dxRight > -2 && dxRight < 35;
+          if (!isBelow && !isRight) continue;
+          // Score: prefer closer; below is preferred over right
+          const score = isBelow ? dy + dx * 0.5 : Math.abs(cand.y - lbl.el.y) * 2 + dxRight;
+          if (!best || score < best.score) best = { idx: j, score };
+        }
+
+        if (best) {
+          const cand = elements[best.idx];
+          elements[best.idx] = toSmart(cand, lbl.key);
+          claimed.add(cand.id);
+          count += 1;
+        }
+      }
+
+      // Pass 3: "X Malam" / "X Night" → makkahNights (left half) or madinahNights (right half)
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el.type !== "text") continue;
+        if (claimed.has(el.id)) continue;
+        if (!isNightsPattern((el as any).text)) continue;
+        const key: SmartKey = el.x < 50 ? "makkahNights" : "madinahNights";
+        elements[i] = toSmart(el, key);
+        claimed.add(el.id);
+        count += 1;
+      }
+
+      const newT = { ...t, elements };
       commitToHistory(newT);
       return newT;
     });
     setTimeout(() => {
-      alert(count > 0 ? `Beres! ${count} placeholder ke-tag jadi slot otomatis.` : "Gak ketemu placeholder yang bisa di-auto-tag.");
+      alert(count > 0 ? `Beres bro! ${count} teks ke-tag jadi slot otomatis.` : "Gak ketemu placeholder yang bisa di-auto-tag.");
     }, 50);
   }
 
