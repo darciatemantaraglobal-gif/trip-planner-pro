@@ -233,3 +233,11 @@ src/
 - `PdfPreviewDialog` rebuilt to render preview as PNG via `pdfjs-dist`, with Download button.
 - **Removed**: legacy `src/lib/generatePdf.ts`, `src/features/pdfTemplate/` (CanvasTemplateEditor, renderHtml, templateStore), `src/pages/TemplatePreview.tsx`, `/template-preview` route.
 - **localStorage purged** for trips/jamaah/docs/packages — repos now use in-memory cache only; Supabase remains source of truth (`src/features/trips/tripsRepo.ts`, `src/features/packages/packagesRepo.ts`).
+
+## Repo Cleanup (April 2026)
+
+- Deleted dead code: `src/lib/pdfToImage.ts` (unused pdfjs-dist text extractor) and `src/lib/migrateLocalToSupabase.ts` (one-shot migration assumed complete on all installs).
+- Removed migration boot call from `src/App.tsx` — startup now goes straight to `refreshPackages()` + `fetchTrips()`.
+- Replaced legacy `localStorage.getItem("travelhub.jamaah.v2")` reads in `src/pages/Dashboard.tsx` (`getTotalJamaah` removed) and `src/pages/Packages.tsx` (`JAMAAH_STORAGE_KEY` + `StoredJamaah` + `readLocalArray` removed) with `listAllAgencyJamaah()` cloud fetch held in component state.
+- Dropped unused PDF deps from `package.json`: `jspdf`, `jspdf-autotable`. Remaining PDF stack: `pdf-lib` + `@pdf-lib/fontkit` + `pdfjs-dist` (preview rasterizer). `html-to-image` kept for `FlyerDialog`.
+- Branding scan clean — no `Temantiket` strings or assets remain.

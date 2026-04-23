@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { usePackages } from "@/features/packages/usePackages";
 import { PackageFormDialog } from "@/features/packages/PackageFormDialog";
 import type { Package } from "@/features/packages/packagesRepo";
+import { listAllAgencyJamaah, type Jamaah } from "@/features/trips/tripsRepo";
 import { computeProfessionalQuote, type HotelRow, type TransportRow, type VisaRow, type DestinationRow, type StaffRow } from "@/features/calculator/pricing";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
@@ -30,11 +31,6 @@ const statusVariant: Record<string, string> = {
   Completed: "bg-emerald-500/10 text-emerald-600",
 };
 
-
-interface StoredJamaah {
-  id: string;
-  tripId: string;
-}
 
 interface ProfessionalCalcState {
   packageName: string;
@@ -60,18 +56,7 @@ type EnrichedPackage = Package & {
   hotel?: string;
 };
 
-const JAMAAH_STORAGE_KEY = "travelhub.jamaah.v2";
 const CALC_STORAGE_KEY = "travelhub.package.calculations.v1";
-
-function readLocalArray<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
 
 function readPackageCalculations(): Record<string, ProfessionalCalcState> {
   if (typeof window === "undefined") return {};
@@ -117,16 +102,23 @@ export default function Packages() {
   const [editing, setEditing] = useState<Package | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [localVersion, setLocalVersion] = useState(0);
+  const [allJamaah, setAllJamaah] = useState<Jamaah[]>([]);
 
   useEffect(() => {
     const refreshLocalData = () => setLocalVersion((v) => v + 1);
-    window.addEventListener("storage", refreshLocalData);
     window.addEventListener("focus", refreshLocalData);
     return () => {
-      window.removeEventListener("storage", refreshLocalData);
       window.removeEventListener("focus", refreshLocalData);
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    listAllAgencyJamaah()
+      .then((rows) => { if (alive) setAllJamaah(rows); })
+      .catch(() => { if (alive) setAllJamaah([]); });
+    return () => { alive = false; };
+  }, [localVersion, items.length]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -140,12 +132,11 @@ export default function Packages() {
   const openEdit = (pkg: Package) => { setEditing(pkg); setFormOpen(true); };
 
   const jamaahByPackage = useMemo(() => {
-    const all = readLocalArray<StoredJamaah>(JAMAAH_STORAGE_KEY);
-    return all.reduce<Record<string, StoredJamaah[]>>((acc, jamaah) => {
+    return allJamaah.reduce<Record<string, Jamaah[]>>((acc, jamaah) => {
       acc[jamaah.tripId] = [...(acc[jamaah.tripId] ?? []), jamaah];
       return acc;
     }, {});
-  }, [localVersion, items]);
+  }, [allJamaah]);
 
   const calculations = useMemo(() => readPackageCalculations(), [localVersion, items]);
 

@@ -36,14 +36,6 @@ const stagger: Variants = {
   visible: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
 };
 
-function getTotalJamaah(): number {
-  try {
-    const raw = localStorage.getItem("travelhub.jamaah.v2");
-    return raw ? (JSON.parse(raw) as unknown[]).length : 0;
-  } catch {
-    return 0;
-  }
-}
 
 function getGreeting(name: string, t: ReturnType<typeof useT>): string {
   const h = new Date().getHours();
@@ -373,7 +365,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (t: Trip) => void 
 }
 
 // ── RIGHT PANEL ────────────────────────────────────────────────────────────────
-function RightPanel({ trips }: { trips: Trip[] }) {
+function RightPanel({ trips, totalJamaah }: { trips: Trip[]; totalJamaah: number }) {
   const navigate = useNavigate();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const rates = useRatesStore((s) => s.rates);
@@ -384,7 +376,6 @@ function RightPanel({ trips }: { trips: Trip[] }) {
 
   const active = trips.filter((t) => new Date(t.endDate).getTime() >= Date.now()).length;
   const done = trips.length - active;
-  const totalJamaah = getTotalJamaah();
 
   return (
     <div className="w-72 xl:w-80 shrink-0 border-l border-[hsl(var(--border))] flex flex-col overflow-auto">
@@ -720,6 +711,7 @@ export default function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [tab, setTab] = useState<"all" | "upcoming" | "done">("all");
+  const [totalJamaah, setTotalJamaah] = useState(0);
 
   const STATUS_LABELS: Record<string, string> = {
     Draft: t.status_draft,
@@ -731,6 +723,13 @@ export default function Dashboard() {
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
   useEffect(() => { if (!packagesLoaded) refreshPackages(); }, [packagesLoaded, refreshPackages]);
+  useEffect(() => {
+    let alive = true;
+    listAllAgencyJamaah()
+      .then((rows) => { if (alive) setTotalJamaah(rows.length); })
+      .catch(() => { if (alive) setTotalJamaah(0); });
+    return () => { alive = false; };
+  }, [trips.length]);
 
   const filtered = trips.filter((t) => {
     if (tab === "all") return true;
@@ -740,7 +739,6 @@ export default function Dashboard() {
 
   const activeTrips = trips.filter((t) => new Date(t.endDate).getTime() >= Date.now()).length;
   const doneTrips = trips.length - activeTrips;
-  const totalJamaah = getTotalJamaah();
 
   const pendingPackages = packages.filter((p) => !["Paid", "Completed"].includes(p.status));
   const nearestDeparture = [...packages]
@@ -1087,7 +1085,7 @@ export default function Dashboard() {
 
       {/* ── Right panel (desktop only) ── */}
       <div className="hidden xl:block">
-        <RightPanel trips={trips} />
+        <RightPanel trips={trips} totalJamaah={totalJamaah} />
       </div>
 
       <AddTripDialog open={addOpen} onClose={() => setAddOpen(false)} />
