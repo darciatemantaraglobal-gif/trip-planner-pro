@@ -1,4 +1,6 @@
-import { FileText, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bookmark, ChevronDown, FileText, Plus, Save, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 
 export interface QuotationMeta {
   quoteNumber: string;
@@ -27,11 +29,30 @@ interface Props {
 
 const M = { fontFamily: "'Manrope', sans-serif" };
 
+// ── Template storage helpers (localStorage) ────────────────────────────────
+interface ListTemplate { name: string; items: string[]; updatedAt: number }
+
+function tplStorageKey(kind: "included" | "excluded") {
+  return `igh:list-templates:${kind}`;
+}
+function loadTemplates(kind: "included" | "excluded"): ListTemplate[] {
+  try {
+    const raw = localStorage.getItem(tplStorageKey(kind));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((t) => t && typeof t.name === "string") : [];
+  } catch { return []; }
+}
+function saveTemplates(kind: "included" | "excluded", list: ListTemplate[]) {
+  localStorage.setItem(tplStorageKey(kind), JSON.stringify(list));
+}
+
 function ListEditor({
-  title, color, items, onChange,
+  title, color, kind, items, onChange,
 }: {
   title: string;
   color: "green" | "red";
+  kind: "included" | "excluded";
   items: string[];
   onChange: (next: string[]) => void;
 }) {
@@ -39,17 +60,131 @@ function ListEditor({
     ? { bg: "bg-emerald-50", border: "border-emerald-200", chip: "bg-emerald-100 text-emerald-700", btn: "border-emerald-300 text-emerald-700 hover:bg-emerald-100" }
     : { bg: "bg-rose-50", border: "border-rose-200", chip: "bg-rose-100 text-rose-700", btn: "border-rose-300 text-rose-700 hover:bg-rose-100" };
 
+  const [templates, setTemplates] = useState<ListTemplate[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => { setTemplates(loadTemplates(kind)); }, [kind]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [menuOpen]);
+
+  function handleSave() {
+    const cleaned = items.map((s) => s.trim()).filter(Boolean);
+    if (cleaned.length === 0) {
+      toast.error("Isi dulu minimal 1 item sebelum disimpan jadi template");
+      return;
+    }
+    const name = window.prompt("Nama template:", "")?.trim();
+    if (!name) return;
+    const next = [...templates.filter((t) => t.name !== name), { name, items: cleaned, updatedAt: Date.now() }]
+      .sort((a, b) => a.name.localeCompare(b.name));
+    saveTemplates(kind, next);
+    setTemplates(next);
+    toast.success(`Template "${name}" disimpan`);
+  }
+
+  function handleLoad(tpl: ListTemplate) {
+    onChange([...tpl.items]);
+    setMenuOpen(false);
+    toast.success(`Template "${tpl.name}" dimuat`);
+  }
+
+  function handleAppend(tpl: ListTemplate) {
+    const existing = new Set(items.map((s) => s.trim().toLowerCase()).filter(Boolean));
+    const additions = tpl.items.filter((s) => !existing.has(s.trim().toLowerCase()));
+    if (additions.length === 0) {
+      toast.message(`Semua item dari "${tpl.name}" sudah ada`);
+    } else {
+      onChange([...items.filter((s) => s.trim()), ...additions]);
+      toast.success(`+${additions.length} item dari "${tpl.name}"`);
+    }
+    setMenuOpen(false);
+  }
+
+  function handleDelete(tpl: ListTemplate) {
+    if (!window.confirm(`Hapus template "${tpl.name}"?`)) return;
+    const next = templates.filter((t) => t.name !== tpl.name);
+    saveTemplates(kind, next);
+    setTemplates(next);
+    toast.success(`Template "${tpl.name}" dihapus`);
+  }
+
   return (
     <div className={`rounded-xl border ${palette.border} ${palette.bg} p-3 space-y-2`}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span style={M} className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700">{title}</span>
-        <button
-          type="button"
-          onClick={() => onChange([...items, ""])}
-          className={`inline-flex items-center gap-1 h-6 px-2 rounded-md border ${palette.btn} text-[10.5px] font-bold bg-white`}
-        >
-          <Plus className="h-3 w-3" /> Tambah
-        </button>
+        <div className="flex items-center gap-1">
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className={`inline-flex items-center gap-1 h-6 px-2 rounded-md border ${palette.btn} text-[10.5px] font-bold bg-white`}
+              title="Muat template tersimpan"
+            >
+              <Bookmark className="h-3 w-3" /> Template
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-7 z-30 w-64 rounded-lg border border-slate-200 bg-white shadow-lg p-1 max-h-72 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => { handleSave(); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  <Save className="h-3.5 w-3.5" /> Simpan list saat ini sebagai template…
+                </button>
+                <div className="my-1 h-px bg-slate-100" />
+                {templates.length === 0 ? (
+                  <p className="px-2 py-2 text-[10.5px] text-slate-400 italic">Belum ada template tersimpan.</p>
+                ) : (
+                  templates.map((tpl) => (
+                    <div key={tpl.name} className="flex items-center gap-1 group">
+                      <button
+                        type="button"
+                        onClick={() => handleLoad(tpl)}
+                        className="flex-1 text-left px-2 py-1.5 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-slate-100 truncate"
+                        title={`${tpl.items.length} item — klik untuk replace`}
+                      >
+                        {tpl.name}
+                        <span className="ml-1 text-slate-400 font-normal">({tpl.items.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAppend(tpl)}
+                        className="px-1.5 h-6 rounded text-[10px] font-bold text-slate-500 hover:text-emerald-700 hover:bg-emerald-50"
+                        title="Tambahkan ke list (tanpa replace)"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(tpl)}
+                        className="px-1.5 h-6 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        title="Hapus template"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => onChange([...items, ""])}
+            className={`inline-flex items-center gap-1 h-6 px-2 rounded-md border ${palette.btn} text-[10.5px] font-bold bg-white`}
+          >
+            <Plus className="h-3 w-3" /> Tambah
+          </button>
+        </div>
       </div>
       <div className="space-y-1.5">
         {items.length === 0 && (
@@ -267,12 +402,14 @@ export function QuotationMetaSection({ value, onChange }: Props) {
           <ListEditor
             title="Harga Sudah Termasuk"
             color="green"
+            kind="included"
             items={value.includedItems}
             onChange={(next) => set("includedItems", next)}
           />
           <ListEditor
             title="Harga Tidak Termasuk"
             color="red"
+            kind="excluded"
             items={value.excludedItems}
             onChange={(next) => set("excludedItems", next)}
           />
