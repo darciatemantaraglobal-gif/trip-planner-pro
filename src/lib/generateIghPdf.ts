@@ -1,5 +1,8 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { DEFAULT_IGH_LAYOUT, mergeConfig, type IghLayoutConfig } from "./ighPdfConfig";
+
+export type { IghLayoutConfig } from "./ighPdfConfig";
 
 /**
  * Generator PDF berbasis template `igh-blank-template.pdf`.
@@ -122,6 +125,7 @@ function drawTextCentered(
     minSize?: number;
     font: PDFFont;
     color: RGB;
+    yOffsetPdf?: number;
   },
 ) {
   const r = pxRect(opts.leftPx, opts.topPx, opts.widthPx, opts.heightPx);
@@ -140,9 +144,10 @@ function drawTextCentered(
   }
   const cap = size * 0.70; // visual cap height
   const x = r.x + (r.width - textW) / 2;
-  // Geser ~8 pdf-units (≈15 screen-px) ke bawah biar bener-bener di tengah
-  // box orange (visual center sedikit di bawah geometric center).
-  const y = r.y + (r.height - cap) / 2 - 8;
+  // yOffsetPdf < 0 = naik (pdf coord), > 0 = turun. Geser dari geometric center
+  // biar pas visual center kotak orange.
+  const yOff = opts.yOffsetPdf ?? 0;
+  const y = r.y + (r.height - cap) / 2 + yOff;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
@@ -171,8 +176,9 @@ function fmtIdr(n: number): string {
   return "Rp. " + Math.round(n).toLocaleString("id-ID");
 }
 
-/** Build the filled PDF (returns bytes). */
-export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
+/** Build the filled PDF (returns bytes). Optional `layout` override koordinat. */
+export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
+  const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
   const [tplBytes, regBytes, boldBytes] = await Promise.all([
     fetchBytes(TEMPLATE_URL),
     fetchBytes(FONT_REGULAR_URL),
@@ -194,7 +200,7 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   // Label "Project :" sudah baked di template, jadi tidak perlu digambar lagi.
   // Project Name — Orange Bold, multi-line dengan wrap di width kolom.
   const projectName = (data.projectName || "—").trim();
-  let projSize = 22;
+  let projSize = cfg.projectName.size;
   let projLines: string[] = [projectName];
   const projMaxW = 285 * SCALE; // kolom kiri sebelum dipotong kolom Invoice
   while (projSize > 14) {
@@ -203,8 +209,8 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
     projSize -= 1;
   }
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
-  const projLH = projSize * 1.45;
-  let py = 257; // top of first line, longgar di bawah label "Project :"
+  const projLH = projSize * cfg.projectName.lineHeightMul;
+  let py = cfg.projectName.topPx;
   for (const line of projLines) {
     drawText(page, line, {
       leftPx: 55, topPx: py, size: projSize, font: fontBold, color: ORANGE,
@@ -221,10 +227,10 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   // Label baseline yTop=235 → value mulai topPx=247 (8px di bawah label),
   // LEFT-aligned ke posisi label-nya (x=335 dan x=538).
   drawText(page, data.customerName || "—", {
-    leftPx: 335, topPx: 259, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
+    leftPx: 335, topPx: cfg.metaInfo.topPx, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
   });
   drawText(page, data.date || "—", {
-    leftPx: 538, topPx: 259, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
+    leftPx: 538, topPx: cfg.metaInfo.topPx, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
   });
 
   // ── 3. HOTEL SECTION ──
@@ -247,22 +253,21 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   const PAX_BOX = { leftPx: 47, topPx: 518, widthPx: 114, heightPx: 61 };
   const PRICE_BOX = { leftPx: 272, topPx: 518, widthPx: 406, heightPx: 61 };
   drawTextCentered(page, String(Math.max(0, data.pax || 0)), {
-    ...PAX_BOX, size: 26, minSize: 14, font: fontBold, color: WHITE,
+    ...PAX_BOX, size: 26, minSize: 14, font: fontBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
   });
   drawTextCentered(page, fmtIdr(data.pricePerPaxIDR || 0), {
-    ...PRICE_BOX, size: 22, minSize: 12, font: fontBold, color: WHITE,
+    ...PRICE_BOX, size: 22, minSize: 12, font: fontBold, color: WHITE, yOffsetPdf: cfg.pricing.yOffsetPdf,
   });
 
   // ── 5. CHECKLIST (Sudah / Belum Termasuk) ──
-  // Digit baseline rows: 725, 753, 781, 806, 834 (spacing ~28). Item text
-  // di-CENTER horizontal di area setelah angka (left: x95..330, right: x459..694).
-  // Geser ~10px ke atas dari baseline digit baked supaya teks duduk di tengah
-  // antara dua underline row, bukan menempel di garis.
-  const ROW_BASELINES = [715, 743, 771, 796, 824];
+  // Baseline rows derived dari config: firstBaselinePx + i*rowSpacingPx.
+  const ROW_BASELINES = Array.from({ length: 5 }, (_, i) =>
+    cfg.checklist.firstBaselinePx + i * cfg.checklist.rowSpacingPx,
+  );
   const LEFT_AREA = { left: 95, width: 235 };
   const RIGHT_AREA = { left: 459, width: 235 };
-  drawList(page, data.included, ROW_BASELINES, LEFT_AREA, fontBold);
-  drawList(page, data.excluded, ROW_BASELINES, RIGHT_AREA, fontBold);
+  drawList(page, data.included, ROW_BASELINES, LEFT_AREA, fontBold, cfg.checklist.size);
+  drawList(page, data.excluded, ROW_BASELINES, RIGHT_AREA, fontBold, cfg.checklist.size);
 
   return pdf.save();
 }
@@ -275,13 +280,14 @@ function drawList(
   rowBaselines: number[],
   area: { left: number; width: number },
   font: PDFFont,
+  baseSize = 10,
 ) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, rowBaselines.length);
   for (let i = 0; i < cleaned.length; i++) {
     const baselinePx = rowBaselines[i];
     // Convert digit-baseline to "topPx" so drawText (top-origin) lands aligned.
     // size*0.78 is cap-height offset used inside drawText.
-    let size = 10;
+    let size = baseSize;
     const maxW = (area.width - 8) * SCALE;
     while (size > 7 && font.widthOfTextAtSize(cleaned[i], size) > maxW) size -= 0.5;
     const value = font.widthOfTextAtSize(cleaned[i], size) > maxW
@@ -312,8 +318,12 @@ function wrapAtSize(text: string, font: PDFFont, size: number, maxWidth: number)
 }
 
 /** Build & trigger browser download. */
-export async function downloadIghPdf(data: IghPdfData, fileName?: string): Promise<void> {
-  const bytes = await buildIghPdf(data);
+export async function downloadIghPdf(
+  data: IghPdfData,
+  fileName?: string,
+  layout?: Partial<IghLayoutConfig>,
+): Promise<void> {
+  const bytes = await buildIghPdf(data, layout);
   const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -327,8 +337,12 @@ export async function downloadIghPdf(data: IghPdfData, fileName?: string): Promi
 }
 
 /** Render preview image (PNG data URL) of the filled PDF — uses pdfjs-dist. */
-export async function renderIghPdfPreview(data: IghPdfData, scale = 1.5): Promise<string> {
-  const bytes = await buildIghPdf(data);
+export async function renderIghPdfPreview(
+  data: IghPdfData,
+  scale = 1.5,
+  layout?: Partial<IghLayoutConfig>,
+): Promise<string> {
+  const bytes = await buildIghPdf(data, layout);
   const pdfjs = await import("pdfjs-dist");
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
