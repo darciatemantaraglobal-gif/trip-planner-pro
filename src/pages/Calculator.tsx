@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { differenceInCalendarDays, format, parse, isValid } from "date-fns";
@@ -426,6 +426,64 @@ export default function Calculator() {
     const next = { ...calc, [key]: value };
     update(next);
   };
+
+  // ── Auto-fill hotel "Lama Hari" dari periode trip ──
+  // Begitu user pilih range tanggal, total malam = (tgl_pulang - tgl_berangkat).
+  // Distribusi: kalau ada hotel Makkah & Madinah → 60/40 (atau pakai rasio existing
+  // kalau user udah custom). Kalau cuma 1 hotel → semua malam ke situ.
+  const lastAutoRangeRef = useRef<string>("");
+  useEffect(() => {
+    if (calc.mode === "umum") return;
+    if (!calc.dateRange || calc.dateRange === lastAutoRangeRef.current) return;
+    const range = parseRangeStrict(calc.dateRange);
+    if (!range?.from || !range?.to) return;
+    const totalNights = Math.max(1, differenceInCalendarDays(range.to, range.from));
+    const hotels = calc.hotels;
+    if (!hotels.length) return;
+
+    const makkahIdx = hotels.findIndex((h) => /makk?ah/i.test(h.label));
+    const madinahIdx = hotels.findIndex((h) => /madin/i.test(h.label));
+
+    let nextHotels: HotelRow[];
+    if (makkahIdx >= 0 && madinahIdx >= 0) {
+      const curMakkah = hotels[makkahIdx].days || 0;
+      const curMadinah = hotels[madinahIdx].days || 0;
+      const sum = curMakkah + curMadinah;
+      let makkahN: number;
+      let madinahN: number;
+      if (sum > 0 && sum !== totalNights) {
+        // Pertahankan rasio yang user udah set
+        makkahN = Math.max(1, Math.round((curMakkah / sum) * totalNights));
+        madinahN = Math.max(1, totalNights - makkahN);
+      } else if (sum === totalNights) {
+        return; // udah pas, skip
+      } else {
+        // Default Umroh: 60/40 Makkah/Madinah
+        makkahN = Math.max(1, Math.round(totalNights * 0.6));
+        madinahN = Math.max(1, totalNights - makkahN);
+      }
+      nextHotels = hotels.map((h, i) =>
+        i === makkahIdx ? { ...h, days: makkahN } :
+        i === madinahIdx ? { ...h, days: madinahN } : h
+      );
+    } else if (hotels.length === 1) {
+      if (hotels[0].days === totalNights) return;
+      nextHotels = [{ ...hotels[0], days: totalNights }];
+    } else {
+      // Distribusi merata
+      const sumExisting = hotels.reduce((s, h) => s + (h.days || 0), 0);
+      if (sumExisting === totalNights) return;
+      const base = Math.floor(totalNights / hotels.length);
+      const remainder = totalNights - base * hotels.length;
+      nextHotels = hotels.map((h, i) => ({ ...h, days: base + (i < remainder ? 1 : 0) }));
+    }
+
+    lastAutoRangeRef.current = calc.dateRange;
+    update({ ...calc, hotels: nextHotels });
+    toast.message(`Lama hari hotel di-update otomatis: ${totalNights} malam`, {
+      duration: 2500,
+    });
+  }, [calc.dateRange, calc.mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sarRate = calc.localRateSAR > 0 ? calc.localRateSAR : (rates.SAR ?? 1);
   const usdRate = calc.localRateUSD > 0 ? calc.localRateUSD : (rates.USD ?? 1);
