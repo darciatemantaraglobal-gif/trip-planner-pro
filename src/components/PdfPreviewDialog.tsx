@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Download, Loader2, Sliders, X, Zap, ZapOff } from "lucide-react";
+import { Download, Hand, Loader2, MousePointer2, Sliders, X, Zap, ZapOff } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIghPdf, renderIghPdfPreview, type IghPdfData } from "@/lib/generateIghPdf";
-import { loadIghLayoutConfig, type IghLayoutConfig, type IghLayoutMode } from "@/lib/ighPdfConfig";
+import { loadIghLayoutConfig, saveIghLayoutConfig, type IghLayoutConfig, type IghLayoutMode } from "@/lib/ighPdfConfig";
 import { PdfLayoutTuner } from "./PdfLayoutTuner";
+import { PdfInteractiveOverlay } from "./PdfInteractiveOverlay";
 
 interface Props {
   open: boolean;
@@ -15,6 +16,7 @@ interface Props {
 
 const LIVE_STORAGE_KEY = "igh:pdf-live-preview";
 const TUNER_STORAGE_KEY = "igh:pdf-tuner-open";
+const EDIT_MODE_STORAGE_KEY = "igh:pdf-edit-mode";
 
 export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -26,8 +28,48 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   const [tunerOpen, setTunerOpen] = useState<boolean>(() => {
     try { return localStorage.getItem(TUNER_STORAGE_KEY) === "1"; } catch { return false; }
   });
+  const [editMode, setEditMode] = useState<boolean>(() => {
+    try { return localStorage.getItem(EDIT_MODE_STORAGE_KEY) === "1"; } catch { return false; }
+  });
   const mode: IghLayoutMode = data.mode === "group" ? "group" : "private";
   const [layout, setLayout] = useState<IghLayoutConfig>(() => loadIghLayoutConfig(mode));
+
+  // Bbox image preview di koordinat container — buat overlay positioning.
+  const previewWrapperRef = useRef<HTMLDivElement | null>(null);
+  const previewImgRef = useRef<HTMLImageElement | null>(null);
+  const [imgRect, setImgRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
+  function recalcImgRect() {
+    const wrap = previewWrapperRef.current;
+    const img = previewImgRef.current;
+    if (!wrap || !img || !img.complete || img.naturalWidth === 0) {
+      setImgRect(null);
+      return;
+    }
+    const wr = wrap.getBoundingClientRect();
+    const ir = img.getBoundingClientRect();
+    setImgRect({
+      left: ir.left - wr.left,
+      top: ir.top - wr.top,
+      width: ir.width,
+      height: ir.height,
+    });
+  }
+
+  useLayoutEffect(() => {
+    if (!previewUrl) { setImgRect(null); return; }
+    recalcImgRect();
+    const onResize = () => recalcImgRect();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [previewUrl, tunerOpen]);
+
+  // Drag-commit dari overlay → simpan ke per-mode storage juga supaya konsisten
+  // sama tuner panel (yang juga auto-save).
+  function handleLayoutChangeFromOverlay(next: IghLayoutConfig) {
+    setLayout(next);
+    saveIghLayoutConfig(next, mode);
+  }
 
   // Kalau mode berubah (user pindah dari private → group calc), reload layout
   // dari storage mode yang sesuai.
@@ -41,6 +83,9 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   useEffect(() => {
     try { localStorage.setItem(TUNER_STORAGE_KEY, tunerOpen ? "1" : "0"); } catch {/* noop */}
   }, [tunerOpen]);
+  useEffect(() => {
+    try { localStorage.setItem(EDIT_MODE_STORAGE_KEY, editMode ? "1" : "0"); } catch {/* noop */}
+  }, [editMode]);
 
   // Re-render preview when opened. In live mode atau tuner aktif, debounce on change.
   const dataKey = JSON.stringify(data);
@@ -98,6 +143,19 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
       <div className="flex items-center gap-1.5 shrink-0">
         <button
           type="button"
+          onClick={() => setEditMode((v) => !v)}
+          title={editMode ? "Edit Mode ON — geser & resize elemen langsung di preview. Klik buat matiin." : "Edit Mode OFF — klik buat aktifkan drag & resize."}
+          className={`inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-bold border transition-colors ${
+            editMode
+              ? "bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+              : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          {editMode ? <MousePointer2 className="h-3 w-3" /> : <Hand className="h-3 w-3" />}
+          Edit
+        </button>
+        <button
+          type="button"
           onClick={() => setTunerOpen((v) => !v)}
           title={tunerOpen ? "Sembunyikan Layout Tuner" : "Tampilkan Layout Tuner"}
           className={`inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-bold border transition-colors ${
@@ -136,11 +194,17 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   ) : null;
 
   const previewBody = (
-    <div className="flex-1 overflow-y-auto px-5 py-4 bg-slate-100 relative">
+    <div ref={previewWrapperRef} className="flex-1 overflow-y-auto px-5 py-4 bg-slate-100 relative">
       {loading && (
-        <div className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 h-6 px-2 rounded-md bg-white/90 border border-slate-200 text-[10px] font-bold text-slate-600 shadow-sm">
+        <div className="absolute top-2 right-2 z-30 inline-flex items-center gap-1 h-6 px-2 rounded-md bg-white/90 border border-slate-200 text-[10px] font-bold text-slate-600 shadow-sm">
           <Loader2 className="h-3 w-3 animate-spin" />
           Render…
+        </div>
+      )}
+      {editMode && previewUrl && (
+        <div className="absolute top-2 left-2 z-30 inline-flex items-center gap-1 h-6 px-2 rounded-md bg-blue-600 text-white text-[10px] font-bold shadow-sm">
+          <MousePointer2 className="h-3 w-3" />
+          Edit Mode
         </div>
       )}
       {!previewUrl && loading ? (
@@ -150,14 +214,24 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
         </div>
       ) : previewUrl ? (
         <img
+          ref={previewImgRef}
           src={previewUrl}
           alt="Preview PDF"
           className="mx-auto rounded-lg shadow-lg border border-slate-200 bg-white"
           style={{ maxWidth: "100%", height: "auto", opacity: loading ? 0.6 : 1, transition: "opacity 150ms" }}
+          onLoad={recalcImgRect}
+          draggable={false}
         />
       ) : (
         <div className="text-center py-20 text-slate-500 text-sm">Preview tidak tersedia.</div>
       )}
+      <PdfInteractiveOverlay
+        layout={layout}
+        mode={mode}
+        onChange={handleLayoutChangeFromOverlay}
+        imgRect={imgRect}
+        enabled={editMode && !!previewUrl}
+      />
     </div>
   );
 
