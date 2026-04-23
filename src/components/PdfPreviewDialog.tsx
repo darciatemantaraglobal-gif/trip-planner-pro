@@ -231,6 +231,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
         onChange={handleLayoutChangeFromOverlay}
         imgRect={imgRect}
         enabled={editMode && !!previewUrl}
+        projectNameText={data.projectName}
       />
     </div>
   );

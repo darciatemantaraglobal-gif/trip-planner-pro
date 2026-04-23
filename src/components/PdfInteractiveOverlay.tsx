@@ -42,6 +42,56 @@ function textBoxH(size: number): number {
   return size * TEXT_HEIGHT_RATIO;
 }
 
+// ── Canvas-based text width estimator ──────────────────────────────────────
+// Bukan pengganti font.widthOfTextAtSize pdf-lib (beda subset), tapi cukup
+// akurat (~5-8% margin) buat nentuin apakah projectName wrap ke 2 baris.
+let _measureCtx: CanvasRenderingContext2D | null = null;
+function measureCtx(): CanvasRenderingContext2D | null {
+  if (_measureCtx) return _measureCtx;
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  _measureCtx = c.getContext("2d");
+  return _measureCtx;
+}
+
+/** Bagi text jadi baris-baris ala wrapAtSize (greedy by space). */
+function wrapText(text: string, maxWidthPx: number, sizePt: number, weight = "bold"): string[] {
+  const ctx = measureCtx();
+  if (!ctx) return [text];
+  ctx.font = `${weight} ${sizePt}px Poppins, "Helvetica Neue", Arial, sans-serif`;
+  // Canvas pakai CSS-px (1pt ≈ 1 CSS-px utk metrik width). Konversi ke template-px.
+  const maxWInCssPx = maxWidthPx / PT_TO_TPL_PX; // = maxWidth × SCALE
+  const words = text.split(/\s+/).filter(Boolean);
+  if (!words.length) return [text || ""];
+  const lines: string[] = [];
+  let line = "";
+  for (const w of words) {
+    const trial = line ? `${line} ${w}` : w;
+    if (ctx.measureText(trial).width <= maxWInCssPx) {
+      line = trial;
+    } else {
+      if (line) lines.push(line);
+      line = w;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [text];
+}
+
+/** Hitung jumlah baris projectName setelah wrap + auto-shrink (1 atau 2). */
+function projectNameLineCount(text: string, baseSize: number): number {
+  const t = (text || "").trim();
+  if (!t) return 1;
+  const PROJ_MAX_W_TPL = 285; // template-px, sesuai generator
+  let size = baseSize;
+  while (size > 14) {
+    const lines = wrapText(t, PROJ_MAX_W_TPL, size);
+    if (lines.length <= 2) return Math.max(1, lines.length);
+    size -= 1;
+  }
+  return 2; // capped di generator
+}
+
 type ElementKey =
   | "projectName"
   | "metaInfo"
@@ -63,19 +113,28 @@ interface OverlayElement {
 }
 
 /** Bounding-box visual yg presisi sesuai geometri PDF beneran. */
-function buildElements(layout: IghLayoutConfig, mode: IghLayoutMode): OverlayElement[] {
+function buildElements(
+  layout: IghLayoutConfig,
+  mode: IghLayoutMode,
+  projectNameText: string,
+): OverlayElement[] {
   const els: OverlayElement[] = [];
 
-  // ── Project Name ── (drawText, maxWidthPx=285)
+  // ── Project Name ── (auto-wrap up to 2 baris, maxWidthPx=285)
   {
     const s = layout.projectName.size;
+    const text = (layout.projectName.text?.trim() || projectNameText || "").trim();
+    const lines = projectNameLineCount(text, s);
+    // Per generator: lineAdvance = size + lineGapPx (template-px)
+    const lineAdvance = s + layout.projectName.lineGapPx;
+    const heightPx = (lines - 1) * lineAdvance + textBoxH(s);
     els.push({
       key: "projectName",
-      label: "Project Name",
+      label: lines > 1 ? "Project Name (2 baris)" : "Project Name",
       xPx: layout.projectName.xPx,
       yPx: textBoxY(layout.projectName.topPx, s),
       widthPx: 285,
-      heightPx: textBoxH(s),
+      heightPx,
       size: s,
     });
   }
@@ -282,16 +341,72 @@ interface Props {
   imgRect: { left: number; top: number; width: number; height: number } | null;
   /** Aktifkan / matikan layer interaktif. */
   enabled: boolean;
+  /** Teks project name dari kalkulator — buat ngitung wrap multi-line. */
+  projectNameText?: string;
 }
 
 type DragState =
   | { kind: "move"; key: ElementKey; startX: number; startY: number; startSize: number }
   | { kind: "resize"; key: ElementKey; corner: 0 | 1 | 2 | 3; startX: number; startY: number; startSize: number; startDiag: number };
 
-export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled }: Props) {
+const SNAP_THRESHOLD_TPL = 6; // template-px (~3 CSS-px di display ratio 0.5)
+
+/** Snap dx/dy supaya edge dragged element nempel ke salah satu kandidat dari elemen lain. */
+function applySnap(
+  dragged: OverlayElement,
+  others: OverlayElement[],
+  dx: number,
+  dy: number,
+): { dx: number; dy: number; xGuides: number[]; yGuides: number[] } {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const o of others) {
+    xs.push(o.xPx, o.xPx + o.widthPx, o.xPx + o.widthPx / 2);
+    ys.push(o.yPx, o.yPx + o.heightPx, o.yPx + o.heightPx / 2);
+  }
+  // Tambahin garis bantu page edges juga (kiri, tengah, kanan halaman).
+  xs.push(0, TEMPLATE_WIDTH_PX / 2, TEMPLATE_WIDTH_PX);
+
+  const left = dragged.xPx + dx;
+  const right = left + dragged.widthPx;
+  const cx = left + dragged.widthPx / 2;
+  const top = dragged.yPx + dy;
+  const bottom = top + dragged.heightPx;
+  const cy = top + dragged.heightPx / 2;
+
+  let bestX: { delta: number; value: number } | null = null;
+  for (const edge of [left, cx, right]) {
+    for (const v of xs) {
+      const d = v - edge;
+      if (Math.abs(d) <= SNAP_THRESHOLD_TPL && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
+        bestX = { delta: d, value: v };
+      }
+    }
+  }
+  let bestY: { delta: number; value: number } | null = null;
+  for (const edge of [top, cy, bottom]) {
+    for (const v of ys) {
+      const d = v - edge;
+      if (Math.abs(d) <= SNAP_THRESHOLD_TPL && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
+        bestY = { delta: d, value: v };
+      }
+    }
+  }
+
+  const xGuides: number[] = [];
+  const yGuides: number[] = [];
+  let outDx = dx;
+  let outDy = dy;
+  if (bestX) { outDx = dx + bestX.delta; xGuides.push(bestX.value); }
+  if (bestY) { outDy = dy + bestY.delta; yGuides.push(bestY.value); }
+  return { dx: outDx, dy: outDy, xGuides, yGuides };
+}
+
+export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled, projectNameText = "" }: Props) {
   // Ghost layout dipakai cuma selama drag aktif. Null = pakai `layout`.
   const [ghost, setGhost] = useState<IghLayoutConfig | null>(null);
   const [selected, setSelected] = useState<ElementKey | null>(null);
+  const [guides, setGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const dragRef = useRef<DragState | null>(null);
 
   // Reset ghost & selection kalo overlay dimatiin.
@@ -299,12 +414,20 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
     if (!enabled) {
       setGhost(null);
       setSelected(null);
+      setGuides({ x: [], y: [] });
       dragRef.current = null;
     }
   }, [enabled]);
 
   const effective = ghost ?? layout;
-  const elements = useMemo(() => buildElements(effective, mode), [effective, mode]);
+  const elements = useMemo(
+    () => buildElements(effective, mode, projectNameText),
+    [effective, mode, projectNameText],
+  );
+  const baseElements = useMemo(
+    () => buildElements(layout, mode, projectNameText),
+    [layout, mode, projectNameText],
+  );
 
   const scale = imgRect ? imgRect.width / TEMPLATE_WIDTH_PX : 0;
 
@@ -320,8 +443,21 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       if (!st) return;
       e.preventDefault();
       if (st.kind === "move") {
-        const dx = toTemplatePx(e.clientX - st.startX);
-        const dy = toTemplatePx(e.clientY - st.startY);
+        const rawDx = toTemplatePx(e.clientX - st.startX);
+        const rawDy = toTemplatePx(e.clientY - st.startY);
+        // Snap to other elements' edges/centers + page midline.
+        const dragged = baseElements.find((el) => el.key === st.key);
+        const others = baseElements.filter((el) => el.key !== st.key);
+        let dx = rawDx;
+        let dy = rawDy;
+        let xGuides: number[] = [];
+        let yGuides: number[] = [];
+        if (dragged) {
+          const snapped = applySnap(dragged, others, rawDx, rawDy);
+          dx = snapped.dx; dy = snapped.dy;
+          xGuides = snapped.xGuides; yGuides = snapped.yGuides;
+        }
+        setGuides({ x: xGuides, y: yGuides });
         setGhost(applyTranslate(layout, st.key, dx, dy));
       } else {
         // Resize: ukur jarak diagonal dari titik sudut yang berlawanan.
@@ -347,6 +483,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       dragRef.current = null;
+      setGuides({ x: [], y: [] });
       // Commit ghost → trigger 1x re-render PDF lewat parent.
       setGhost((g) => {
         if (g) onChange(g);
@@ -421,6 +558,40 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       }}
       onPointerDown={() => setSelected(null)}
     >
+      {/* Snap guide lines — merah, full-width/height, hilang pas drag selesai */}
+      {guides.x.map((vx, i) => (
+        <div
+          key={`gx-${i}`}
+          style={{
+            position: "absolute",
+            left: vx * scale,
+            top: 0,
+            width: 1,
+            height: imgRect.height,
+            background: "#ef4444",
+            pointerEvents: "none",
+            boxShadow: "0 0 4px rgba(239,68,68,0.6)",
+            zIndex: 30,
+          }}
+        />
+      ))}
+      {guides.y.map((vy, i) => (
+        <div
+          key={`gy-${i}`}
+          style={{
+            position: "absolute",
+            top: vy * scale,
+            left: 0,
+            height: 1,
+            width: imgRect.width,
+            background: "#ef4444",
+            pointerEvents: "none",
+            boxShadow: "0 0 4px rgba(239,68,68,0.6)",
+            zIndex: 30,
+          }}
+        />
+      ))}
+
       {/* Background catcher — klik di luar elemen → deselect */}
       <div
         className="absolute inset-0"
