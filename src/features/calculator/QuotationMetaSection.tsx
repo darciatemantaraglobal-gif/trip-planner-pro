@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bookmark, ChevronDown, FileText, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export interface QuotationMeta {
   quoteNumber: string;
@@ -296,14 +297,11 @@ export function QuotationMetaSection({ value, onChange }: Props) {
             />
           </label>
           <label className="flex flex-col gap-1 col-span-2">
-            <span style={M} className="text-[10px] font-bold text-slate-600">Tanggal Trip</span>
-            <input
-              type="text"
+            <span style={M} className="text-[10px] font-bold text-slate-600">Tanggal Trip / Periode</span>
+            <DateRangePicker
               value={value.dateRange}
-              onChange={(e) => set("dateRange", e.target.value)}
-              placeholder="cth: 01 Jul - 31 Jul 2026"
-              style={M}
-              className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold focus:outline-none focus:ring-1 focus:ring-orange-400"
+              onChange={(v) => set("dateRange", v)}
+              placeholder="Pilih periode trip"
             />
           </label>
           <label className="flex flex-col gap-1">
