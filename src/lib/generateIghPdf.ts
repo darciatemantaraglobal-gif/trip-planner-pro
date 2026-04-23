@@ -140,7 +140,9 @@ function drawTextCentered(
   }
   const cap = size * 0.70; // visual cap height
   const x = r.x + (r.width - textW) / 2;
-  const y = r.y + (r.height - cap) / 2;
+  // Geser ~8 pdf-units (≈15 screen-px) ke bawah biar bener-bener di tengah
+  // box orange (visual center sedikit di bawah geometric center).
+  const y = r.y + (r.height - cap) / 2 - 8;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
 
@@ -201,8 +203,8 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
     projSize -= 1;
   }
   if (projLines.length > 2) projLines = projLines.slice(0, 2);
-  const projLH = projSize * 1.05;
-  let py = 247; // top of first line, sedikit di bawah label "Project :"
+  const projLH = projSize * 1.45;
+  let py = 257; // top of first line, longgar di bawah label "Project :"
   for (const line of projLines) {
     drawText(page, line, {
       leftPx: 55, topPx: py, size: projSize, font: fontBold, color: ORANGE,
@@ -219,10 +221,10 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   // Label baseline yTop=235 → value mulai topPx=247 (8px di bawah label),
   // LEFT-aligned ke posisi label-nya (x=335 dan x=538).
   drawText(page, data.customerName || "—", {
-    leftPx: 335, topPx: 247, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
+    leftPx: 335, topPx: 259, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
   });
   drawText(page, data.date || "—", {
-    leftPx: 538, topPx: 247, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
+    leftPx: 538, topPx: 259, size: 13, font: fontReg, color: ORANGE, maxWidthPx: 175,
   });
 
   // ── 3. HOTEL SECTION ──
@@ -254,7 +256,9 @@ export async function buildIghPdf(data: IghPdfData): Promise<Uint8Array> {
   // ── 5. CHECKLIST (Sudah / Belum Termasuk) ──
   // Digit baseline rows: 725, 753, 781, 806, 834 (spacing ~28). Item text
   // di-CENTER horizontal di area setelah angka (left: x95..330, right: x459..694).
-  const ROW_BASELINES = [725, 753, 781, 806, 834];
+  // Geser ~10px ke atas dari baseline digit baked supaya teks duduk di tengah
+  // antara dua underline row, bukan menempel di garis.
+  const ROW_BASELINES = [715, 743, 771, 796, 824];
   const LEFT_AREA = { left: 95, width: 235 };
   const RIGHT_AREA = { left: 459, width: 235 };
   drawList(page, data.included, ROW_BASELINES, LEFT_AREA, fontBold);
