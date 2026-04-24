@@ -37,10 +37,20 @@ export async function uploadJamaahPhoto(
   passportNumber: string,
   dataUrl: string,
 ): Promise<string> {
-  if (!isSupabaseConfigured()) return dataUrl;
-  if (!dataUrl.startsWith("data:")) return dataUrl;
+  const r = await uploadJamaahPhotoWithPath(jamaahId, passportNumber, dataUrl);
+  return r.url;
+}
+
+/** Versi upload foto yang return URL + storage path (buat rollback orphan). */
+export async function uploadJamaahPhotoWithPath(
+  jamaahId: string,
+  passportNumber: string,
+  dataUrl: string,
+): Promise<{ url: string; path: string | null }> {
+  if (!isSupabaseConfigured()) return { url: dataUrl, path: null };
+  if (!dataUrl.startsWith("data:")) return { url: dataUrl, path: null };
   const parsed = dataUrlToBlob(dataUrl);
-  if (!parsed) return dataUrl;
+  if (!parsed) return { url: dataUrl, path: null };
   const agencyId = requireAgencyId();
   const compressed = await compressIfImage(parsed.blob, parsed.contentType);
   const finalContentType = compressed.type || parsed.contentType;
@@ -52,10 +62,19 @@ export async function uploadJamaahPhoto(
   });
   if (error) {
     console.error("[storage] upload photo failed", error);
-    return dataUrl;
+    return { url: dataUrl, path: null };
   }
   const { data } = supabase!.storage.from(PHOTO_BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  return { url: data.publicUrl, path };
+}
+
+/** Hapus daftar object foto jamaah (cleanup orphan saat insert DB gagal). */
+export async function removeJamaahPhotos(paths: string[]): Promise<void> {
+  if (!isSupabaseConfigured() || paths.length === 0) return;
+  const cleaned = paths.filter((p): p is string => typeof p === "string" && p.length > 0);
+  if (cleaned.length === 0) return;
+  const { error } = await supabase!.storage.from(PHOTO_BUCKET).remove(cleaned);
+  if (error) console.warn("[storage] cleanup orphan photos failed", error, cleaned);
 }
 
 /** Upload dokumen jamaah ke bucket, return public URL. */

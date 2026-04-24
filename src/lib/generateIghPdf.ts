@@ -155,6 +155,28 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+// ── Cache template & font bytes di module scope ─────────────────────────────
+// Asset ini static (di-serve dari /public) jadi aman di-cache selama umur tab.
+// Tanpa cache, tiap regenerate PDF nge-fetch ulang ~150KB template + ~1MB font
+// (3 weights × 1+ family). Worst case di Bulk OCR sesi panjang bisa puluhan MB
+// transfer + parse cost yang sebenarnya redundant.
+//
+// Pakai promise-cache (bukan bytes-cache) supaya request paralel pertama kali
+// gak ngirim 2 fetch buat URL yang sama (request coalescing).
+const bytesCache = new Map<string, Promise<Uint8Array>>();
+function fetchBytesCached(url: string): Promise<Uint8Array> {
+  let p = bytesCache.get(url);
+  if (!p) {
+    p = fetchBytes(url).catch((e) => {
+      // Hapus dari cache supaya retry berikutnya bisa fetch ulang.
+      bytesCache.delete(url);
+      throw e;
+    });
+    bytesCache.set(url, p);
+  }
+  return p;
+}
+
 function fmtIdr(n: number): string {
   return "Rp. " + Math.round(n).toLocaleString("id-ID");
 }
@@ -177,7 +199,7 @@ function pick(override: string | undefined, fallback: string): string {
 export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
   const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
   const isGroup = data.mode === "group";
-  const tplBytes = await fetchBytes(isGroup ? TEMPLATE_GROUP_URL : TEMPLATE_URL);
+  const tplBytes = await fetchBytesCached(isGroup ? TEMPLATE_GROUP_URL : TEMPLATE_URL);
 
   const pdf = await PDFDocument.load(tplBytes);
   pdf.registerFontkit(fontkit);
@@ -191,9 +213,9 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     Array.from(usedFamilies).map(async (fam) => {
       const urls = FONT_FAMILY_URLS[fam];
       const [regBytes, sbBytes, boldBytes] = await Promise.all([
-        fetchBytes(urls.regular),
-        fetchBytes(urls.semiBold),
-        fetchBytes(urls.bold),
+        fetchBytesCached(urls.regular),
+        fetchBytesCached(urls.semiBold),
+        fetchBytesCached(urls.bold),
       ]);
       familyFonts[fam] = {
         regular: await pdf.embedFont(regBytes, { subset: true }),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import {
@@ -128,16 +128,47 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
     () => config.hotel.subtitleOffsetPx / Math.max(1, config.hotel.size),
   );
 
-  // List yang ditampilkan: built-in selalu di atas, lalu cloud.
-  const visiblePresets = withBuiltins(cloudPresets);
+  // ── Sync `local` saat prop `config` berubah dari luar ──
+  // Tanpa ini, undo/redo, switch mode, atau drag commit dari overlay bikin
+  // panel Tuner tampil nilai stale → slider berikutnya akan write balik nilai
+  // lama ke parent (silent data loss).
+  // Pakai ref + JSON-compare biar gak loop dengan effect debounce di bawah.
+  const lastSeenConfigRef = useRef(config);
+  useEffect(() => {
+    if (config === lastSeenConfigRef.current) return;
+    // Skip kalau perubahan berasal dari local user (config === local).
+    // JSON.stringify cukup ringan (<1KB) dibanding lag akibat re-render full.
+    const a = JSON.stringify(config);
+    const b = JSON.stringify(local);
+    if (a !== b) setLocal(config);
+    lastSeenConfigRef.current = config;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]);
+
+  // List yang ditampilkan: built-in selalu di atas, lalu cloud — di-filter per mode.
+  const visiblePresets = withBuiltins(cloudPresets, mode);
   const activePreset = visiblePresets.find((p) => p.id === activePresetId);
   const isBuiltinActive = !!activePreset?.builtin;
+
+  // Reset selected preset kalau mode ganti & preset aktif gak match mode baru.
+  useEffect(() => {
+    if (!activePresetId) return;
+    const stillVisible = visiblePresets.some((p) => p.id === activePresetId);
+    if (!stillVisible) {
+      setActivePresetId("");
+      setPresetName("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   // Debounce upstream notify by 350ms biar slider drag/typing ga lag.
   useEffect(() => {
     const t = window.setTimeout(() => {
       onChange(local);
       saveIghLayoutConfig(local, mode);
+      // Tandai bahwa state ini = config terbaru, jadi sync-from-prop di atas
+      // gak ngira ini perubahan eksternal & loop re-set local.
+      lastSeenConfigRef.current = local;
     }, 350);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,6 +217,7 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
         config: local,
         createdAt: now,
         updatedAt: now,
+        mode,
       });
       const list = await pullPdfLayoutPresets();
       setCloudPresets(list);
@@ -219,6 +251,9 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
         name: presetName.trim() || existing.name,
         config: local,
         updatedAt: Date.now(),
+        // Preserve existing.mode kalau sudah ada (legacy preset stay legacy
+        // sampai user save baru). Kalau belum ada, isi sesuai mode aktif.
+        mode: existing.mode ?? mode,
       });
       const list = await pullPdfLayoutPresets();
       setCloudPresets(list);

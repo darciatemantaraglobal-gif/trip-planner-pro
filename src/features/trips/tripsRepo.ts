@@ -1,5 +1,11 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { uploadJamaahPhoto, uploadJamaahDoc, isDataUrl } from "@/lib/supabaseStorage";
+import {
+  uploadJamaahPhoto,
+  uploadJamaahPhotoWithPath,
+  uploadJamaahDoc,
+  removeJamaahPhotos,
+  isDataUrl,
+} from "@/lib/supabaseStorage";
 import { requireAgencyId } from "@/store/authStore";
 
 export interface Trip {
@@ -227,9 +233,13 @@ export async function createJamaah(draft: Omit<Jamaah, "id" | "createdAt">): Pro
 
 /**
  * Bulk insert beberapa jamaah dalam satu round-trip ke Supabase.
- * Photo upload tetap paralel (storage tidak support batch), tapi INSERT-nya
- * cuma 1 panggilan API, jauh lebih cepat dari N kali createJamaah.
+ * - Upload foto paralel dengan concurrency limit (hindari rate-limit Storage).
+ * - Track storage path setiap foto yg berhasil ke-upload, supaya bisa rollback
+ *   (cleanup orphan) kalau INSERT row di tabel `jamaah` gagal.
+ * - Satu INSERT untuk semua row, satu localStorage write di akhir.
  */
+const BULK_PHOTO_UPLOAD_CONCURRENCY = 6;
+
 export async function createJamaahBulk(
   drafts: Omit<Jamaah, "id" | "createdAt">[],
   onProgress?: (uploaded: number, total: number) => void,
@@ -244,36 +254,66 @@ export async function createJamaahBulk(
     createdAt: new Date().toISOString(),
   }));
 
-  // Upload semua foto paralel (kalau ada). Track progress.
   let uploaded = 0;
   onProgress?.(0, baseList.length);
-  const list: Jamaah[] = await Promise.all(
-    baseList.map(async (j) => {
+  const list: Jamaah[] = new Array(baseList.length);
+  /** Path foto yang sukses ter-upload — dipakai utk rollback kalau INSERT gagal. */
+  const uploadedPaths: string[] = [];
+  let uploadFailures = 0;
+
+  // Worker-pool buat batasin paralelisme upload (storage rate-limit safe).
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < baseList.length) {
+      const i = cursor++;
+      const j = baseList[i];
       let photo = j.photoDataUrl;
       if (isSupabaseConfigured() && isDataUrl(photo)) {
         try {
-          photo = await uploadJamaahPhoto(j.id, j.passportNumber, photo as string);
+          const r = await uploadJamaahPhotoWithPath(j.id, j.passportNumber, photo as string);
+          photo = r.url;
+          if (r.path) uploadedPaths.push(r.path);
+          // r.path null artinya helper return data URL asli (upload gagal di-swallow).
+          if (!r.path && isDataUrl(r.url)) uploadFailures++;
         } catch (err) {
           console.warn("[bulk] gagal upload foto:", err);
+          uploadFailures++;
         }
       }
+      list[i] = { ...j, photoDataUrl: photo };
       uploaded++;
       onProgress?.(uploaded, baseList.length);
-      return { ...j, photoDataUrl: photo };
-    }),
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(BULK_PHOTO_UPLOAD_CONCURRENCY, baseList.length) }, worker),
   );
 
-  // ⚡ SATU KALI insert untuk semua row.
+  // ⚡ SATU KALI insert untuk semua row. Kalau gagal → rollback foto yg sudah upload.
   if (isSupabaseConfigured()) {
     const agencyId = requireAgencyId();
     const { error } = await supabase!
       .from("jamaah")
       .insert(list.map((j) => jamaahToRow(j, agencyId)));
-    if (error) throw error;
+    if (error) {
+      if (uploadedPaths.length > 0) {
+        // Best-effort cleanup; jangan throw kalau cleanup gagal supaya error
+        // utama (insert) tetep yg disurface ke user.
+        try { await removeJamaahPhotos(uploadedPaths); }
+        catch (e) { console.warn("[bulk] cleanup orphan photos failed", e); }
+      }
+      throw error;
+    }
   }
 
   // Satu kali tulis ke localStorage juga.
   save(JAMAAH_KEY, [...load<Jamaah>(JAMAAH_KEY, []), ...list]);
+
+  if (uploadFailures > 0) {
+    // Surface jumlah foto yg gagal upload via console — caller (UI) bisa baca
+    // dari log atau kita expand kontrak nanti utk passing detail ke onProgress.
+    console.warn(`[bulk] ${uploadFailures} foto gagal di-upload (data jamaah tetep masuk).`);
+  }
   return list;
 }
 

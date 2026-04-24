@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileImage, Loader2, ScanLine, Trash2, Upload, X, Database } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -74,6 +74,62 @@ interface Props {
   onClose: () => void;
 }
 
+// ── Draft persistence ───────────────────────────────────────────────────────
+// Simpan hasil scan tahap "review" ke localStorage per-trip biar gak ilang
+// kalau user ke-refresh, tutup tab gak sengaja, atau Save All gagal di tengah.
+// File foto gak bisa di-serialize ke localStorage → cuma data text yg disimpan.
+// Saat restore, baris muncul di tahap review tanpa preview foto (placeholder).
+const DRAFT_KEY_PREFIX = "igh:bulk-ocr-draft:";
+const DRAFT_VERSION = 1;
+
+interface PersistedRow {
+  data: ScanRow["data"];
+  mrzValid?: boolean;
+  failedChecks?: string[];
+  source?: ScanRow["source"];
+}
+interface PersistedDraft {
+  version: number;
+  savedAt: number;
+  rows: PersistedRow[];
+}
+
+function loadDraft(tripId: string): PersistedDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY_PREFIX + tripId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedDraft;
+    if (parsed?.version !== DRAFT_VERSION || !Array.isArray(parsed.rows)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+function saveDraft(tripId: string, rows: ScanRow[]) {
+  try {
+    const payload: PersistedDraft = {
+      version: DRAFT_VERSION,
+      savedAt: Date.now(),
+      rows: rows.map((r) => ({
+        data: r.data,
+        mrzValid: r.mrzValid,
+        failedChecks: r.failedChecks,
+        source: r.source,
+      })),
+    };
+    localStorage.setItem(DRAFT_KEY_PREFIX + tripId, JSON.stringify(payload));
+  } catch {
+    /* quota / private mode → silent */
+  }
+}
+function clearDraft(tripId: string) {
+  try {
+    localStorage.removeItem(DRAFT_KEY_PREFIX + tripId);
+  } catch {
+    /* noop */
+  }
+}
+
 const STEPS = [
   { key: "upload", label: "Upload" },
   { key: "scanning", label: "Scanning" },
@@ -90,23 +146,70 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const reset = () => {
-    rows.forEach((r) => URL.revokeObjectURL(r.previewUrl));
+  const reset = useCallback(() => {
+    rows.forEach((r) => {
+      // PLACEHOLDER_PREVIEW (untuk row dari draft restore) bukan blob URL,
+      // jadi gak perlu (dan gak boleh) di-revoke.
+      if (r.previewUrl.startsWith("blob:")) URL.revokeObjectURL(r.previewUrl);
+    });
     setRows([]);
     setPhase("upload");
     setSaving(false);
     setSaveProgress({ done: 0, total: 0 });
     setCompressing(false);
-  };
+  }, [rows]);
 
   const handleClose = () => {
     if (saving) {
       toast.info("Tunggu sampai proses simpan selesai dulu.");
       return;
     }
+    // PENTING: jangan hapus draft di sini — user mungkin nutup tab/dialog
+    // tanpa save. Draft baru di-clear di handleSaveAll setelah sukses, atau
+    // saat user explicitly klik tombol "Hapus semua" di tahap upload.
     reset();
     onClose();
   };
+
+  // ── Restore draft saat dialog dibuka ──
+  // Cuma restore kalau: dialog baru dibuka + ada draft + state masih kosong.
+  // File foto gak bisa di-restore → row muncul di tahap review tanpa preview.
+  useEffect(() => {
+    if (!open) return;
+    if (rows.length > 0) return; // sudah ada data di sesi ini, jangan timpa
+    const draft = loadDraft(tripId);
+    if (!draft || draft.rows.length === 0) return;
+    const restored: ScanRow[] = draft.rows.map((r, i) => ({
+      id: `restored-${draft.savedAt}-${i}`,
+      // Placeholder file (1x1 transparent png blob) supaya type ScanRow tetap valid;
+      // gak akan di-upload karena draft restore lewatin tahap scan & save langsung
+      // pakai data text yg ada.
+      file: new File([new Uint8Array()], "restored.txt", { type: "text/plain" }),
+      previewUrl: "",
+      status: "done",
+      progress: 100,
+      mrzValid: r.mrzValid,
+      failedChecks: r.failedChecks,
+      source: r.source,
+      data: r.data,
+    }));
+    setRows(restored);
+    setPhase("review");
+    const ageMin = Math.max(1, Math.round((Date.now() - draft.savedAt) / 60000));
+    toast.info(
+      `Draft dipulihkan: ${restored.length} jamaah (${ageMin} mnt lalu). Foto perlu di-upload ulang kalau mau diganti.`,
+      { duration: 6000 },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tripId]);
+
+  // ── Auto-save draft saat di tahap review ──
+  // Debounce 600ms supaya edit cell gak nge-spam localStorage write.
+  useEffect(() => {
+    if (!open || phase !== "review" || rows.length === 0) return;
+    const t = window.setTimeout(() => saveDraft(tripId, rows), 600);
+    return () => window.clearTimeout(t);
+  }, [open, phase, rows, tripId]);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
@@ -219,6 +322,9 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
       // ⚡ SATU kali batch insert (1 round-trip ke Supabase, bukan N kali).
       await addJamaahBulk(drafts, (done, total) => setSaveProgress({ done, total }));
       toast.success(`${drafts.length} jamaah berhasil disimpan.`);
+      // Hapus draft hanya setelah save sukses — kalau gagal, draft dipertahanin
+      // supaya user bisa retry tanpa kehilangan data.
+      clearDraft(tripId);
       setSaving(false);
       reset();
       onClose();
@@ -308,7 +414,12 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-[11.5px] font-semibold">{rows.length} file dipilih</p>
-                    <button type="button" onClick={() => { rows.forEach((r) => URL.revokeObjectURL(r.previewUrl)); setRows([]); }}
+                    <button type="button" onClick={() => {
+                      rows.forEach((r) => { if (r.previewUrl.startsWith("blob:")) URL.revokeObjectURL(r.previewUrl); });
+                      setRows([]);
+                      // User explicit "Hapus semua" → buang juga draft tersimpan.
+                      clearDraft(tripId);
+                    }}
                       className="text-[10.5px] text-red-500 hover:text-red-700">Hapus semua</button>
                   </div>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
@@ -339,7 +450,7 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
                 </p>
                 <div className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin text-orange-500" />
-                  Maks. 2 scan sekaligus
+                  Maks. 4 scan sekaligus
                 </div>
               </div>
               <div className="h-1.5 rounded-full bg-[hsl(var(--secondary))] overflow-hidden">

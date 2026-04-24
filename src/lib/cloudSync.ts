@@ -12,6 +12,7 @@ import {
   DEFAULT_IGH_LAYOUT,
   savePresetsCache,
   type IghLayoutConfig,
+  type IghLayoutMode,
   type IghLayoutPreset,
 } from "./ighPdfConfig";
 
@@ -191,27 +192,44 @@ export async function syncPdfTemplatesFull(templates: PdfTemplateCloud[]): Promi
 // Tabel `pdf_layout_presets` schema: id text PK, agency_id uuid, name text,
 // payload jsonb (= IghLayoutConfig), created_at + updated_at timestamptz.
 
+// Marker key untuk simpen mode di dalam jsonb payload (back-compat dgn schema
+// existing yg gak punya kolom `mode`). Preset lama tanpa marker = legacy
+// universal (ditampilin di kedua mode).
+const MODE_MARKER_KEY = "__mode";
+
 const presetFromRow = (r: Record<string, unknown>): IghLayoutPreset => {
-  const payload = (r.payload as Partial<IghLayoutConfig>) ?? {};
+  const rawPayload = (r.payload as Record<string, unknown>) ?? {};
+  // Pisahkan marker dari config asli supaya mergeConfig gak ngeliat field aneh.
+  const { [MODE_MARKER_KEY]: rawMode, ...cfgRaw } = rawPayload;
+  const mode: IghLayoutMode | undefined =
+    rawMode === "private" || rawMode === "group" ? rawMode : undefined;
   const created = typeof r.created_at === "string" ? Date.parse(r.created_at) : Number(r.created_at ?? Date.now());
   const updated = typeof r.updated_at === "string" ? Date.parse(r.updated_at) : Number(r.updated_at ?? created);
   return {
     id: String(r.id),
     name: String(r.name ?? ""),
-    config: mergeConfig(DEFAULT_IGH_LAYOUT, payload),
+    config: mergeConfig(DEFAULT_IGH_LAYOUT, cfgRaw as Partial<IghLayoutConfig>),
     createdAt: Number.isFinite(created) ? created : Date.now(),
     updatedAt: Number.isFinite(updated) ? updated : Date.now(),
+    mode,
   };
 };
 
-const presetToRow = (p: IghLayoutPreset, agencyId: string) => ({
-  id: p.id,
-  name: p.name,
-  payload: p.config as unknown,
-  agency_id: agencyId,
-  created_at: new Date(p.createdAt).toISOString(),
-  updated_at: new Date(p.updatedAt).toISOString(),
-});
+const presetToRow = (p: IghLayoutPreset, agencyId: string) => {
+  // Embed mode di dalam payload jsonb biar kompatibel dengan schema existing
+  // yang gak punya kolom `mode`. Kalau mode undefined, jangan tulis marker
+  // (preset jadi "legacy/universal").
+  const payload: Record<string, unknown> = { ...(p.config as unknown as Record<string, unknown>) };
+  if (p.mode) payload[MODE_MARKER_KEY] = p.mode;
+  return {
+    id: p.id,
+    name: p.name,
+    payload,
+    agency_id: agencyId,
+    created_at: new Date(p.createdAt).toISOString(),
+    updated_at: new Date(p.updatedAt).toISOString(),
+  };
+};
 
 /** Pull semua preset agency aktif → simpan ke localStorage cache → return list. */
 export async function pullPdfLayoutPresets(): Promise<IghLayoutPreset[]> {

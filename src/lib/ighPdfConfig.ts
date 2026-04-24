@@ -185,6 +185,9 @@ export interface IghLayoutPreset {
   updatedAt: number;
   /** Built-in preset (read-only safety net). Tidak disimpan di cloud. */
   builtin?: boolean;
+  /** Mode template preset ini dirancang untuk. `undefined` = legacy/universal
+   *  (preset lama sebelum kolom mode diintroduce; ditampilkan di kedua mode). */
+  mode?: IghLayoutMode;
 }
 
 /** Built-in preset yang selalu tersedia — safety net kalau cloud kosong. */
@@ -195,6 +198,7 @@ export const BUILTIN_PRESET: IghLayoutPreset = {
   createdAt: 0,
   updatedAt: 0,
   builtin: true,
+  mode: "private",
 };
 
 /** Layout 1:1 dengan template `IGH_Blank_Template_Group.pdf` (kicau.jpg).
@@ -243,6 +247,7 @@ export const BUILTIN_GROUP_PRESET: IghLayoutPreset = {
   createdAt: 0,
   updatedAt: 0,
   builtin: true,
+  mode: "group",
 };
 
 export const BUILTIN_PRESETS: IghLayoutPreset[] = [BUILTIN_PRESET, BUILTIN_GROUP_PRESET];
@@ -270,9 +275,23 @@ export function savePresetsCache(presets: IghLayoutPreset[]) {
   }
 }
 
-/** Susun list yang ditampilkan di UI: built-in di atas, lalu cloud presets. */
-export function withBuiltins(presets: IghLayoutPreset[]): IghLayoutPreset[] {
-  return [...BUILTIN_PRESETS, ...presets.filter((p) => !p.builtin)];
+/** Susun list yang ditampilkan di UI: built-in di atas, lalu cloud presets.
+ *  Kalau `mode` di-pass, list di-filter:
+ *  - built-in dengan mode mismatch → disembunyiin (cuma yg match yg muncul)
+ *  - cloud preset dengan mode mismatch → disembunyiin
+ *  - cloud preset legacy (mode === undefined) → ditampilin di kedua mode (back-compat) */
+export function withBuiltins(
+  presets: IghLayoutPreset[],
+  mode?: IghLayoutMode,
+): IghLayoutPreset[] {
+  const cloud = presets.filter((p) => !p.builtin);
+  const builtins = mode
+    ? BUILTIN_PRESETS.filter((p) => p.mode === mode)
+    : BUILTIN_PRESETS;
+  const filteredCloud = mode
+    ? cloud.filter((p) => p.mode === undefined || p.mode === mode)
+    : cloud;
+  return [...builtins, ...filteredCloud];
 }
 
 export type IghLayoutMode = "private" | "group";
