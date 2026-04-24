@@ -505,7 +505,7 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         // Catatan: hotelMakkah & hotelMadinah berbagi field topPx — kalau dua-duanya
         // terpilih, vertical delta hanya diterapkan sekali (via Makkah) biar gak doubled.
         let next = layout;
-        const hasBothHotel = st.keys.has("hotelMakkah") && st.keys.has("hotelMadinah");
+        const hasBothHotel = st.keys.includes("hotelMakkah") && st.keys.includes("hotelMadinah");
         for (const k of st.keys) {
           const dyForKey = hasBothHotel && k === "hotelMadinah" ? 0 : dy;
           next = applyTranslate(next, k, dx, dyForKey);
