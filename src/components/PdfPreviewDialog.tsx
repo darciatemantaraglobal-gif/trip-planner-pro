@@ -325,7 +325,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
             Redo {historyRef.current.future.length > 0 && `(${historyRef.current.future.length})`}
           </button>
           <span className="hidden md:inline-flex items-center h-6 px-2 rounded-md bg-amber-50/90 border border-amber-200 text-amber-700 text-[9px] font-semibold">
-            💡 Geser langsung untuk auto-snap · Tahan Alt untuk bebas · Ctrl/⌘+Z = undo
+            💡 Auto-snap aktif · Alt = bebas · ←↑→↓ = nudge 1px (Shift = 10px) · Ctrl/⌘+Z = undo
           </span>
         </div>
       )}

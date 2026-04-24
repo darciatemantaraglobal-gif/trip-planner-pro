@@ -54,13 +54,26 @@ function measureCtx(): CanvasRenderingContext2D | null {
   return _measureCtx;
 }
 
+// Memo cache untuk wrapText (Batch 2 perf): hindari measure berulang saat drag.
+// Key = `${weight}|${sizePt}|${maxWidthPx}|${text}`. Cap 200 entri (LRU sederhana
+// via Map insertion order: oldest dihapus saat melebihi limit).
+const _wrapCache = new Map<string, string[]>();
+const _WRAP_CACHE_MAX = 200;
+
 /** Bagi text jadi baris-baris ala wrapAtSize (greedy by space). */
 function wrapText(text: string, maxWidthPx: number, sizePt: number, weight = "bold"): string[] {
+  const cacheKey = `${weight}|${sizePt}|${maxWidthPx}|${text}`;
+  const cached = _wrapCache.get(cacheKey);
+  if (cached) {
+    // LRU touch: re-insert biar jadi paling baru.
+    _wrapCache.delete(cacheKey);
+    _wrapCache.set(cacheKey, cached);
+    return cached;
+  }
   const ctx = measureCtx();
   if (!ctx) return [text];
   ctx.font = `${weight} ${sizePt}px Poppins, "Helvetica Neue", Arial, sans-serif`;
-  // Canvas pakai CSS-px (1pt ≈ 1 CSS-px utk metrik width). Konversi ke template-px.
-  const maxWInCssPx = maxWidthPx / PT_TO_TPL_PX; // = maxWidth × SCALE
+  const maxWInCssPx = maxWidthPx / PT_TO_TPL_PX;
   const words = text.split(/\s+/).filter(Boolean);
   if (!words.length) return [text || ""];
   const lines: string[] = [];
@@ -75,7 +88,14 @@ function wrapText(text: string, maxWidthPx: number, sizePt: number, weight = "bo
     }
   }
   if (line) lines.push(line);
-  return lines.length ? lines : [text];
+  const result = lines.length ? lines : [text];
+  _wrapCache.set(cacheKey, result);
+  if (_wrapCache.size > _WRAP_CACHE_MAX) {
+    // Hapus entri tertua (Map insertion-order keys).
+    const firstKey = _wrapCache.keys().next().value;
+    if (firstKey !== undefined) _wrapCache.delete(firstKey);
+  }
+  return result;
 }
 
 /** Hitung jumlah baris projectName setelah wrap + auto-shrink (1 atau 2). */
@@ -506,18 +526,22 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
   // Stable handler refs — di-attach sekali, dipakai sampai unmount.
   const moveHandlerRef = useRef<((e: PointerEvent) => void) | null>(null);
   const upHandlerRef = useRef<((e: PointerEvent) => void) | null>(null);
+  // rAF throttle (Batch 2 perf): coalesce pointermove ke 60fps biar gak overload
+  // re-render saat user drag cepet di trackpad/mouse high-poll-rate.
+  const rafIdRef = useRef<number | null>(null);
+  const pendingEventRef = useRef<{ clientX: number; clientY: number; altKey: boolean; shiftKey: boolean } | null>(null);
 
   if (!moveHandlerRef.current) {
-    moveHandlerRef.current = (e: PointerEvent) => {
+    const processMove = (ev: { clientX: number; clientY: number; altKey: boolean; shiftKey: boolean }) => {
       const st = dragRef.current;
       if (!st) return;
-      e.preventDefault();
       const s = scaleRef.current;
       const baseEls = baseElementsRef.current;
       const layoutNow = layoutRef.current;
       const toTpl = (px: number) => (s > 0 ? px / s : 0);
-
+      // ── Inline body (sebelumnya di moveHandlerRef): ──
       if (st.kind === "move") {
+        const e = ev;
         const rawDx = toTpl(e.clientX - st.startX);
         const rawDy = toTpl(e.clientY - st.startY);
         const draggedSet = new Set(st.keys);
@@ -552,8 +576,8 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         }
         setGhost(next);
       } else {
-        const curDx = e.clientX - st.startX;
-        const curDy = e.clientY - st.startY;
+        const curDx = ev.clientX - st.startX;
+        const curDy = ev.clientY - st.startY;
         const signX = st.corner === 1 || st.corner === 2 ? 1 : -1;
         const signY = st.corner === 2 || st.corner === 3 ? 1 : -1;
         const projected = signX * curDx + signY * curDy;
@@ -562,6 +586,24 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         setGhost(applyResize(layoutNow, st.key, st.startSize * ratio));
       }
     };
+
+    moveHandlerRef.current = (e: PointerEvent) => {
+      e.preventDefault();
+      // Snapshot field yang dipakai (PointerEvent ter-recycle setelah handler return).
+      pendingEventRef.current = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey,
+      };
+      if (rafIdRef.current !== null) return; // sudah ada frame pending → coalesce
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        const ev = pendingEventRef.current;
+        pendingEventRef.current = null;
+        if (ev && dragRef.current) processMove(ev);
+      });
+    };
   }
   if (!upHandlerRef.current) {
     upHandlerRef.current = (e: PointerEvent) => {
@@ -569,6 +611,12 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       if (!st) return;
       if (moveHandlerRef.current) window.removeEventListener("pointermove", moveHandlerRef.current);
       if (upHandlerRef.current) window.removeEventListener("pointerup", upHandlerRef.current);
+      // Cancel pending rAF biar gak fire setelah pointer up.
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      pendingEventRef.current = null;
       dragRef.current = null;
       setGuides({ x: [], y: [] });
       setGhost((g) => {
@@ -643,13 +691,46 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
     if (upHandlerRef.current) window.addEventListener("pointerup", upHandlerRef.current);
   }
 
-  // Cleanup global listeners on unmount.
+  // Cleanup global listeners + pending rAF on unmount.
   useEffect(() => {
     return () => {
       if (moveHandlerRef.current) window.removeEventListener("pointermove", moveHandlerRef.current);
       if (upHandlerRef.current) window.removeEventListener("pointerup", upHandlerRef.current);
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
     };
   }, []);
+
+  // ── Keyboard nudging (Batch 2): arrow keys = 1 px, Shift+arrow = 10 px ──
+  // Aktif hanya saat overlay enabled + ada elemen terpilih. Skip kalau user
+  // lagi ngetik di input/textarea/contenteditable, atau kalau modifier
+  // Ctrl/Cmd/Alt aktif (biar gak bentrok dgn shortcut undo/redo & free-move).
+  useEffect(() => {
+    if (!enabled || selected.size === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key;
+      if (k !== "ArrowLeft" && k !== "ArrowRight" && k !== "ArrowUp" && k !== "ArrowDown") return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const dx = k === "ArrowLeft" ? -step : k === "ArrowRight" ? step : 0;
+      const dy = k === "ArrowUp" ? -step : k === "ArrowDown" ? step : 0;
+      const keys = Array.from(selected);
+      const hasBothHotel = keys.includes("hotelMakkah") && keys.includes("hotelMadinah");
+      let next = layoutRef.current;
+      for (const key of keys) {
+        const dyForKey = hasBothHotel && key === "hotelMadinah" ? 0 : dy;
+        next = applyTranslate(next, key, dx, dyForKey);
+      }
+      onChangeRef.current(next);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [enabled, selected]);
 
   if (!enabled || !imgRect || scale <= 0) return null;
 
@@ -699,6 +780,41 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         />
       ))}
 
+      {/* Footer safe-zone guide (Batch 2) — garis dashed amber tipis di Y=960
+          template-px. Penanda batas aman supaya checklist gak nubruk kontak
+          IG/email IGH Tour. Statis, gak ikut snap, hanya visual. */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 960 * scale,
+          height: 0,
+          borderTop: "1px dashed rgba(217,119,6,0.55)",
+          pointerEvents: "none",
+          zIndex: 24,
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            right: 4,
+            top: -11,
+            fontSize: 8,
+            fontWeight: 700,
+            color: "#92400e",
+            background: "rgba(254,243,199,0.92)",
+            padding: "0 4px",
+            borderRadius: 2,
+            border: "1px solid rgba(217,119,6,0.4)",
+            lineHeight: "11px",
+            letterSpacing: 0.2,
+          }}
+        >
+          ⚠ Batas footer
+        </span>
+      </div>
+
       {/* Background catcher — klik di luar elemen → deselect */}
       <div
         className="absolute inset-0"
@@ -716,6 +832,9 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         const maxH = imgRect.height - top - 1;
         const cssW = Math.max(24, el.widthPx * scale);
         const cssH = Math.max(18, Math.min(el.heightPx * scale, maxH));
+        // Label auto-flip (Batch 2): kalau elemen terlalu mepet ke top image,
+        // pindahkan label ke bawah bbox supaya gak ke-clip.
+        const labelBelow = top < 16;
         const isSelected = selected.has(el.key);
         const draggingState = dragRef.current;
         const isDragging =
@@ -748,14 +867,18 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
             }}
             onPointerDown={(e) => startMove(e, el.key)}
           >
-            {/* Label tag pojok kiri-atas — kecil, gak berisik */}
+            {/* Label tag — kecil, auto-flip ke bawah jika terlalu mepet top image. */}
             <span
-              className={`absolute -top-3.5 left-0 inline-flex items-center h-3 px-1 rounded-sm text-[8px] font-bold whitespace-nowrap select-none ${
+              className={`absolute left-0 inline-flex items-center h-3 px-1 rounded-sm text-[8px] font-bold whitespace-nowrap select-none ${
                 isSelected
                   ? "bg-blue-600 text-white"
                   : "bg-white/95 border border-blue-200 text-blue-700 opacity-0 group-hover:opacity-100"
               }`}
-              style={{ pointerEvents: "none", transition: "opacity 120ms" }}
+              style={{
+                pointerEvents: "none",
+                transition: "opacity 120ms",
+                ...(labelBelow ? { top: cssH + 2 } : { top: -14 }),
+              }}
             >
               {el.label}
               {isSelected && (
