@@ -494,8 +494,8 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         let dy = rawDy;
         let xGuides: number[] = [];
         let yGuides: number[] = [];
-        // Hold Alt (Option di Mac) untuk bypass snap → drag bener-bener bebas.
-        if (groupBox && !e.altKey) {
+        // Default: drag bebas (no snap). Tahan Shift untuk aktifin snap + garis bantu.
+        if (groupBox && e.shiftKey) {
           const snapped = applySnap(groupBox, others, rawDx, rawDy);
           dx = snapped.dx; dy = snapped.dy;
           xGuides = snapped.xGuides; yGuides = snapped.yGuides;
@@ -695,8 +695,8 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
             key={el.key}
             className={`absolute group ${
               isSelected
-                ? "ring-2 ring-blue-500"
-                : "ring-1 ring-blue-300/0 hover:ring-blue-400/70"
+                ? "ring-1 ring-blue-500"
+                : "ring-1 ring-blue-300/0 hover:ring-blue-400/60"
             }`}
             style={{
               left,
@@ -706,18 +706,18 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
               pointerEvents: "auto",
               cursor: isSelected ? "move" : "pointer",
               background: isSelected
-                ? "rgba(59,130,246,0.08)"
+                ? "rgba(59,130,246,0.05)"
                 : "rgba(59,130,246,0.0)",
               borderRadius: 2,
               transition: "background 120ms",
-              boxShadow: isDragging ? "0 8px 18px rgba(15,23,42,0.18)" : undefined,
+              boxShadow: isDragging ? "0 6px 14px rgba(15,23,42,0.16)" : undefined,
               opacity: isDragging ? 0.85 : 1,
             }}
             onPointerDown={(e) => startMove(e, el.key)}
           >
-            {/* Label tag pojok kiri-atas */}
+            {/* Label tag pojok kiri-atas — kecil, gak berisik */}
             <span
-              className={`absolute -top-5 left-0 inline-flex items-center h-4 px-1.5 rounded-sm text-[9px] font-bold whitespace-nowrap select-none ${
+              className={`absolute -top-3.5 left-0 inline-flex items-center h-3 px-1 rounded-sm text-[8px] font-bold whitespace-nowrap select-none ${
                 isSelected
                   ? "bg-blue-600 text-white"
                   : "bg-white/95 border border-blue-200 text-blue-700 opacity-0 group-hover:opacity-100"
@@ -734,10 +734,10 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
             {isSelected && selected.size === 1 &&
               ([0, 1, 2, 3] as const).map((corner) => {
                 const positions = [
-                  { left: -4, top: -4, cursor: "nwse-resize" },
-                  { right: -4, top: -4, cursor: "nesw-resize" },
-                  { right: -4, bottom: -4, cursor: "nwse-resize" },
-                  { left: -4, bottom: -4, cursor: "nesw-resize" },
+                  { left: -3, top: -3, cursor: "nwse-resize" },
+                  { right: -3, top: -3, cursor: "nesw-resize" },
+                  { right: -3, bottom: -3, cursor: "nwse-resize" },
+                  { left: -3, bottom: -3, cursor: "nesw-resize" },
                 ] as const;
                 const p = positions[corner];
                 return (
@@ -746,10 +746,10 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
                     onPointerDown={(e) => startResize(e, el.key, corner, el.size, cssW, cssH)}
                     style={{
                       position: "absolute",
-                      width: 10,
-                      height: 10,
+                      width: 7,
+                      height: 7,
                       background: "white",
-                      border: "1.5px solid #2563eb",
+                      border: "1.25px solid #2563eb",
                       borderRadius: 2,
                       cursor: p.cursor,
                       pointerEvents: "auto",
