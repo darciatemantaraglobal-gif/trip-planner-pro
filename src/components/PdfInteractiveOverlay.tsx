@@ -388,7 +388,7 @@ function unionBox(els: OverlayElement[]): OverlayElement | null {
   };
 }
 
-const SNAP_THRESHOLD_TPL = 6; // template-px (~3 CSS-px di display ratio 0.5)
+const SNAP_THRESHOLD_TPL = 3; // template-px (~1.5 CSS-px di display ratio 0.5)
 
 /** Snap dx/dy supaya edge dragged element nempel ke salah satu kandidat dari elemen lain. */
 function applySnap(
@@ -494,7 +494,8 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         let dy = rawDy;
         let xGuides: number[] = [];
         let yGuides: number[] = [];
-        if (groupBox) {
+        // Hold Alt (Option di Mac) untuk bypass snap → drag bener-bener bebas.
+        if (groupBox && !e.altKey) {
           const snapped = applySnap(groupBox, others, rawDx, rawDy);
           dx = snapped.dx; dy = snapped.dy;
           xGuides = snapped.xGuides; yGuides = snapped.yGuides;
