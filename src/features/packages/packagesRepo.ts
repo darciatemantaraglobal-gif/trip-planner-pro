@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { requireAgencyId } from "@/store/authStore";
+import { requireAgencyId, getCurrentAgencyId } from "@/store/authStore";
+import { makePersistedCache } from "@/lib/persistedCache";
 
 export type PackageStatus = "Draft" | "Calculated" | "Confirmed" | "Paid" | "Completed";
 export type HotelLevel = "Bintang 3" | "Bintang 4" | "Bintang 5";
@@ -26,15 +27,25 @@ export interface Package {
 
 export type PackageDraft = Omit<Package, "id" | "createdAt" | "updatedAt">;
 
-// Source of truth = Supabase. In-memory cache only — no localStorage.
+// Source of truth = Supabase. Tapi kita tetap simpan write-through cache di
+// localStorage per-agency, supaya:
+//   1) Refresh page = data tetap muncul instant (gak nunggu round-trip Supabase).
+//   2) Kalau Supabase error/offline/RLS-blocked → user tetap lihat data terakhir
+//      yg sukses, bukan list kosong yg keliatan kayak "data hilang".
 export const PACKAGES_KEY = "packages";
+const persistedCache = makePersistedCache<Package>("packages");
 
-let _cache: Package[] = [];
+let _cache: Package[] | null = null;
 function loadStore(): Package[] {
+  if (_cache === null) {
+    // Lazy-init dari localStorage saat pertama kali dipanggil per-page-load.
+    _cache = persistedCache.read(getCurrentAgencyId());
+  }
   return _cache.slice();
 }
 function saveStore(items: Package[]) {
   _cache = items.slice();
+  persistedCache.write(getCurrentAgencyId(), _cache);
 }
 
 const fromRow = (r: Record<string, unknown>): Package => ({
@@ -69,11 +80,22 @@ const toRow = (p: Package, agencyId?: string) => ({
 
 export async function listPackages(): Promise<Package[]> {
   if (isSupabaseConfigured()) {
-    const { data, error } = await supabase!.from("packages").select("*").order("created_at", { ascending: false });
-    if (error) throw error;
-    const items = (data ?? []).map(fromRow);
-    saveStore(items);
-    return items;
+    try {
+      const { data, error } = await supabase!.from("packages").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      const items = (data ?? []).map(fromRow);
+      saveStore(items);
+      return items;
+    } catch (err) {
+      // Supabase gagal (network/RLS/timeout/dll). Jangan return [] kosong —
+      // fallback ke cache lokal supaya user tetap lihat data terakhir.
+      const cached = loadStore();
+      console.warn(
+        `[packages] list dari Supabase gagal, pakai cache lokal (${cached.length} item):`,
+        err,
+      );
+      return cached;
+    }
   }
   return loadStore();
 }

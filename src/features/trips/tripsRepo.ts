@@ -6,7 +6,8 @@ import {
   removeJamaahPhotos,
   isDataUrl,
 } from "@/lib/supabaseStorage";
-import { requireAgencyId } from "@/store/authStore";
+import { requireAgencyId, getCurrentAgencyId } from "@/store/authStore";
+import { makePersistedCache } from "@/lib/persistedCache";
 
 export interface Trip {
   id: string;
@@ -57,19 +58,48 @@ export interface JamaahDoc {
   createdAt: string;
 }
 
-// Source of truth = Supabase. We keep a small in-memory cache here so synchronous
-// callers (legacy code paths) still work between cloud syncs. Nothing is
-// persisted to localStorage — restart the page to refetch from the cloud.
+// Source of truth = Supabase. Tapi kita maintain write-through cache di
+// localStorage per-agency — supaya data nggak "hilang" pas refresh kalau
+// Supabase lagi error/offline/RLS-blocked, dan supaya UI bisa render instant
+// tanpa nunggu round-trip cloud setiap reload.
 export const TRIPS_KEY = "trips";
 export const JAMAAH_KEY = "jamaah";
 export const DOCS_KEY = "docs";
 
-const _cache: Record<string, unknown[]> = {};
+const tripsCache = makePersistedCache<Trip>("trips");
+const jamaahCache = makePersistedCache<Jamaah>("jamaah");
+const docsCache = makePersistedCache<JamaahDoc>("jamaah_docs");
+
+function cacheFor(key: string): { read: () => unknown[]; write: (items: unknown[]) => void } {
+  const agencyId = getCurrentAgencyId();
+  if (key === TRIPS_KEY)
+    return {
+      read: () => tripsCache.read(agencyId),
+      write: (items) => tripsCache.write(agencyId, items as Trip[]),
+    };
+  if (key === JAMAAH_KEY)
+    return {
+      read: () => jamaahCache.read(agencyId),
+      write: (items) => jamaahCache.write(agencyId, items as Jamaah[]),
+    };
+  if (key === DOCS_KEY)
+    return {
+      read: () => docsCache.read(agencyId),
+      write: (items) => docsCache.write(agencyId, items as JamaahDoc[]),
+    };
+  // Fallback (gak akan kepake — semua key di atas sudah di-handle).
+  return { read: () => [], write: () => {} };
+}
+
+// Lazy in-memory mirror — first read hydrates dari localStorage.
+const _mem: Record<string, unknown[] | undefined> = {};
 function load<T>(key: string, def: T[]): T[] {
-  return ((_cache[key] as T[] | undefined) ?? def).slice() as T[];
+  if (_mem[key] === undefined) _mem[key] = cacheFor(key).read();
+  return ((_mem[key] as T[] | undefined) ?? def).slice() as T[];
 }
 function save<T>(key: string, data: T[]) {
-  _cache[key] = data.slice();
+  _mem[key] = data.slice();
+  cacheFor(key).write(data);
 }
 
 // ── Mappers (snake_case ↔ camelCase) ────────────────────────────────────────
@@ -142,11 +172,21 @@ const docToRow = (d: JamaahDoc, agencyId?: string) => ({
 
 export async function listTrips(): Promise<Trip[]> {
   if (isSupabaseConfigured()) {
-    const { data, error } = await supabase!.from("trips").select("*").order("created_at", { ascending: false });
-    if (error) throw error;
-    const trips = (data ?? []).map(tripFromRow);
-    save(TRIPS_KEY, trips);
-    return trips;
+    try {
+      const { data, error } = await supabase!.from("trips").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      const trips = (data ?? []).map(tripFromRow);
+      save(TRIPS_KEY, trips);
+      return trips;
+    } catch (err) {
+      // Supabase gagal — fallback ke cache lokal supaya UI gak kosong.
+      const cached = load<Trip>(TRIPS_KEY, []);
+      console.warn(
+        `[trips] list dari Supabase gagal, pakai cache lokal (${cached.length} item):`,
+        err,
+      );
+      return cached;
+    }
   }
   return load<Trip>(TRIPS_KEY, []);
 }

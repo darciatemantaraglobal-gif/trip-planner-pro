@@ -25,8 +25,11 @@ export const useTripsStore = create<TripsState>((set) => ({
     try {
       const data = await listTrips();
       set({ trips: data, loadingTrips: false });
-    } catch {
-      set({ trips: [], loadingTrips: false });
+    } catch (err) {
+      // Jangan timpa trips jadi [] — biar UI tetap nampilin data lama (kalau ada)
+      // daripada keliatan "hilang" gara-gara hiccup network/RLS.
+      console.error("[tripsStore] fetchTrips failed:", err);
+      set((s) => ({ trips: s.trips, loadingTrips: false }));
     }
   },
 
