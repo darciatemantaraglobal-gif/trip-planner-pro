@@ -121,6 +121,12 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
   const [activePresetId, setActivePresetId] = useState<string | "">("");
   const [presetName, setPresetName] = useState("");
   const [presetBusy, setPresetBusy] = useState(false);
+  // "Sync subtitle distance" lock — kalau ON, ubah Font Size hotel auto
+  // recalculate Subtitle Gap proporsional (ratio gap/size dipertahankan).
+  const [syncHotelSubtitle, setSyncHotelSubtitle] = useState(false);
+  const [hotelSubtitleRatio, setHotelSubtitleRatio] = useState(
+    () => config.hotel.subtitleOffsetPx / Math.max(1, config.hotel.size),
+  );
 
   // List yang ditampilkan: built-in selalu di atas, lalu cloud.
   const visiblePresets = withBuiltins(cloudPresets);
@@ -539,13 +545,48 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             label="Font Size"
             value={local.hotel.size}
             min={14} max={28} step={0.5} unit="pt"
-            onChange={(v) => patch("hotel", { size: v })}
+            onChange={(v) => {
+              if (syncHotelSubtitle) {
+                const nextGap = Math.min(
+                  50,
+                  Math.max(20, Math.round(hotelSubtitleRatio * v)),
+                );
+                patch("hotel", { size: v, subtitleOffsetPx: nextGap });
+              } else {
+                patch("hotel", { size: v });
+              }
+            }}
           />
+          <label className="flex items-center gap-2 text-[10px] text-slate-700 select-none cursor-pointer">
+            <input
+              type="checkbox"
+              checked={syncHotelSubtitle}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setSyncHotelSubtitle(on);
+                if (on) {
+                  setHotelSubtitleRatio(
+                    local.hotel.subtitleOffsetPx / Math.max(1, local.hotel.size),
+                  );
+                }
+              }}
+              className="h-3 w-3 accent-orange-500"
+            />
+            <span className="font-medium">Sync subtitle distance</span>
+            <span className="text-slate-400">
+              (lock gap ÷ size ratio)
+            </span>
+          </label>
           <SliderRow
             label="Subtitle Gap"
             value={local.hotel.subtitleOffsetPx}
             min={20} max={50} step={1} unit="px"
-            onChange={(v) => patch("hotel", { subtitleOffsetPx: v })}
+            onChange={(v) => {
+              patch("hotel", { subtitleOffsetPx: v });
+              if (syncHotelSubtitle) {
+                setHotelSubtitleRatio(v / Math.max(1, local.hotel.size));
+              }
+            }}
           />
         </section>
 
