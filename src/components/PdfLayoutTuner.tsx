@@ -768,6 +768,12 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             onChange={(v) => patch("checklist", { firstBaselinePx: v })}
           />
           <SliderRow
+            label="Row Gap"
+            value={local.checklist.rowSpacingPx}
+            min={16} max={48} step={1} unit="px"
+            onChange={(v) => patch("checklist", { rowSpacingPx: v })}
+          />
+          <SliderRow
             label="Checklist Y Offset"
             value={local.checklist.yOffsetPx}
             min={-15} max={15} step={0.5} unit="px"
