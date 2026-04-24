@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { differenceInCalendarDays, format, parse, isValid } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane } from "lucide-react";
+import { Calculator as CalcIcon, Hotel, Bus, Globe, UserCheck, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, FileText, RotateCcw, Moon, Compass, Users, Plane, Download } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
@@ -1684,6 +1684,49 @@ export default function Calculator() {
                   byTier.get(key)!.cells.set(c.room, c);
                 }
                 const tierRows = Array.from(byTier.values());
+
+                // ── Export matriks ke CSV (Excel-friendly) ──
+                const exportMatrixCsv = () => {
+                  const esc = (v: string | number) => {
+                    const s = String(v);
+                    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+                  };
+                  const projectName = calc.projectName?.trim() || "Penawaran-Grup";
+                  const cur = groupMatrix.displayCurrency;
+                  const lines: string[] = [];
+                  lines.push(`Matriks Harga Jual per Tier - ${projectName}`);
+                  lines.push(`Display Currency:;${cur}`);
+                  lines.push(`Margin:;${calc.marginPercent}%`);
+                  lines.push(`Round To:;${calc.groupSettings.roundTo}`);
+                  lines.push("");
+                  lines.push(["Pax Tier", ...rooms, `HPP/pax (IDR)`].map(esc).join(";"));
+                  for (const { tier, cells } of tierRows) {
+                    const sample = Array.from(cells.values())[0];
+                    const row: (string | number)[] = [tier.label];
+                    for (const r of rooms) {
+                      const cell = cells.get(r);
+                      row.push(cell ? cell.perPaxDisplay : "");
+                    }
+                    row.push(sample ? Math.round(sample.hppPerPaxIDR) : "");
+                    lines.push(row.map(esc).join(";"));
+                  }
+                  lines.push("");
+                  lines.push(`Fixed Grup (IDR);${Math.round(groupMatrix.fixedTotalIDR)}`);
+                  lines.push(`Per-Pax Flat (IDR);${Math.round(groupMatrix.perPaxFlatIDR)}`);
+                  // BOM biar Excel kenal UTF-8 (karakter Rp/€/dll. aman)
+                  const csv = "\uFEFF" + lines.join("\r\n");
+                  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  const safeName = projectName.replace(/[^a-z0-9-_ ]/gi, "_").trim() || "matriks-grup";
+                  a.href = url;
+                  a.download = `${safeName}_matriks-harga.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success("Matriks harga berhasil diunduh (CSV).");
+                };
                 // Tier dengan profit margin paling sehat (selisih jual − HPP terbesar per pax) sebagai "Best"
                 const bestTier = tierRows.reduce<{ label: string; profit: number } | null>((best, row) => {
                   const sample = Array.from(row.cells.values())[0];
@@ -1701,10 +1744,22 @@ export default function Calculator() {
                           Matriks Harga Jual per Tier
                         </p>
                       </div>
-                      <p style={M} className="text-[10px] text-orange-700/80">
-                        Display: <span className="font-bold">{groupMatrix.displayCurrency}</span>
-                        {" · "}Round: <span className="font-bold">{calc.groupSettings.roundTo > 0 ? formatCurrency(calc.groupSettings.roundTo) : "—"}</span>
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p style={M} className="text-[10px] text-orange-700/80">
+                          Display: <span className="font-bold">{groupMatrix.displayCurrency}</span>
+                          {" · "}Round: <span className="font-bold">{calc.groupSettings.roundTo > 0 ? formatCurrency(calc.groupSettings.roundTo) : "—"}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={exportMatrixCsv}
+                          className="h-7 px-2.5 rounded-lg text-[10px] md:text-[11px] font-bold text-white inline-flex items-center gap-1 transition-all hover:brightness-110 active:scale-95"
+                          style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
+                          title="Unduh matriks harga sebagai CSV (bisa dibuka di Excel/Google Sheets)"
+                        >
+                          <Download className="h-3 w-3" />
+                          Excel/CSV
+                        </button>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse text-[11px] md:text-[12px]">
