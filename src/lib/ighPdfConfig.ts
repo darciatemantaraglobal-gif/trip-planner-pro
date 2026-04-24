@@ -70,6 +70,10 @@ export interface IghLayoutConfig {
     topPx: number;
     /** Font size nama hotel */
     size: number;
+    /** Jarak vertikal (px) dari nama hotel ke subtitle "X Malam".
+     *  Subtitle digambar di topPx + subtitleOffsetPx, jadi saat nama hotel
+     *  digeser (drag), subtitle ikut bergeser proporsional. */
+    subtitleOffsetPx: number;
     /** Override teks */
     makkahText?: string;
     madinahText?: string;
@@ -143,7 +147,7 @@ export interface IghLayoutConfig {
 export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   projectName: { xPx: 55, topPx: 257, size: 22, lineGapPx: 4 },
   metaInfo: { customerXPx: 335, dateXPx: 538, topPx: 259, size: 13 },
-  hotel: { makkahXPx: 51, madinahXPx: 407, topPx: 395, size: 22 },
+  hotel: { makkahXPx: 51, madinahXPx: 407, topPx: 395, size: 22, subtitleOffsetPx: 38 },
   pricing: { paxXPx: 47, priceXPx: 272, topPx: 518, size: 22, yOffsetPdf: -8 },
   groupPricing: {
     topPx: 510,
@@ -201,7 +205,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   projectName: { xPx: 55, topPx: 90, size: 26, lineGapPx: 4 },
   // Group template: Date di kiri, Invoice to di kanan (kebalik dari Private)
   metaInfo: { customerXPx: 365, dateXPx: 55, topPx: 273, size: 12 },
-  hotel: { makkahXPx: 55, madinahXPx: 384, topPx: 343, size: 22 },
+  hotel: { makkahXPx: 55, madinahXPx: 384, topPx: 343, size: 22, subtitleOffsetPx: 38 },
   // Pricing private boxes tidak dipakai di group mode — biarin default.
   pricing: { paxXPx: 47, priceXPx: 272, topPx: 518, size: 22, yOffsetPdf: -8 },
   groupPricing: {

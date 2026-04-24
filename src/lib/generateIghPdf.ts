@@ -260,14 +260,14 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + 38, size: 9, font: hotelReg, color: DARK,
+    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: 9, font: hotelReg, color: DARK,
   });
   drawText(page, pick(cfg.hotel.madinahText, data.hotelMadinah || "—"), {
     leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
     minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + 38, size: 9, font: hotelReg, color: DARK,
+    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: 9, font: hotelReg, color: DARK,
   });
 
   // ── 4. PRICING ──

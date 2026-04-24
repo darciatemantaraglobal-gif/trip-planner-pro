@@ -162,8 +162,8 @@ function buildElements(
   {
     const s = layout.hotel.size;
     const top = textBoxY(layout.hotel.topPx, s);
-    // Subtitle "X Malam" pada topPx+38 size=9 → bottom ≈ topPx + 38 + 9*1.752
-    const subtitleBottom = layout.hotel.topPx + 38 + 9 * (TEXT_TOP_OFFSET_RATIO + TEXT_HEIGHT_RATIO);
+    // Subtitle "X Malam" pada topPx + subtitleOffsetPx, size=9 → bottom ≈ ... + 9*1.752
+    const subtitleBottom = layout.hotel.topPx + layout.hotel.subtitleOffsetPx + 9 * (TEXT_TOP_OFFSET_RATIO + TEXT_HEIGHT_RATIO);
     const colHeight = subtitleBottom - top;
     const COL_WIDTH = 220; // visual nama hotel biasanya pendek
 

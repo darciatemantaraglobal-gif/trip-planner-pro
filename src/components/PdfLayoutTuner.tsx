@@ -541,6 +541,12 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             min={14} max={28} step={0.5} unit="pt"
             onChange={(v) => patch("hotel", { size: v })}
           />
+          <SliderRow
+            label="Subtitle Gap"
+            value={local.hotel.subtitleOffsetPx}
+            min={20} max={50} step={1} unit="px"
+            onChange={(v) => patch("hotel", { subtitleOffsetPx: v })}
+          />
         </section>
 
         {/* PRICING */}
