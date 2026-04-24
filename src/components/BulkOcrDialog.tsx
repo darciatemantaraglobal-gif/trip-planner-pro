@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { scanPassport, failedChecksumLabels } from "@/lib/ocrPassport";
+import { scanPassport, failedChecksumLabels, disposeOcrWorkerPool } from "@/lib/ocrPassport";
 import { useJamaahStore } from "@/store/tripsStore";
 
 // ── Client-side image pre-compression ────────────────────────────────────────
@@ -168,6 +168,11 @@ export default function BulkOcrDialog({ open, tripId, onClose }: Props) {
     // tanpa save. Draft baru di-clear di handleSaveAll setelah sukses, atau
     // saat user explicitly klik tombol "Hapus semua" di tahap upload.
     reset();
+    // Bebasin Tesseract worker pool (free WASM memory) sehabis sesi batch.
+    // Async, fire-and-forget — gak block UI close.
+    void disposeOcrWorkerPool().catch((e) =>
+      console.warn("[bulk-ocr] dispose worker pool failed", e),
+    );
     onClose();
   };
 

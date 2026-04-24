@@ -13,7 +13,8 @@ export type IghSection =
   | "pricing"
   | "groupPricing"
   | "checklist"
-  | "hotel";
+  | "hotel"
+  | "footer";
 
 /** URL dari tiap weight per family. Semua di-load via fontkit pdf-lib. */
 export const FONT_FAMILY_URLS: Record<IghFontFamily, { regular: string; semiBold: string; bold: string }> = {
@@ -142,6 +143,20 @@ export interface IghLayoutConfig {
     /** Override per section. Kalau null/undefined → pakai `family`. */
     overrides?: Partial<Record<IghSection, IghFontFamily>>;
   };
+  /** Footer kontak admin — IG handle sudah pre-printed di template,
+   *  WA di-render programmatic (icon + nomor + clickable link annotation). */
+  footer: {
+    /** Y baseline (top-px) sejajar dengan teks instagram pada template. */
+    topPx: number;
+    /** X kiri elemen WA (icon green circle). Tune kalau mau geser kiri/kanan. */
+    waXPx: number;
+    /** Diameter icon WA (pt PDF, bukan template-px). */
+    waIconSizePt: number;
+    /** Font size nomor WA (pt PDF). */
+    size: number;
+    /** Tampilkan WA di footer. False = matiin elemen WA tanpa hapus dari config. */
+    showWhatsapp: boolean;
+  };
 }
 
 export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
@@ -172,6 +187,10 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
     size: 10,
   },
   fonts: { family: "Poppins", overrides: {} },
+  // Footer (sejajar dengan "instagram.com/igh.tour" pre-printed pada template).
+  // Instagram di template ada di template-px ~75..198 (kiri), email ~526..668
+  // (kanan). WA di-tengahin di antara keduanya: starts ~310px, baseline 891.
+  footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
 };
 
 const STORAGE_KEY = "igh:pdf-layout-config";
@@ -236,6 +255,9 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
     size: 10,
   },
   fonts: { family: "Poppins", overrides: {} },
+  // Group template footer kemungkinan beda posisi — default sama dulu, bisa
+  // di-tune via PdfLayoutTuner per-mode storage.
+  footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
 };
 
 /** Built-in starter buat template Grup, dikalibrasi 1:1 ke kicau.jpg.
@@ -340,6 +362,7 @@ export function mergeConfig(
     pricing: { ...base.pricing, ...(override.pricing ?? {}) },
     groupPricing: { ...base.groupPricing, ...(override.groupPricing ?? {}) },
     checklist: { ...base.checklist, ...(override.checklist ?? {}) },
+    footer: { ...base.footer, ...(override.footer ?? {}) },
     fonts: {
       ...base.fonts,
       ...(override.fonts ?? {}),

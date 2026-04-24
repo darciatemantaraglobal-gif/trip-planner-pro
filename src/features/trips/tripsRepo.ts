@@ -289,12 +289,16 @@ export async function createJamaahBulk(
     Array.from({ length: Math.min(BULK_PHOTO_UPLOAD_CONCURRENCY, baseList.length) }, worker),
   );
 
-  // ⚡ SATU KALI insert untuk semua row. Kalau gagal → rollback foto yg sudah upload.
+  // ⚡ SATU KALI upsert untuk semua row (1 round-trip).
+  // Pakai upsert (bukan insert) supaya retry setelah error tetap idempoten:
+  // kalau ID sudah ada (mis. user retry setelah network blip), row di-update
+  // bukan dilempar duplicate-PK error. ID generate di klien, jadi konflik
+  // ID hanya terjadi pada retry (sangat aman untuk pola bulk).
   if (isSupabaseConfigured()) {
     const agencyId = requireAgencyId();
     const { error } = await supabase!
       .from("jamaah")
-      .insert(list.map((j) => jamaahToRow(j, agencyId)));
+      .upsert(list.map((j) => jamaahToRow(j, agencyId)));
     if (error) {
       if (uploadedPaths.length > 0) {
         // Best-effort cleanup; jangan throw kalau cleanup gagal supaya error

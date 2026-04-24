@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, rgb, StandardFonts, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import {
   DEFAULT_IGH_LAYOUT,
@@ -8,6 +8,12 @@ import {
   type IghLayoutConfig,
   type IghSection,
 } from "./ighPdfConfig";
+import {
+  loadIghAdminSettings,
+  formatWhatsappDisplay,
+  whatsappDigits,
+  whatsappUrl,
+} from "./ighSettings";
 
 export type { IghLayoutConfig } from "./ighPdfConfig";
 
@@ -32,6 +38,8 @@ const ORANGE: RGB = rgb(0xF2 / 255, 0x8E / 255, 0x34 / 255);
 const GREY_MUTED: RGB = rgb(0.45, 0.45, 0.45);
 const DARK: RGB = rgb(0.13, 0.13, 0.13);
 const WHITE: RGB = rgb(1, 1, 1);
+// WhatsApp brand green #25D366
+const WA_GREEN: RGB = rgb(0x25 / 255, 0xD3 / 255, 0x66 / 255);
 
 export interface IghGroupPricingRow {
   /** Label kolom Total Pax (mis. "10-15"). */
@@ -343,6 +351,23 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   }
 
   // ── 5. CHECKLIST ──
+  // ── 6. FOOTER (WhatsApp icon + clickable nomor admin) ──
+  if (cfg.footer.showWhatsapp) {
+    const admin = loadIghAdminSettings();
+    const digits = whatsappDigits(admin.adminWhatsapp);
+    if (digits.length >= 8) {
+      drawWhatsappFooter(page, pdf, {
+        topPx: cfg.footer.topPx,
+        leftXPx: cfg.footer.waXPx,
+        iconSizePt: cfg.footer.waIconSizePt,
+        textSizePt: cfg.footer.size,
+        font: fontFor("footer", "semiBold"),
+        displayNumber: formatWhatsappDisplay(admin.adminWhatsapp),
+        url: whatsappUrl(admin.adminWhatsapp),
+      });
+    }
+  }
+
   const listFont = fontFor("checklist", "semiBold");
   const ROW_BASELINES = Array.from({ length: 5 }, (_, i) =>
     cfg.checklist.firstBaselinePx + i * cfg.checklist.rowSpacingPx + cfg.checklist.yOffsetPx,
@@ -353,6 +378,106 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size);
 
   return pdf.save();
+}
+
+/**
+ * Render WhatsApp icon + nomor admin di footer, dengan link annotation
+ * yang membuka https://wa.me/{digits} saat di-klik di PDF reader.
+ *
+ * Layout: [green WA bubble icon] [4pt gap] [nomor +62 ...]
+ * Position dihitung dari template-px coords (sejajar dengan IG handle yg
+ * sudah pre-printed pada template).
+ */
+function drawWhatsappFooter(
+  page: PDFPage,
+  pdf: PDFDocument,
+  opts: {
+    topPx: number;
+    leftXPx: number;
+    iconSizePt: number;
+    textSizePt: number;
+    font: PDFFont;
+    displayNumber: string;
+    url: string;
+  },
+) {
+  const baseX = opts.leftXPx * SCALE;
+  // Konversi top-px → PDF baseline. IG di template baseline ~yMin=498pt
+  // (pdftotext, top-down). Pakai konversi standar pxRect agar konsisten
+  // dengan elemen lain.
+  const baseY = PAGE_H - opts.topPx * SCALE;
+  const r = opts.iconSizePt / 2;
+  const cx = baseX + r;
+  const cy = baseY + r * 0.4; // sedikit naik supaya optical-center sejajar teks
+
+  // 1) Bubble hijau WhatsApp (lingkaran filled).
+  page.drawCircle({ x: cx, y: cy, size: r, color: WA_GREEN, borderWidth: 0 });
+
+  // 2) Phone receiver (white SVG path) — minimalis, terbaca jelas pada r=4.5.
+  // Path origin pada (0,0); di-translate via x/y dan di-scale ke r.
+  // Bentuk: gagang telepon klasik (atas-kiri ke bawah-kanan).
+  const phonePath =
+    "M 1.05 1.95 c 0.30 0.40 0.78 0.92 1.45 1.55 c 0.67 0.63 1.20 1.05 1.55 1.30 " +
+    "c 0.20 0.14 0.40 0.10 0.58 -0.05 l 0.50 -0.50 c 0.20 -0.20 0.45 -0.22 0.70 -0.10 " +
+    "l 1.45 0.75 c 0.25 0.13 0.30 0.40 0.15 0.65 c -0.40 0.65 -1.00 1.10 -1.85 1.20 " +
+    "c -0.85 0.10 -1.95 -0.20 -3.05 -0.95 c -1.10 -0.75 -2.10 -1.85 -2.85 -3.05 " +
+    "c -0.75 -1.10 -1.05 -2.20 -0.95 -3.05 c 0.10 -0.85 0.55 -1.45 1.20 -1.85 " +
+    "c 0.25 -0.15 0.52 -0.10 0.65 0.15 l 0.75 1.45 c 0.12 0.25 0.10 0.50 -0.10 0.70 " +
+    "l -0.50 0.50 c -0.15 0.18 -0.19 0.38 -0.05 0.58 z";
+  // Skala: path digambar di kotak ~7x7 unit. Mau ngepas dalam diameter 2r,
+  // tapi visually ~70% diameter biar ada padding hijau di sekitar gagang.
+  const pathScale = (2 * r * 0.55) / 7;
+  // Center the 7x7 glyph in the bubble (origin top-left in SVG; pdf-lib
+  // drawSvgPath flips Y for us — the path coords above use SVG convention).
+  const svgX = cx - 3.5 * pathScale;
+  const svgY = cy + 3.5 * pathScale;
+  page.drawSvgPath(phonePath, {
+    x: svgX,
+    y: svgY,
+    scale: pathScale,
+    color: WHITE,
+    borderWidth: 0,
+  });
+
+  // 3) Nomor WA di kanan icon.
+  const gap = 4;
+  const textX = cx + r + gap;
+  // Vertical center text relative to icon — gunakan cap-height approx 0.7 size.
+  const textY = cy - opts.textSizePt * 0.32;
+  page.drawText(opts.displayNumber, {
+    x: textX,
+    y: textY,
+    size: opts.textSizePt,
+    font: opts.font,
+    color: DARK,
+  });
+
+  // 4) Clickable link annotation menutupi seluruh icon + teks.
+  const textWidth = opts.font.widthOfTextAtSize(opts.displayNumber, opts.textSizePt);
+  const annotX1 = baseX;
+  const annotY1 = cy - r - 1;
+  const annotX2 = textX + textWidth + 1;
+  const annotY2 = cy + r + 1;
+  const linkAnnot = pdf.context.obj({
+    Type: "Annot",
+    Subtype: "Link",
+    Rect: [annotX1, annotY1, annotX2, annotY2],
+    Border: [0, 0, 0],
+    A: {
+      Type: "Action",
+      S: "URI",
+      URI: PDFString.of(opts.url),
+    },
+  });
+  const linkRef = pdf.context.register(linkAnnot);
+  // Append ke Annots array existing (atau bikin baru).
+  const existing = page.node.lookup(PDFName.of("Annots"));
+  if (existing && "push" in (existing as object)) {
+    // PDFArray — pdf-lib exposes .push for arrays.
+    (existing as { push: (x: unknown) => void }).push(linkRef);
+  } else {
+    page.node.set(PDFName.of("Annots"), pdf.context.obj([linkRef]));
+  }
 }
 
 function splitOverrideOrUse(override: string | undefined, fallback: string[]): string[] {

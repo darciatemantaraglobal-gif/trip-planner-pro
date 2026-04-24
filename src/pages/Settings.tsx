@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock, History, FileEdit, FileX, FilePlus, Activity, XCircle, AlertCircle, Database, Cloud, HardDrive, UserCheck } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Camera, TrendingUp, RefreshCw, Users, Plus, Trash2, Radio, PencilLine, KeyRound, Clock, CheckCircle2, Lock, History, FileEdit, FileX, FilePlus, Activity, XCircle, AlertCircle, Database, Cloud, HardDrive, UserCheck, MessageCircle, Instagram } from "lucide-react";
+import { loadIghAdminSettings, saveIghAdminSettings, formatWhatsappDisplay, type IghAdminSettings } from "@/lib/ighSettings";
 import { supabase, isSupabaseConfigured, SUPABASE_URL } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -112,6 +113,25 @@ export default function Settings() {
   });
 
   const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearanceSettings());
+
+  // IGH Settings — kontak admin yang muncul di footer PDF penawaran & Dashboard.
+  const [ighAdmin, setIghAdmin] = useState<IghAdminSettings>(() => loadIghAdminSettings());
+  const [savingIghAdmin, setSavingIghAdmin] = useState(false);
+  const handleSaveIghAdmin = () => {
+    setSavingIghAdmin(true);
+    try {
+      const next = saveIghAdminSettings({
+        adminWhatsapp: ighAdmin.adminWhatsapp.trim(),
+        adminInstagram: ighAdmin.adminInstagram.replace(/^@+/, "").trim(),
+      });
+      setIghAdmin(next);
+      toast.success("Kontak admin disimpan. Akan muncul di footer PDF penawaran berikutnya.");
+    } catch (e: any) {
+      toast.error(`Gagal menyimpan: ${e?.message ?? e}`);
+    } finally {
+      setSavingIghAdmin(false);
+    }
+  };
 
   const {
     rates,
@@ -471,6 +491,65 @@ export default function Settings() {
                   onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
                   className="w-full rounded-xl border border-[hsl(var(--border))] bg-white px-3 py-2 text-[13px] md:text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
                 />
+              </div>
+            </div>
+
+            {/* ── IGH Settings: Kontak Admin (muncul di footer PDF penawaran) ── */}
+            <div className="rounded-2xl border border-[hsl(var(--border))] bg-white p-4 space-y-3 mt-2">
+              <div className="flex items-start gap-2">
+                <div className="h-7 w-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <MessageCircle className="h-3.5 w-3.5 text-orange-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[hsl(var(--foreground))]">Kontak Admin (Footer Penawaran)</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-snug">
+                    Akan muncul di footer PDF penawaran sejajar dengan Instagram, dan ditampilkan di Dashboard untuk admin internal.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3 text-emerald-500" /> WhatsApp Admin
+                  </Label>
+                  <Input
+                    className="h-8 md:h-9 text-[13px] md:text-sm"
+                    placeholder="cth: +6282245193615"
+                    value={ighAdmin.adminWhatsapp}
+                    onChange={(e) => setIghAdmin((s) => ({ ...s, adminWhatsapp: e.target.value }))}
+                  />
+                  {ighAdmin.adminWhatsapp.replace(/\D/g, "").length >= 8 && (
+                    <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                      Tampil di PDF: <span className="font-medium text-[hsl(var(--foreground))]">{formatWhatsappDisplay(ighAdmin.adminWhatsapp)}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] md:text-[11px] text-[hsl(var(--muted-foreground))] flex items-center gap-1">
+                    <Instagram className="h-3 w-3 text-pink-500" /> Instagram Handle
+                  </Label>
+                  <Input
+                    className="h-8 md:h-9 text-[13px] md:text-sm"
+                    placeholder="cth: igh.tour"
+                    value={ighAdmin.adminInstagram}
+                    onChange={(e) => setIghAdmin((s) => ({ ...s, adminInstagram: e.target.value }))}
+                  />
+                  <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                    Sudah pre-printed di template; field ini untuk referensi.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveIghAdmin}
+                  disabled={savingIghAdmin}
+                  className="h-8 px-4 rounded-xl text-xs gradient-primary text-white"
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  {savingIghAdmin ? "Menyimpan…" : "Simpan Kontak Admin"}
+                </Button>
               </div>
             </div>
           </div>
