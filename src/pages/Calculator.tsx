@@ -1671,6 +1671,112 @@ export default function Calculator() {
           {showSummary && (
             <div className="p-3 md:p-4 space-y-3 md:space-y-4">
 
+              {/* Group Matrix Summary — khusus mode "umroh_group" */}
+              {calc.mode === "umroh_group" && groupMatrix && (() => {
+                const rooms = calc.groupSettings.roomTypes.length > 0
+                  ? calc.groupSettings.roomTypes
+                  : (["Quad", "Triple", "Double"] as const);
+                // Pivot cells jadi map: tier.label → room → cell
+                const byTier = new Map<string, { tier: typeof groupMatrix.cells[0]["tier"]; cells: Map<string, typeof groupMatrix.cells[0]> }>();
+                for (const c of groupMatrix.cells) {
+                  const key = c.tier.label;
+                  if (!byTier.has(key)) byTier.set(key, { tier: c.tier, cells: new Map() });
+                  byTier.get(key)!.cells.set(c.room, c);
+                }
+                const tierRows = Array.from(byTier.values());
+                // Tier dengan profit margin paling sehat (selisih jual − HPP terbesar per pax) sebagai "Best"
+                const bestTier = tierRows.reduce<{ label: string; profit: number } | null>((best, row) => {
+                  const sample = Array.from(row.cells.values())[0];
+                  if (!sample) return best;
+                  const profit = sample.perPaxIDR - sample.hppPerPaxIDR;
+                  if (!best || profit > best.profit) return { label: row.tier.label, profit };
+                  return best;
+                }, null);
+                return (
+                  <div className="rounded-xl border-2 border-orange-300 overflow-hidden bg-gradient-to-br from-orange-50/40 to-white">
+                    <div className="px-4 py-2.5 bg-gradient-to-r from-orange-100 to-amber-50 border-b-2 border-orange-300 flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-orange-700" />
+                        <p style={M} className="text-[11px] md:text-[12px] font-extrabold uppercase tracking-wider text-orange-800">
+                          Matriks Harga Jual per Tier
+                        </p>
+                      </div>
+                      <p style={M} className="text-[10px] text-orange-700/80">
+                        Display: <span className="font-bold">{groupMatrix.displayCurrency}</span>
+                        {" · "}Round: <span className="font-bold">{calc.groupSettings.roundTo > 0 ? formatCurrency(calc.groupSettings.roundTo) : "—"}</span>
+                      </p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-[11px] md:text-[12px]">
+                        <thead>
+                          <tr className="bg-orange-50/70">
+                            <th style={M} className="px-3 py-2 text-left font-extrabold text-orange-800 uppercase tracking-wide text-[10px] md:text-[11px]">Pax Tier</th>
+                            {rooms.map((r) => (
+                              <th key={r} style={M} className="px-3 py-2 text-right font-extrabold text-orange-800 uppercase tracking-wide text-[10px] md:text-[11px]">{r}</th>
+                            ))}
+                            <th style={M} className="px-3 py-2 text-right font-extrabold text-orange-800 uppercase tracking-wide text-[10px] md:text-[11px]">HPP/pax</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tierRows.map(({ tier, cells }) => {
+                            const sampleCell = Array.from(cells.values())[0];
+                            const isBest = bestTier?.label === tier.label;
+                            return (
+                              <tr key={tier.label} className={cn(
+                                "border-t border-orange-100 hover:bg-orange-50/40 transition-colors",
+                                isBest && "bg-emerald-50/40"
+                              )}>
+                                <td style={M} className="px-3 py-2 font-bold text-slate-700">
+                                  <span className="inline-flex items-center gap-1.5">
+                                    {tier.label}
+                                    {isBest && (
+                                      <span className="text-[9px] font-extrabold uppercase tracking-wide bg-emerald-200 text-emerald-800 rounded px-1.5 py-0.5">
+                                        Best
+                                      </span>
+                                    )}
+                                  </span>
+                                </td>
+                                {rooms.map((r) => {
+                                  const cell = cells.get(r);
+                                  return (
+                                    <td key={r} style={M} className="px-3 py-2 text-right font-mono font-semibold text-orange-700">
+                                      {cell ? formatCurrency(cell.perPaxDisplay) : "—"}
+                                    </td>
+                                  );
+                                })}
+                                <td style={M} className="px-3 py-2 text-right font-mono text-[10px] md:text-[11px] text-slate-500">
+                                  {sampleCell ? formatCurrency(sampleCell.hppPerPaxIDR) : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Footer ringkasan komponen biaya */}
+                    <div className="px-4 py-2.5 bg-orange-50/40 border-t border-orange-200 grid grid-cols-2 md:grid-cols-3 gap-3 text-[10px] md:text-[11px]">
+                      <div>
+                        <p style={M} className="text-orange-700/70 uppercase tracking-wide font-bold">Fixed Grup</p>
+                        <p style={M} className="font-mono font-extrabold text-slate-800">{formatCurrency(groupMatrix.fixedTotalIDR)}</p>
+                        <p style={M} className="text-slate-500">Transport + Staff + Komisi</p>
+                      </div>
+                      <div>
+                        <p style={M} className="text-orange-700/70 uppercase tracking-wide font-bold">Per-Pax Flat</p>
+                        <p style={M} className="font-mono font-extrabold text-slate-800">{formatCurrency(groupMatrix.perPaxFlatIDR)}</p>
+                        <p style={M} className="text-slate-500">Tiket + Visa + Destinasi + F&B</p>
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <p style={M} className="text-orange-700/70 uppercase tracking-wide font-bold">Margin Setting</p>
+                        <p style={M} className="font-mono font-extrabold text-emerald-700">+{calc.marginPercent}%</p>
+                        <p style={M} className="text-slate-500">
+                          Rate SAR <span className="font-mono">{fmtSAR(1)}</span> · USD <span className="font-mono">{fmtUSD(1)}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Main summary table */}
               <div className="overflow-x-auto rounded-xl border border-orange-200">
                 <table className="w-full border-collapse">
