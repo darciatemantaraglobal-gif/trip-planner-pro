@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Download, Hand, Loader2, MousePointer2, Sliders, X, Zap, ZapOff } from "lucide-react";
+import { Download, Hand, Loader2, MousePointer2, Redo2, Sliders, Undo2, X, Zap, ZapOff } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIghPdf, renderIghPdfPreview, type IghPdfData } from "@/lib/generateIghPdf";
 import { loadIghLayoutConfig, saveIghLayoutConfig, type IghLayoutConfig, type IghLayoutMode } from "@/lib/ighPdfConfig";
@@ -64,18 +64,97 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
     return () => window.removeEventListener("resize", onResize);
   }, [previewUrl, tunerOpen]);
 
-  // Drag-commit dari overlay → simpan ke per-mode storage juga supaya konsisten
-  // sama tuner panel (yang juga auto-save).
-  function handleLayoutChangeFromOverlay(next: IghLayoutConfig) {
-    setLayout(next);
+  // ── Undo/Redo history untuk perubahan layout ──
+  // past[]: snapshot sebelum perubahan terbaru. future[]: snapshot yang bisa di-redo.
+  // Maks 50 step biar gak makan memori. Ref biar gak trigger re-render tiap push.
+  const HISTORY_LIMIT = 50;
+  const historyRef = useRef<{ past: IghLayoutConfig[]; future: IghLayoutConfig[] }>({ past: [], future: [] });
+  // Trigger re-render kalau panjang history berubah (untuk update UI nanti kalau perlu).
+  const [, setHistoryTick] = useState(0);
+  const bumpHistory = () => setHistoryTick((t) => t + 1);
+
+  // Commit perubahan layout DENGAN tracking history (push current ke past, clear future).
+  const commitLayout = useCallback((next: IghLayoutConfig) => {
+    setLayout((prev) => {
+      // Kalau identik, jangan push (hindari noise).
+      if (prev === next) return prev;
+      const past = historyRef.current.past;
+      past.push(prev);
+      if (past.length > HISTORY_LIMIT) past.shift();
+      historyRef.current.future = [];
+      return next;
+    });
     saveIghLayoutConfig(next, mode);
+    bumpHistory();
+  }, [mode]);
+
+  const undoLayout = useCallback(() => {
+    const { past, future } = historyRef.current;
+    if (past.length === 0) {
+      toast.info("Tidak ada lagi yang bisa di-undo.");
+      return;
+    }
+    setLayout((cur) => {
+      const prev = past.pop()!;
+      future.push(cur);
+      saveIghLayoutConfig(prev, mode);
+      return prev;
+    });
+    bumpHistory();
+    toast.success("Undo perubahan layout.");
+  }, [mode]);
+
+  const redoLayout = useCallback(() => {
+    const { past, future } = historyRef.current;
+    if (future.length === 0) {
+      toast.info("Tidak ada lagi yang bisa di-redo.");
+      return;
+    }
+    setLayout((cur) => {
+      const next = future.pop()!;
+      past.push(cur);
+      saveIghLayoutConfig(next, mode);
+      return next;
+    });
+    bumpHistory();
+    toast.success("Redo perubahan layout.");
+  }, [mode]);
+
+  // Drag-commit dari overlay → simpan ke per-mode storage + push history.
+  function handleLayoutChangeFromOverlay(next: IghLayoutConfig) {
+    commitLayout(next);
   }
 
   // Kalau mode berubah (user pindah dari private → group calc), reload layout
-  // dari storage mode yang sesuai.
+  // dari storage mode yang sesuai. RESET history (per-mode).
   useEffect(() => {
     setLayout(loadIghLayoutConfig(mode));
+    historyRef.current = { past: [], future: [] };
+    bumpHistory();
   }, [mode]);
+
+  // Keyboard shortcut: Ctrl/Cmd+Z → undo, Ctrl/Cmd+Shift+Z (atau Ctrl+Y) → redo.
+  // Cuma aktif saat dialog terbuka & edit mode ON, supaya gak interfere sama input lain.
+  useEffect(() => {
+    if (!open || !editMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      // Skip kalau lagi ngetik di input/textarea/contenteditable (biar gak bentrok native undo).
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoLayout();
+      } else if ((k === "z" && e.shiftKey) || k === "y") {
+        e.preventDefault();
+        redoLayout();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, editMode, undoLayout, redoLayout]);
 
   useEffect(() => {
     try { localStorage.setItem(LIVE_STORAGE_KEY, live ? "1" : "0"); } catch {/* noop */}
@@ -188,7 +267,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
     <PdfLayoutTuner
       config={layout}
       mode={mode}
-      onChange={setLayout}
+      onChange={commitLayout}
       onClose={() => setTunerOpen(false)}
     />
   ) : null;
@@ -202,9 +281,34 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
         </div>
       )}
       {editMode && previewUrl && (
-        <div className="absolute top-2 left-2 z-30 inline-flex items-center gap-1 h-6 px-2 rounded-md bg-blue-600 text-white text-[10px] font-bold shadow-sm">
-          <MousePointer2 className="h-3 w-3" />
-          Edit Mode
+        <div className="absolute top-2 left-2 z-30 flex items-center gap-1.5">
+          <div className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-blue-600 text-white text-[10px] font-bold shadow-sm">
+            <MousePointer2 className="h-3 w-3" />
+            Edit Mode
+          </div>
+          <button
+            type="button"
+            onClick={undoLayout}
+            disabled={historyRef.current.past.length === 0}
+            title="Undo (Ctrl/Cmd + Z)"
+            className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-white/95 border border-slate-300 text-slate-700 text-[10px] font-bold shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <Undo2 className="h-3 w-3" />
+            Undo {historyRef.current.past.length > 0 && `(${historyRef.current.past.length})`}
+          </button>
+          <button
+            type="button"
+            onClick={redoLayout}
+            disabled={historyRef.current.future.length === 0}
+            title="Redo (Ctrl/Cmd + Shift + Z)"
+            className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-white/95 border border-slate-300 text-slate-700 text-[10px] font-bold shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <Redo2 className="h-3 w-3" />
+            Redo {historyRef.current.future.length > 0 && `(${historyRef.current.future.length})`}
+          </button>
+          <span className="hidden md:inline-flex items-center h-6 px-2 rounded-md bg-slate-100/90 border border-slate-200 text-slate-500 text-[9px] font-semibold">
+            Shift = snap · Ctrl/⌘+Z = undo
+          </span>
         </div>
       )}
       {!previewUrl && loading ? (
