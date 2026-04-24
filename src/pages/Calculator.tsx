@@ -717,8 +717,29 @@ export default function Calculator() {
 
   // ── Data untuk PDF template IGH ──
   const ighPdfData = useMemo<IghPdfData>(() => {
-    const makkahHotel = calc.hotels.find((h) => /makk?ah/i.test(h.label));
-    const madinahHotel = calc.hotels.find((h) => /madin/i.test(h.label));
+    // Resolve hotel Makkah/Madinah dari array hotels[]:
+    //  1. Cari row yg label-nya menyebut kota (mis. "Makkah", "Hotel Makkah X")
+    //  2. Kalau gak ketemu, cocokin label CONTAINS nama explicit dari field
+    //     `hotelMakkahName`/`hotelMadinahName` (mis. user rename ke nama hotel
+    //     beneran tapi lupa nyantumin kota)
+    //  3. Last resort: pakai konvensi posisi (hotels[0] = Makkah, hotels[1] =
+    //     Madinah, sesuai default form). Bug sebelumnya: kalau user rename
+    //     label-nya jadi nama hotel ("Safwa Tower"), regex gak match dan
+    //     `days` jatuh ke 0 → "0 Malam" muncul di PDF.
+    const findByCity = (re: RegExp) => calc.hotels.find((h) => re.test(h.label || ""));
+    const findByExplicitName = (name: string) => {
+      const needle = name?.trim().toLowerCase();
+      if (!needle) return undefined;
+      return calc.hotels.find((h) => (h.label || "").toLowerCase().includes(needle));
+    };
+    const makkahHotel =
+      findByCity(/makk?ah/i)
+      ?? findByExplicitName(calc.hotelMakkahName)
+      ?? calc.hotels[0];
+    const madinahHotel =
+      findByCity(/madin/i)
+      ?? findByExplicitName(calc.hotelMadinahName)
+      ?? (calc.hotels.length > 1 ? calc.hotels[1] : undefined);
 
     // Auto-derive "Sudah Termasuk" dari form: visa, tiket, hotel, F&B, destinasi.
     // Cuma item yg punya label & ada price > 0 (atau set manual) yg ikut.
