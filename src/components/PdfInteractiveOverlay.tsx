@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { IghLayoutConfig, IghLayoutMode } from "@/lib/ighPdfConfig";
 
 /**
@@ -390,12 +390,27 @@ function unionBox(els: OverlayElement[]): OverlayElement | null {
 
 const SNAP_THRESHOLD_TPL = 3; // template-px (~1.5 CSS-px di display ratio 0.5)
 
+/** Element keys yang berbasis teks (punya baseline yang bermakna untuk align). */
+const TEXT_KEYS: ReadonlySet<ElementKey> = new Set<ElementKey>([
+  "projectName", "metaInfo", "hotelMakkah", "hotelMadinah", "checklist",
+]);
+
+/** Hitung baseline-Y (template-px) elemen text dari cap-top (yPx).
+ *  baseline = topPx + size*1.394 = (topPx + size*0.143) + size*1.251 = yPx + size*1.251 */
+function elementBaseline(el: OverlayElement): number {
+  return el.yPx + el.size * 1.251;
+}
+
 /** Snap dx/dy supaya edge dragged element nempel ke salah satu kandidat dari elemen lain. */
 function applySnap(
   dragged: OverlayElement,
   others: OverlayElement[],
   dx: number,
   dy: number,
+  /** Baseline-Y dragged elements (template-px, sebelum delta) untuk baseline snap. */
+  extraDraggedY: number[] = [],
+  /** Kandidat baseline-Y dari other text elements (template-px). */
+  extraOthersY: number[] = [],
 ): { dx: number; dy: number; xGuides: number[]; yGuides: number[] } {
   const xs: number[] = [];
   const ys: number[] = [];
@@ -405,6 +420,8 @@ function applySnap(
   }
   // Tambahin garis bantu page edges juga (kiri, tengah, kanan halaman).
   xs.push(0, TEMPLATE_WIDTH_PX / 2, TEMPLATE_WIDTH_PX);
+  // Baseline kandidat dari elemen text lain.
+  for (const v of extraOthersY) ys.push(v);
 
   const left = dragged.xPx + dx;
   const right = left + dragged.widthPx;
@@ -412,6 +429,10 @@ function applySnap(
   const top = dragged.yPx + dy;
   const bottom = top + dragged.heightPx;
   const cy = top + dragged.heightPx / 2;
+
+  // Y-edges yang akan kita coba snap-kan ke kandidat ys.
+  // Selain bbox top/center/bottom, juga semua baseline elemen yg lagi di-drag.
+  const draggedYEdges: number[] = [top, cy, bottom, ...extraDraggedY.map((v) => v + dy)];
 
   let bestX: { delta: number; value: number } | null = null;
   for (const edge of [left, cx, right]) {
@@ -423,7 +444,7 @@ function applySnap(
     }
   }
   let bestY: { delta: number; value: number } | null = null;
-  for (const edge of [top, cy, bottom]) {
+  for (const edge of draggedYEdges) {
     for (const v of ys) {
       const d = v - edge;
       if (Math.abs(d) <= SNAP_THRESHOLD_TPL && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
@@ -470,41 +491,60 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
 
   const scale = imgRect ? imgRect.width / TEMPLATE_WIDTH_PX : 0;
 
-  /** Konversi delta CSS-px → template-px. */
-  const toTemplatePx = useCallback(
-    (cssPx: number) => (scale > 0 ? cssPx / scale : 0),
-    [scale],
-  );
+  // ── Refs untuk handler stabil (Bug A fix) ──
+  // Tanpa refs, kalau scale berubah saat drag aktif (window resize, tuner toggle,
+  // dialog animation), closure listener masih pakai scale lama → ghost melenceng.
+  const layoutRef = useRef(layout);
+  const scaleRef = useRef(scale);
+  const baseElementsRef = useRef(baseElements);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { baseElementsRef.current = baseElements; }, [baseElements]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  const onPointerMove = useCallback(
-    (e: PointerEvent) => {
+  // Stable handler refs — di-attach sekali, dipakai sampai unmount.
+  const moveHandlerRef = useRef<((e: PointerEvent) => void) | null>(null);
+  const upHandlerRef = useRef<((e: PointerEvent) => void) | null>(null);
+
+  if (!moveHandlerRef.current) {
+    moveHandlerRef.current = (e: PointerEvent) => {
       const st = dragRef.current;
       if (!st) return;
       e.preventDefault();
+      const s = scaleRef.current;
+      const baseEls = baseElementsRef.current;
+      const layoutNow = layoutRef.current;
+      const toTpl = (px: number) => (s > 0 ? px / s : 0);
+
       if (st.kind === "move") {
-        const rawDx = toTemplatePx(e.clientX - st.startX);
-        const rawDy = toTemplatePx(e.clientY - st.startY);
-        // Snap pakai bbox gabungan dari SEMUA elemen yg lagi di-drag,
-        // dan exclude semuanya dari kandidat snap.
+        const rawDx = toTpl(e.clientX - st.startX);
+        const rawDy = toTpl(e.clientY - st.startY);
         const draggedSet = new Set(st.keys);
-        const draggedEls = baseElements.filter((el) => draggedSet.has(el.key));
-        const others = baseElements.filter((el) => !draggedSet.has(el.key));
+        const draggedEls = baseEls.filter((el) => draggedSet.has(el.key));
+        const others = baseEls.filter((el) => !draggedSet.has(el.key));
         const groupBox = unionBox(draggedEls);
         let dx = rawDx;
         let dy = rawDy;
         let xGuides: number[] = [];
         let yGuides: number[] = [];
-        // Default: drag bebas (no snap). Tahan Shift untuk aktifin snap + garis bantu.
-        if (groupBox && e.shiftKey) {
-          const snapped = applySnap(groupBox, others, rawDx, rawDy);
+        // Snap DEFAULT-ON. Tahan Alt/Option untuk drag bebas (sub-pixel).
+        if (groupBox && !e.altKey) {
+          const otherBaselines = others
+            .filter((el) => TEXT_KEYS.has(el.key))
+            .map(elementBaseline);
+          const draggedBaselines = draggedEls
+            .filter((el) => TEXT_KEYS.has(el.key))
+            .map(elementBaseline);
+          const snapped = applySnap(
+            groupBox, others, rawDx, rawDy,
+            draggedBaselines, otherBaselines,
+          );
           dx = snapped.dx; dy = snapped.dy;
           xGuides = snapped.xGuides; yGuides = snapped.yGuides;
         }
         setGuides({ x: xGuides, y: yGuides });
-        // Apply same dx/dy ke setiap elemen yg di-drag (posisi relatif terjaga).
-        // Catatan: hotelMakkah & hotelMadinah berbagi field topPx — kalau dua-duanya
-        // terpilih, vertical delta hanya diterapkan sekali (via Makkah) biar gak doubled.
-        let next = layout;
+        let next = layoutNow;
         const hasBothHotel = st.keys.includes("hotelMakkah") && st.keys.includes("hotelMadinah");
         for (const k of st.keys) {
           const dyForKey = hasBothHotel && k === "hotelMadinah" ? 0 : dy;
@@ -512,39 +552,32 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
         }
         setGhost(next);
       } else {
-        // Resize: ukur jarak diagonal dari titik sudut yang berlawanan.
         const curDx = e.clientX - st.startX;
         const curDy = e.clientY - st.startY;
-        // Tentukan arah berdasarkan corner (0=TL,1=TR,2=BR,3=BL).
         const signX = st.corner === 1 || st.corner === 2 ? 1 : -1;
         const signY = st.corner === 2 || st.corner === 3 ? 1 : -1;
-        const projected = signX * curDx + signY * curDy; // px sepanjang diagonal
-        const cssDelta = projected; // > 0 = membesar
-        const newDiagCss = Math.max(8, st.startDiag + cssDelta);
+        const projected = signX * curDx + signY * curDy;
+        const newDiagCss = Math.max(8, st.startDiag + projected);
         const ratio = newDiagCss / st.startDiag;
-        setGhost(applyResize(layout, st.key, st.startSize * ratio));
+        setGhost(applyResize(layoutNow, st.key, st.startSize * ratio));
       }
-    },
-    [layout, toTemplatePx],
-  );
-
-  const onPointerUp = useCallback(
-    (e: PointerEvent) => {
+    };
+  }
+  if (!upHandlerRef.current) {
+    upHandlerRef.current = (e: PointerEvent) => {
       const st = dragRef.current;
       if (!st) return;
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
+      if (moveHandlerRef.current) window.removeEventListener("pointermove", moveHandlerRef.current);
+      if (upHandlerRef.current) window.removeEventListener("pointerup", upHandlerRef.current);
       dragRef.current = null;
       setGuides({ x: [], y: [] });
-      // Commit ghost → trigger 1x re-render PDF lewat parent.
       setGhost((g) => {
-        if (g) onChange(g);
+        if (g) onChangeRef.current(g);
         return null;
       });
       e.preventDefault();
-    },
-    [onChange, onPointerMove],
-  );
+    };
+  }
 
   function startMove(e: React.PointerEvent, key: ElementKey) {
     if (!enabled) return;
@@ -580,8 +613,8 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       startX: e.clientX,
       startY: e.clientY,
     };
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
+    if (moveHandlerRef.current) window.addEventListener("pointermove", moveHandlerRef.current);
+    if (upHandlerRef.current) window.addEventListener("pointerup", upHandlerRef.current);
   }
 
   function startResize(
@@ -606,17 +639,17 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
       startSize: currentSize,
       startDiag: diag,
     };
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
+    if (moveHandlerRef.current) window.addEventListener("pointermove", moveHandlerRef.current);
+    if (upHandlerRef.current) window.addEventListener("pointerup", upHandlerRef.current);
   }
 
   // Cleanup global listeners on unmount.
   useEffect(() => {
     return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
+      if (moveHandlerRef.current) window.removeEventListener("pointermove", moveHandlerRef.current);
+      if (upHandlerRef.current) window.removeEventListener("pointerup", upHandlerRef.current);
     };
-  }, [onPointerMove, onPointerUp]);
+  }, []);
 
   if (!enabled || !imgRect || scale <= 0) return null;
 

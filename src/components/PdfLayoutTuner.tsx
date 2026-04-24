@@ -802,7 +802,7 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
         <button
           onClick={handleCopy}
           className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-white transition-colors"
-          style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
+          style={{ background: "#F28E34" }}
         >
           <ClipboardCopy className="h-3 w-3" />
           Copy Config

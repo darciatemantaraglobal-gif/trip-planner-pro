@@ -48,9 +48,12 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
     }
     const wr = wrap.getBoundingClientRect();
     const ir = img.getBoundingClientRect();
+    // Konversi viewport-relative → wrap CONTENT coordinate (compensate scroll).
+    // Bug B fix: tanpa +scrollTop/Left, overlay drift saat preview di-scroll
+    // karena overlay dipasang `position:absolute` di dalam wrap (scroll container).
     setImgRect({
-      left: ir.left - wr.left,
-      top: ir.top - wr.top,
+      left: ir.left - wr.left + wrap.scrollLeft,
+      top: ir.top - wr.top + wrap.scrollTop,
       width: ir.width,
       height: ir.height,
     });
@@ -59,9 +62,23 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
   useLayoutEffect(() => {
     if (!previewUrl) { setImgRect(null); return; }
     recalcImgRect();
+    const wrap = previewWrapperRef.current;
     const onResize = () => recalcImgRect();
+    const onScroll = () => recalcImgRect();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    wrap?.addEventListener("scroll", onScroll, { passive: true });
+    // ResizeObserver: handle dialog/tuner width animation tanpa window resize.
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && wrap) {
+      ro = new ResizeObserver(() => recalcImgRect());
+      ro.observe(wrap);
+      if (previewImgRef.current) ro.observe(previewImgRef.current);
+    }
+    return () => {
+      window.removeEventListener("resize", onResize);
+      wrap?.removeEventListener("scroll", onScroll);
+      ro?.disconnect();
+    };
   }, [previewUrl, tunerOpen]);
 
   // ── Undo/Redo history untuk perubahan layout ──
@@ -237,11 +254,12 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
           type="button"
           onClick={() => setTunerOpen((v) => !v)}
           title={tunerOpen ? "Sembunyikan Layout Tuner" : "Tampilkan Layout Tuner"}
-          className={`inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-bold border transition-colors ${
+          className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-bold border transition-colors"
+          style={
             tunerOpen
-              ? "bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
-              : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-          }`}
+              ? { background: "rgba(242,142,52,0.1)", borderColor: "#F28E34", color: "#B5631F" }
+              : undefined
+          }
         >
           <Sliders className="h-3 w-3" />
           Tuner
@@ -306,8 +324,8 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
             <Redo2 className="h-3 w-3" />
             Redo {historyRef.current.future.length > 0 && `(${historyRef.current.future.length})`}
           </button>
-          <span className="hidden md:inline-flex items-center h-6 px-2 rounded-md bg-slate-100/90 border border-slate-200 text-slate-500 text-[9px] font-semibold">
-            Shift = snap · Ctrl/⌘+Z = undo
+          <span className="hidden md:inline-flex items-center h-6 px-2 rounded-md bg-amber-50/90 border border-amber-200 text-amber-700 text-[9px] font-semibold">
+            💡 Geser langsung untuk auto-snap · Tahan Alt untuk bebas · Ctrl/⌘+Z = undo
           </span>
         </div>
       )}
@@ -350,8 +368,8 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
       </button>
       <button
         disabled={downloading}
-        className="h-8 px-4 rounded-xl text-[12px] font-bold text-white flex items-center gap-1.5 transition-all disabled:opacity-60"
-        style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
+        className="h-8 px-4 rounded-xl text-[12px] font-bold text-white flex items-center gap-1.5 transition-all disabled:opacity-60 hover:brightness-95"
+        style={{ background: "#F28E34" }}
         onClick={handleDownload}
       >
         {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}

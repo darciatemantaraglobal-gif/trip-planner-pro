@@ -255,19 +255,22 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   // ── 3. HOTEL SECTION ──
   const hotelBold = fontFor("hotel", "bold");
   const hotelReg = fontFor("hotel", "regular");
+  // Subtitle "X Malam" scaling proportional ke hotel.size dengan rasio 0.45,
+  // clamp 7..14 agar tetap readable dan tidak overlap dengan elemen di bawahnya.
+  const subtitleSize = Math.max(7, Math.min(14, cfg.hotel.size * 0.45));
   drawText(page, pick(cfg.hotel.makkahText, data.hotelMakkah || "—"), {
     leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
     minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: 9, font: hotelReg, color: DARK,
+    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: subtitleSize, font: hotelReg, color: DARK,
   });
   drawText(page, pick(cfg.hotel.madinahText, data.hotelMadinah || "—"), {
     leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
     minSize: 12, font: hotelBold, color: ORANGE, maxWidthPx: 285,
   });
   drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: 9, font: hotelReg, color: DARK,
+    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: subtitleSize, font: hotelReg, color: DARK,
   });
 
   // ── 4. PRICING ──
