@@ -234,23 +234,26 @@ export default function Settings() {
     setInvitingMember(true);
     try {
       await inviteMember(newMemberEmail.trim(), newMemberPass, newMemberName.trim());
-      setMembers(await listMembers());
+      // Refresh list — kalau gagal, jangan ganggu UX karena invite-nya udah sukses.
+      try { setMembers(await listMembers()); } catch { /* ignore — owner bisa refresh manual */ }
       setNewMemberEmail(""); setNewMemberName(""); setNewMemberPass("");
       toast.success("Member diundang. Beri tahu password awalnya secara aman.");
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(`Undang gagal: ${e?.message ?? "unknown error"}`);
+    } finally {
+      // PASTIKAN selalu reset, walaupun ada exception/halt di tengah jalan.
+      setInvitingMember(false);
     }
-    setInvitingMember(false);
   };
 
   const handleRemoveMember = async (userId: string, displayName: string) => {
     if (!confirm(`Hapus member "${displayName}"? Akun & akses dicabut permanen.`)) return;
     try {
       await removeMember(userId);
-      setMembers(await listMembers());
+      try { setMembers(await listMembers()); } catch { /* ignore — owner bisa refresh manual */ }
       toast.success("Member dihapus.");
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(`Hapus gagal: ${e?.message ?? "unknown error"}`);
     }
   };
 

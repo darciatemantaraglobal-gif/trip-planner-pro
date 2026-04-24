@@ -7,6 +7,22 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRatesStore } from "@/store/ratesStore";
 import { useAuthStore } from "@/store/authStore";
+import { useSyncStatusStore, type SyncStatus } from "@/store/syncStatusStore";
+
+const SYNC_DOT: Record<SyncStatus, { color: string; glow: string; label: string }> = {
+  ok:      { color: "#10b981", glow: "0 0 5px #10b981", label: "Tersinkron" },
+  syncing: { color: "#f59e0b", glow: "0 0 5px #f59e0b", label: "Menyinkronkan…" },
+  offline: { color: "#9ca3af", glow: "none",            label: "Offline" },
+  error:   { color: "#ef4444", glow: "0 0 5px #ef4444", label: "Gagal sync" },
+};
+
+function formatLastSync(d: Date | null): string {
+  if (!d) return "Belum ada sync";
+  const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+  if (diffSec < 60) return `${diffSec}d lalu`;
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m lalu`;
+  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+}
 
 // 5 primary tabs (last is "Lainnya" / More) — standard mobile pattern
 const primaryNavItems = [
@@ -35,6 +51,11 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
   const navigate = useNavigate();
   const { rates, mode: rateMode, loading: ratesLoading, lastUpdated, refresh: refreshRates } = useRatesStore();
   const { user: currentUser, logout } = useAuthStore();
+  const syncStatus = useSyncStatusStore((s) => s.status);
+  const lastSync = useSyncStatusStore((s) => s.lastSync);
+  const lastError = useSyncStatusStore((s) => s.lastError);
+  const syncInfo = SYNC_DOT[syncStatus];
+  const syncTitle = `${syncInfo.label}${lastSync ? ` · ${formatLastSync(lastSync)}` : ""}${lastError ? ` · ${lastError}` : ""}`;
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
@@ -113,6 +134,26 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
           </button>
 
           <div className="flex-1" />
+
+          {/* Sync status — green/yellow/red dot + last sync */}
+          <div
+            className="flex items-center gap-1 shrink-0 mr-1.5"
+            title={syncTitle}
+            aria-label={syncTitle}
+          >
+            <span className="relative flex h-1.5 w-1.5">
+              {syncStatus === "syncing" && (
+                <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: syncInfo.color }} />
+              )}
+              <span
+                className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                style={{ background: syncInfo.color, boxShadow: syncInfo.glow }}
+              />
+            </span>
+            <span className="text-[9.5px] font-semibold text-[hsl(var(--muted-foreground))] leading-none tabular-nums">
+              {syncStatus === "offline" ? "Offline" : formatLastSync(lastSync)}
+            </span>
+          </div>
 
           {/* Live rate indicator — full numbers, tap to refresh */}
           <button
@@ -438,6 +479,29 @@ export function DashboardLayout({ children, noPadding = false }: DashboardLayout
             <div className="flex-1" />
 
             <div className="flex items-center gap-3 lg:gap-4 shrink-0">
+              {/* Sync status indicator (desktop) */}
+              <div
+                className="flex items-center gap-1.5"
+                title={syncTitle}
+                aria-label={syncTitle}
+              >
+                <span className="relative flex h-1.5 w-1.5">
+                  {syncStatus === "syncing" && (
+                    <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: syncInfo.color }} />
+                  )}
+                  <span
+                    className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                    style={{ background: syncInfo.color, boxShadow: syncInfo.glow }}
+                  />
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] leading-none">
+                  {syncInfo.label}
+                </span>
+                <span className="text-[10px] text-[hsl(var(--muted-foreground))] leading-none tabular-nums">
+                  {lastSync ? `· ${formatLastSync(lastSync)}` : ""}
+                </span>
+              </div>
+
               <div className="hidden lg:flex flex-col items-end">
                 <div className="text-[13px] font-bold text-[hsl(var(--foreground))] leading-tight">{displayName}</div>
                 <div className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] capitalize tracking-wide">{currentUser?.role ?? "agent"}</div>

@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import { useTripsStore, useJamaahStore } from "@/store/tripsStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { pullPdfLayoutPresets } from "./cloudSync";
+import { useSyncStatusStore } from "@/store/syncStatusStore";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 let channel: RealtimeChannel | null = null;
@@ -41,7 +42,13 @@ export function startRealtimeSync(): () => void {
         for (const fn of presetListeners) fn();
       });
     })
-    .subscribe();
+    .subscribe((status) => {
+      // Map realtime channel status → sync indicator
+      const sync = useSyncStatusStore.getState();
+      if (status === "SUBSCRIBED") sync.markSyncOk();
+      else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") sync.markSyncError(`Realtime: ${status}`);
+      else if (status === "CLOSED") sync.setOnline(navigator.onLine);
+    });
 
   return () => {
     if (channel) {

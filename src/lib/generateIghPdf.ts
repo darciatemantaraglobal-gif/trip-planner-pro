@@ -374,10 +374,31 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   );
   const includedItems = splitOverrideOrUse(cfg.checklist.includedText, data.included);
   const excludedItems = splitOverrideOrUse(cfg.checklist.excludedText, data.excluded);
+  // Mask garis pembatas horizontal yang ter-print di template (under tiap row).
+  // Lines ada ~5px di bawah baseline, span full column width. Mask pakai white
+  // rect supaya teks Include/Exclude tampil bersih tanpa sekat garis.
+  maskChecklistDividers(page, cfg.checklist.leftXPx, ROW_BASELINES);
+  maskChecklistDividers(page, cfg.checklist.rightXPx, ROW_BASELINES);
   drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size);
   drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size);
 
   return pdf.save();
+}
+
+/** Tutup garis horizontal yang sudah pre-printed di template untuk satu kolom
+ *  checklist. Mask cuma sebatas LINE — tidak menutupi digit "01..05" di kiri,
+ *  jadi penomoran tetap terlihat. */
+function maskChecklistDividers(page: PDFPage, centerXPx: number, baselinesPx: number[]) {
+  const COL_WIDTH_PX = 235;
+  const DIGIT_RESERVE_PX = 26;          // ruang aman untuk "01..05"
+  const LINE_OFFSET_PX = 4;             // line ~4px di bawah baseline teks
+  const MASK_HEIGHT_PX = 6;
+  const leftEdgePx = centerXPx - COL_WIDTH_PX / 2 + DIGIT_RESERVE_PX;
+  const widthPx = COL_WIDTH_PX - DIGIT_RESERVE_PX - 2;
+  for (const baselinePx of baselinesPx) {
+    const r = pxRect(leftEdgePx, baselinePx + LINE_OFFSET_PX, widthPx, MASK_HEIGHT_PX);
+    page.drawRectangle({ x: r.x, y: r.y, width: r.width, height: r.height, color: WHITE, borderWidth: 0 });
+  }
 }
 
 /**

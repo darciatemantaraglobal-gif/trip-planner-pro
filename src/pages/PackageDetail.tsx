@@ -777,7 +777,12 @@ export default function PackageDetail() {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
             <span className="text-xl md:text-3xl">{pkg.emoji}</span>
-            <h1 className="text-base md:text-2xl font-bold truncate" style={M}>{pkg.name}</h1>
+            <h1 className="text-base md:text-2xl font-bold truncate" style={M}>
+              {pkg.name}
+              {pkg.departureDate && (
+                <span className="text-muted-foreground font-semibold"> — {formatDate(pkg.departureDate, "full")}</span>
+              )}
+            </h1>
             <Badge className={`${statusVariant[pkg.status]} border-0 text-[10px] px-1.5 py-0.5`}>{pkg.status}</Badge>
           </div>
           <div className="mt-0.5 flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground">

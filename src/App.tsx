@@ -29,6 +29,7 @@ import { useRegionalStore } from "@/store/regionalStore";
 import { applyAppearanceSettings, loadAppearanceSettings } from "@/lib/appearance";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { startRealtimeSync } from "@/lib/supabaseRealtime";
+import { initSyncStatusListeners } from "@/store/syncStatusStore";
 import { toast } from "sonner";
 
 const queryClient = new QueryClient();
@@ -126,6 +127,11 @@ function AuthInitBootstrap() {
   return null;
 }
 
+function SyncStatusBootstrap() {
+  useEffect(() => initSyncStatusListeners(), []);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
@@ -162,6 +168,7 @@ const App = () => (
       <AppearanceBootstrap />
       <LangDirectionBootstrap />
       <AuthInitBootstrap />
+      <SyncStatusBootstrap />
       <StoreBootstrap />
       <LoginAlertNotifier />
       <OfflineBar />
