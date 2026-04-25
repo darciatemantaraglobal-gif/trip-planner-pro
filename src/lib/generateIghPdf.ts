@@ -640,7 +640,13 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   }
 
   const listFont = fontFor("checklist", "semiBold");
-  const ROW_BASELINES = Array.from({ length: 5 }, (_, i) =>
+  const firstBaselinePxResolved = cfg.checklist.firstBaselinePx + cfg.checklist.yOffsetPx;
+  const MAX_LIST_ROWS = 5; // cap supaya gak nge-overflow ke footer area
+  // ROW_BASELINES masih dipakai utk mask divider — generate berdasar config
+  // rowSpacingPx (visual sekat asli template di interval ini, bukan dependent
+  // ke berapa baris item beneran). Mask cuma sebatas LINE under tiap "row slot",
+  // jadi cocok di posisi template asli.
+  const ROW_BASELINES_FOR_MASK = Array.from({ length: MAX_LIST_ROWS }, (_, i) =>
     cfg.checklist.firstBaselinePx + i * cfg.checklist.rowSpacingPx + cfg.checklist.yOffsetPx,
   );
   const includedItems = splitOverrideOrUse(cfg.checklist.includedText, data.included);
@@ -648,11 +654,21 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   // Mask garis pembatas horizontal yang ter-print di template (under tiap row).
   // Lines ada ~5px di bawah baseline, span full column width. Mask pakai white
   // rect supaya teks Include/Exclude tampil bersih tanpa sekat garis.
-  maskChecklistDividers(page, cfg.checklist.leftXPx, ROW_BASELINES);
-  maskChecklistDividers(page, cfg.checklist.rightXPx, ROW_BASELINES);
+  maskChecklistDividers(page, cfg.checklist.leftXPx, ROW_BASELINES_FOR_MASK);
+  maskChecklistDividers(page, cfg.checklist.rightXPx, ROW_BASELINES_FOR_MASK);
   const bulletSymbol = (cfg.checklist.listBullet ?? "•").trim();
-  drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size, cfg.checklist.sudahTermasukAlign ?? "center", bulletSymbol);
-  drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size, cfg.checklist.belumTermasukAlign ?? "center", bulletSymbol);
+  drawList(
+    page, includedItems,
+    firstBaselinePxResolved, cfg.checklist.rowSpacingPx, MAX_LIST_ROWS,
+    cfg.checklist.leftXPx, listFont, cfg.checklist.size,
+    cfg.checklist.sudahTermasukAlign ?? "center", bulletSymbol,
+  );
+  drawList(
+    page, excludedItems,
+    firstBaselinePxResolved, cfg.checklist.rowSpacingPx, MAX_LIST_ROWS,
+    cfg.checklist.rightXPx, listFont, cfg.checklist.size,
+    cfg.checklist.belumTermasukAlign ?? "center", bulletSymbol,
+  );
 
   return pdf.save();
 }
@@ -785,48 +801,104 @@ function splitOverrideOrUse(override: string | undefined, fallback: string[]): s
  *    - "left"   → koordinat awal teks (left edge)
  *    - "right"  → batas akhir teks (right edge)
  *
- *  `bullet` (optional, default "•") di-prepend di depan tiap baris dgn 1 space
- *  separator. String kosong = no bullet (back-compat). Untuk align="center"
- *  bullet+text di-treat sbg satu unit yang di-center → bullet stays in front.
- *  Truncation budget mempertimbangkan lebar bullet+space supaya teks utama
- *  yang di-truncate, bukan ke-cut di tengah simbol.
+ *  `bullet` (optional, default "•") di-prepend di depan baris pertama dgn 1
+ *  space separator. String kosong = no bullet (back-compat).
+ *
+ *  ── MULTI-LINE WRAP DGN HANGING INDENT ──
+ *  Tiap item kalo kepanjangan di-wrap ke beberapa baris (`wrapAtSize`).
+ *  Bullet cuma muncul di baris pertama; baris lanjutan di-indent supaya start
+ *  sejajar dgn awal teks (di-bawah teks, bukan di bawah bullet) — gaya
+ *  "hanging indent" yg standar di list typography. Ini ngegantiin truncate
+ *  pakai "..." (perilaku lama) karena info penting (mis. nama hotel lengkap)
+ *  sebelumnya kepotong.
+ *
+ *  ── DYNAMIC ROW HEIGHT ──
+ *  Item 1 di start `firstBaselinePx`. Item berikutnya di-stack ke bawah:
+ *  baseline-nya = baseline item sebelumnya + (wrappedLines × lineAdvance)
+ *  + extraGap (= rowSpacingPx - lineAdvance, biar gap antar-item tetap konsisten
+ *  walau item multi-line). Ini bikin item bawah otomatis turun gak overlap
+ *  walau item atas wrap ke 2-3 baris.
+ *
+ *  ── ALIGN BEHAVIOR DGN MULTI-LINE ──
+ *  Untuk align "center"/"right", lebar block dihitung dari baris terpanjang +
+ *  prefix → block di-position relatif ke anchor. Bullet & semua continuation
+ *  lines pakai X yg sama (left edge of block + prefixW utk continuation),
+ *  jadi visual rapi: bullet di kiri, teks rata kiri di sebelah bullet.
  */
 function drawList(
   page: PDFPage,
   items: string[],
-  rowBaselines: number[],
+  firstBaselinePx: number,
+  rowSpacingPx: number,
+  maxRows: number,
   anchorXPx: number,
   font: PDFFont,
   baseSize = 10,
   align: "left" | "center" | "right" = "center",
   bullet = "•",
 ) {
-  const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, rowBaselines.length);
-  // Width budget per row ~ 235px (kolom asli template).
+  const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, maxRows);
+  // Width budget per row ~ 235px (kolom asli template). Padding 8px disisain
+  // utk breathing room dari border template.
   const COL_WIDTH = 235;
   const maxW = (COL_WIDTH - 8) * SCALE;
   const anchorXPt = anchorXPx * SCALE;
   const prefix = bullet ? `${bullet} ` : "";
+  // User control via slider — gak auto-shrink lagi krn user bisa atur sendiri
+  // ukuran font (range 7..12). Auto-shrink lama bikin item pertama besar dan
+  // item terakhir kecil — inkonsisten visual.
+  const size = baseSize;
+  const prefixW = font.widthOfTextAtSize(prefix, size);
+  // Line advance dlm template-px: konversi dari pt (size*1.25) lewat SCALE.
+  // SCALE = pt/template-px → template-px = pt / SCALE.
+  const lineAdvancePx = (size * 1.25) / SCALE;
+  // Default rowSpacingPx (mis. 28px) menampung ±1 baris (size 10pt → ~22px).
+  // Kalau item multi-line, kita hitung extra-gap supaya jarak antar item
+  // (= rowSpacingPx - 1 lineAdvance) konsisten regardless dari berapa baris
+  // item sebelumnya.
+  const interItemGapPx = Math.max(rowSpacingPx - lineAdvancePx, lineAdvancePx * 0.4);
+
+  let cursorBaselinePx = firstBaselinePx;
   for (let i = 0; i < cleaned.length; i++) {
-    const baselinePx = rowBaselines[i];
-    let size = baseSize;
-    // Auto-shrink berdasar full string (prefix + body) supaya prefix gak
-    // ngedorong teks keluar kolom.
-    while (size > 7 && font.widthOfTextAtSize(prefix + cleaned[i], size) > maxW) size -= 0.5;
-    let body = cleaned[i];
-    if (font.widthOfTextAtSize(prefix + body, size) > maxW) {
-      // Truncate body saja; prefix dijaga supaya bullet selalu utuh.
-      const prefixW = font.widthOfTextAtSize(prefix, size);
-      body = truncateToWidth(body, font, size, Math.max(0, maxW - prefixW));
+    // Wrap body dlm budget (maxW - prefixW) supaya continuation line gak
+    // ngelewatin border kolom kanan. Kalo 1 word aja udah > budget,
+    // wrapAtSize tetep return [original] (no infinite loop).
+    const bodyMaxW = Math.max(0, maxW - prefixW);
+    const wrappedBody = wrapAtSize(cleaned[i], font, size, bodyMaxW);
+
+    // Lebar block = prefix + baris terpanjang. Dipakai utk alignment
+    // center/right (block di-treat sbg unit visual).
+    const longestLineW = wrappedBody.reduce(
+      (mx, ln) => Math.max(mx, font.widthOfTextAtSize(ln, size)),
+      0,
+    );
+    const blockW = prefixW + longestLineW;
+    let blockLeftPt: number;
+    if (align === "left")        blockLeftPt = anchorXPt;
+    else if (align === "right")  blockLeftPt = anchorXPt - blockW;
+    else                          blockLeftPt = anchorXPt - blockW / 2;
+    const textXPt = blockLeftPt + prefixW;
+
+    for (let li = 0; li < wrappedBody.length; li++) {
+      const y = PAGE_H - cursorBaselinePx * SCALE;
+      if (li === 0 && prefix) {
+        // Baris pertama: bullet + teks. Render terpisah supaya bullet stay
+        // di kiri (block edge) dan teks start di textXPt — exact alignment
+        // dgn continuation lines berikut.
+        page.drawText(prefix, { x: blockLeftPt, y, size, font, color: DARK });
+        page.drawText(wrappedBody[li], { x: textXPt, y, size, font, color: DARK });
+      } else {
+        // Continuation (atau no-bullet case): teks aja, di textXPt.
+        page.drawText(wrappedBody[li], { x: textXPt, y, size, font, color: DARK });
+      }
+      cursorBaselinePx += lineAdvancePx;
     }
-    const value = prefix + body;
-    const textW = font.widthOfTextAtSize(value, size);
-    let x: number;
-    if (align === "left")       x = anchorXPt;
-    else if (align === "right") x = anchorXPt - textW;
-    else                        x = anchorXPt - textW / 2; // center
-    const y = PAGE_H - baselinePx * SCALE;
-    page.drawText(value, { x, y, size, font, color: DARK });
+    // After last line of this item, ganti lineAdvancePx (already added) dgn
+    // interItemGapPx supaya jarak antar item konsisten. Kalau item ini cuma
+    // 1 baris → cursor maju 1 lineAdvance + interItemGap = ~rowSpacingPx
+    // (preserve perilaku lama). Kalau multi-line → cursor maju N baris +
+    // gap konsisten.
+    cursorBaselinePx += interItemGapPx - lineAdvancePx;
   }
 }
 
