@@ -213,14 +213,28 @@ function fmtCompactIdr(n: number): string {
   return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 }
 
-/** Format harga sesuai mata uang target. Style:
- *   - IDR → "30,5 jt" / "1,2 M" / "Rp 500.000" (compact format, hemat kolom)
- *   - SAR → "SAR 3,500"          (en-US, no decimals)
- *   - USD → "$1,776"             (en-US, no decimals)
- *  0/undefined/NaN → "—". */
-function fmtCurrency(n: number | undefined, currency: "USD" | "IDR" | "SAR"): string {
+/** Format IDR lengkap dengan ribuan titik: "Rp 30.123.456".
+ *  Selalu prefix "Rp " + locale id-ID. Dipakai kalau user pilih
+ *  priceDisplayMode === "full" di Layout Tuner. */
+function fmtFullIdr(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+}
+
+/** Format harga sesuai mata uang target & display mode. Style:
+ *   - IDR + "compact" → "30,5 jt" / "1,2 M" / "Rp 500.000" (hemat kolom)
+ *   - IDR + "full"    → "Rp 30.123.456" (nominal lengkap dengan titik ribuan)
+ *   - SAR             → "SAR 3,500"          (en-US, no decimals)
+ *   - USD             → "$1,776"             (en-US, no decimals)
+ *  0/undefined/NaN → "—".
+ *  `mode` cuma ngaruh ke IDR; USD/SAR selalu lengkap (ga pernah compact). */
+function fmtCurrency(
+  n: number | undefined,
+  currency: "USD" | "IDR" | "SAR",
+  mode: "full" | "compact" = "compact",
+): string {
   if (!n || !Number.isFinite(n) || n <= 0) return "—";
-  if (currency === "IDR") return fmtCompactIdr(n);
+  if (currency === "IDR") return mode === "full" ? fmtFullIdr(n) : fmtCompactIdr(n);
   const rounded = Math.round(n);
   if (currency === "SAR") return `SAR ${rounded.toLocaleString("en-US")}`;
   return `$${rounded.toLocaleString("en-US")}`;
@@ -266,6 +280,10 @@ function pick(override: string | undefined, fallback: string): string {
 export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
   const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
   const isGroup = data.mode === "group";
+  // Format harga global utk semua call site fmtCurrency di file ini.
+  // Default "compact" supaya preset/storage lama yg belum punya field ini
+  // tetap render dengan satuan ringkas (jt/M) — backward compatible.
+  const priceMode: "full" | "compact" = cfg.priceDisplayMode ?? "compact";
   const defaultTplUrl = isGroup ? TEMPLATE_GROUP_URL : TEMPLATE_URL;
 
   // Custom background template logic:
@@ -462,9 +480,9 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
       const t = convertViaIdr(row.triple, row.tripleIDR, sourceCur, targetCur, kursUSD, kursSAR);
       const d = convertViaIdr(row.double, row.doubleIDR, sourceCur, targetCur, kursUSD, kursSAR);
       cell(gp.paxCenterXPx, row.paxLabel || "—");
-      cell(gp.quadCenterXPx + gp.quadXOffsetPx,   fmtCurrency(q, targetCur));
-      cell(gp.tripleCenterXPx + gp.tripleXOffsetPx, fmtCurrency(t, targetCur));
-      cell(gp.doubleCenterXPx + gp.doubleXOffsetPx, fmtCurrency(d, targetCur));
+      cell(gp.quadCenterXPx + gp.quadXOffsetPx,   fmtCurrency(q, targetCur, priceMode));
+      cell(gp.tripleCenterXPx + gp.tripleXOffsetPx, fmtCurrency(t, targetCur, priceMode));
+      cell(gp.doubleCenterXPx + gp.doubleXOffsetPx, fmtCurrency(d, targetCur, priceMode));
     }
   } else {
     // Private template: 2 kotak orange (Pax + Harga per Pax).
@@ -484,7 +502,7 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     );
     const priceText = pick(
       cfg.pricing.priceText,
-      fmtCurrency(targetCur === "IDR" ? (data.pricePerPaxIDR || 0) : priceInTarget, targetCur),
+      fmtCurrency(targetCur === "IDR" ? (data.pricePerPaxIDR || 0) : priceInTarget, targetCur, priceMode),
     );
     drawTextCentered(page, paxText, {
       ...PAX_BOX, size: cfg.pricing.size + 4, minSize: 14, font: priceBold, color: WHITE,

@@ -234,6 +234,13 @@ export interface IghLayoutConfig {
     xPx: number;
     yPx: number;
   };
+  /** Format tampilan harga di tabel matrix & box harga.
+   *  - `"compact"` (default) → ringkas pakai satuan: "30,5 jt", "1,2 M".
+   *  - `"full"` → nominal lengkap dengan ribuan: "Rp 30.123.456".
+   *  Cuma berlaku utk currency IDR. USD/SAR selalu pakai en-US lengkap.
+   *  Field opsional → preset lama yang belum punya field ini fallback ke
+   *  `"compact"` supaya tampilan default tetap sama. */
+  priceDisplayMode?: "full" | "compact";
 }
 
 export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
@@ -275,6 +282,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   whatsappPosition: { xPx: 290, yPx: 891 },
   mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
+  priceDisplayMode: "compact",
 };
 
 const STORAGE_KEY = "igh:pdf-layout-config";
@@ -349,6 +357,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   whatsappPosition: { xPx: 290, yPx: 891 },
   mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
+  priceDisplayMode: "compact",
 };
 
 /** Built-in starter buat template Grup, dikalibrasi 1:1 ke kicau.jpg.
@@ -488,5 +497,12 @@ export function mergeConfig(
     whatsappPosition: override.whatsappPosition
       ? { ...(base.whatsappPosition ?? { xPx: 0, yPx: 0 }), ...override.whatsappPosition }
       : base.whatsappPosition,
+    // priceDisplayMode: scalar override. Kalau override punya field, pakai itu;
+    // kalau enggak, fallback ke base. Default global = "compact" supaya preset
+    // lama yg belum punya field ini tetap render dgn satuan ringkas.
+    priceDisplayMode:
+      "priceDisplayMode" in (override as object)
+        ? (override as { priceDisplayMode?: "full" | "compact" }).priceDisplayMode ?? base.priceDisplayMode ?? "compact"
+        : base.priceDisplayMode ?? "compact",
   };
 }

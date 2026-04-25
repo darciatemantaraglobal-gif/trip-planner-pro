@@ -444,6 +444,45 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
           <p className="text-[9px] leading-tight text-slate-500">
             Otomatis konversi pakai kurs dari Settings kalau beda mata uang.
           </p>
+
+          {/* FORMAT HARGA — full vs compact. Cuma ngaruh ke IDR; USD/SAR
+              selalu lengkap. Live preview via debounce path yg sama kayak
+              field lain (setLocal → effect → onChange → re-render PDF). */}
+          <div className="pt-1.5 border-t border-emerald-200/70 space-y-1">
+            <label className="text-[10px] font-semibold text-emerald-700">
+              Format Harga
+            </label>
+            <Select
+              value={local.priceDisplayMode ?? "compact"}
+              onValueChange={(v) =>
+                setLocal({ ...local, priceDisplayMode: v as "full" | "compact" })
+              }
+            >
+              <SelectTrigger
+                className="h-8 text-xs bg-white"
+                data-testid="select-price-display-mode"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  value="compact"
+                  data-testid="select-price-display-mode-compact"
+                >
+                  Singkat (30,1 jt)
+                </SelectItem>
+                <SelectItem
+                  value="full"
+                  data-testid="select-price-display-mode-full"
+                >
+                  Lengkap (Rp 30.123.456)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[9px] leading-tight text-slate-500">
+              Berlaku utk currency IDR. USD/SAR selalu pakai format lengkap.
+            </p>
+          </div>
         </section>
 
         {/* PRESETS */}
