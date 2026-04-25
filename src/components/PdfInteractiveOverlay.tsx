@@ -120,7 +120,8 @@ type ElementKey =
   | "hotelMadinah"
   | "pricing"
   | "groupPricing"
-  | "checklist";
+  | "checklist"
+  | "whatsapp";
 
 interface OverlayElement {
   key: ElementKey;
@@ -256,6 +257,27 @@ function buildElements(
     });
   }
 
+  // ── WhatsApp footer — icon hijau + nomor admin ──
+  // Cuma ditampilkan kalau footer.showWhatsapp=true. Posisi dibaca dari
+  // whatsappPosition (fallback ke legacy footer.topPx/waXPx). Bbox kira-kira:
+  // icon diameter (iconSizePt/SCALE) + 4pt gap + nomor (~80pt = ~143px).
+  if (layout.footer.showWhatsapp) {
+    const waX = layout.whatsappPosition?.xPx ?? layout.footer.waXPx;
+    const waY = layout.whatsappPosition?.yPx ?? layout.footer.topPx;
+    const iconPx = layout.footer.waIconSizePt / 0.5594; // SCALE constant ≈ pt→tpl-px
+    const numWidthPx = 150; // approx untuk "+62 8XX-XXXX-XXXX" pada 7pt
+    els.push({
+      key: "whatsapp",
+      label: "WhatsApp",
+      // Top icon kira-kira 1.4× radius di atas baseline (cy = baseY + r*0.4)
+      xPx: waX,
+      yPx: waY - iconPx * 0.7,
+      widthPx: iconPx + 4 + numWidthPx,
+      heightPx: iconPx + 2,
+      size: layout.footer.size,
+    });
+  }
+
   // ── Checklist — 5 baris, baselinePx = posisi BASELINE (bukan top!) ──
   {
     const c = layout.checklist;
@@ -359,6 +381,18 @@ function applyTranslate(
         firstBaselinePx: layout.checklist.firstBaselinePx + dyPx,
       };
       break;
+    case "whatsapp": {
+      // Drag WA = update whatsappPosition. Resolve current X/Y dari struktur baru
+      // (whatsappPosition) atau fallback ke legacy footer fields supaya preset
+      // lama tetap geser dari posisi visual yg user lihat sekarang, bukan dari 0.
+      const curX = layout.whatsappPosition?.xPx ?? layout.footer.waXPx;
+      const curY = layout.whatsappPosition?.yPx ?? layout.footer.topPx;
+      next.whatsappPosition = {
+        xPx: curX + dxPx,
+        yPx: curY + dyPx,
+      };
+      break;
+    }
   }
   return next;
 }

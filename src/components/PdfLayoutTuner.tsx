@@ -1046,6 +1046,47 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             Y Offset menggeser semua teks naik/turun supaya pas di tengah dua garis.
           </p>
         </section>
+
+        {/* FOOTER WHATSAPP — posisi icon hijau + nomor admin di footer.
+            Range Y dilebarin sampai 1010px supaya bisa nempel ke batas bawah
+            halaman A5 (template-px ≈ 1023). Range X juga full-width. */}
+        <section className="space-y-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Footer WhatsApp
+          </h4>
+          <SliderRow
+            label="X WhatsApp"
+            value={local.whatsappPosition?.xPx ?? local.footer.waXPx}
+            min={40} max={680} step={1} unit="px"
+            onChange={(v) =>
+              setLocal((prev) => ({
+                ...prev,
+                whatsappPosition: {
+                  xPx: v,
+                  yPx: prev.whatsappPosition?.yPx ?? prev.footer.topPx,
+                },
+              }))
+            }
+          />
+          <SliderRow
+            label="Y WhatsApp"
+            value={local.whatsappPosition?.yPx ?? local.footer.topPx}
+            min={700} max={1010} step={1} unit="px"
+            onChange={(v) =>
+              setLocal((prev) => ({
+                ...prev,
+                whatsappPosition: {
+                  xPx: prev.whatsappPosition?.xPx ?? prev.footer.waXPx,
+                  yPx: v,
+                },
+              }))
+            }
+          />
+          <p className="text-[9px] text-slate-400 leading-snug">
+            Y default <strong>891px</strong> sejajar dengan teks Instagram pre-printed.
+            Geser sampai mendekati <strong>1010px</strong> kalau mau ke batas bawah.
+          </p>
+        </section>
       </div>
 
       <div className="p-2 border-t border-[hsl(var(--border))] bg-white flex gap-2">

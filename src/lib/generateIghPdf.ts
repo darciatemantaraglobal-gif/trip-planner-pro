@@ -489,13 +489,18 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
 
   // ── 5. CHECKLIST ──
   // ── 6. FOOTER (WhatsApp icon + clickable nomor admin) ──
+  // Posisi WA dibaca dari `cfg.whatsappPosition` bila ada, biar bisa di-drag
+  // mandiri lewat Edit Mode tanpa nyentuh field footer lainnya. Fallback ke
+  // legacy `footer.topPx`/`waXPx` supaya preset lama tetap render persis sama.
   if (cfg.footer.showWhatsapp) {
     const admin = loadIghAdminSettings();
     const digits = whatsappDigits(admin.adminWhatsapp);
     if (digits.length >= 8) {
+      const waYPx = cfg.whatsappPosition?.yPx ?? cfg.footer.topPx;
+      const waXPx = cfg.whatsappPosition?.xPx ?? cfg.footer.waXPx;
       drawWhatsappFooter(page, pdf, {
-        topPx: cfg.footer.topPx,
-        leftXPx: cfg.footer.waXPx,
+        topPx: waYPx,
+        leftXPx: waXPx,
         iconSizePt: cfg.footer.waIconSizePt,
         textSizePt: cfg.footer.size,
         font: fontFor("footer", "semiBold"),

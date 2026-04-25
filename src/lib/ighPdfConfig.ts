@@ -205,6 +205,15 @@ export interface IghLayoutConfig {
     /** Tampilkan WA di footer. False = matiin elemen WA tanpa hapus dari config. */
     showWhatsapp: boolean;
   };
+  /** Posisi WhatsApp icon + nomor (template-px, top-left origin).
+   *  Override `footer.waXPx` & `footer.topPx` legacy bila ada. Dibikin field
+   *  terpisah supaya bisa di-drag mandiri dari Edit Mode tanpa nyentuh
+   *  field footer lainnya (font size, icon size, dst). Optional → preset
+   *  lama yang belum punya field ini tetap dirender pakai legacy values. */
+  whatsappPosition?: {
+    xPx: number;
+    yPx: number;
+  };
 }
 
 export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
@@ -243,6 +252,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   // Instagram di template ada di template-px ~75..198 (kiri), email ~526..668
   // (kanan). WA di-tengahin di antara keduanya: starts ~310px, baseline 891.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
+  whatsappPosition: { xPx: 290, yPx: 891 },
 };
 
 const STORAGE_KEY = "igh:pdf-layout-config";
@@ -314,6 +324,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   // Group template footer kemungkinan beda posisi — default sama dulu, bisa
   // di-tune via PdfLayoutTuner per-mode storage.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
+  whatsappPosition: { xPx: 290, yPx: 891 },
 };
 
 /** Built-in starter buat template Grup, dikalibrasi 1:1 ke kicau.jpg.
