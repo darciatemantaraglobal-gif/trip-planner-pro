@@ -7,6 +7,7 @@ import {
   type IghFontFamily,
   type IghLayoutConfig,
   type IghSection,
+  type IghTextAlign,
 } from "./ighPdfConfig";
 import {
   loadIghAdminSettings,
@@ -113,6 +114,41 @@ function drawText(
       ? truncateToWidth(text, opts.font, size, maxW)
       : text;
   const x = opts.leftPx * SCALE;
+  const y = PAGE_H - opts.topPx * SCALE - size * 0.78;
+  page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
+}
+
+/** Versi `drawText` yang sadar alignment. `anchorXPx` interpretasinya:
+ *   - "left"   → batas kiri teks (sama dengan `drawText`)
+ *   - "center" → titik tengah horizontal teks
+ *   - "right"  → batas kanan teks
+ *  Size udah di-resolve di luar (skip auto-shrink) supaya semua baris di
+ *  multi-line block ukurannya konsisten. */
+function drawTextAligned(
+  page: PDFPage,
+  text: string,
+  opts: {
+    anchorXPx: number;
+    topPx: number;
+    size: number;
+    font: PDFFont;
+    color: RGB;
+    align: IghTextAlign;
+    maxWidthPx?: number;
+  },
+) {
+  const size = opts.size;
+  const maxW = opts.maxWidthPx ? opts.maxWidthPx * SCALE : Infinity;
+  const value =
+    opts.font.widthOfTextAtSize(text, size) > maxW
+      ? truncateToWidth(text, opts.font, size, maxW)
+      : text;
+  const textW = opts.font.widthOfTextAtSize(value, size);
+  const anchorXPt = opts.anchorXPx * SCALE;
+  let x: number;
+  if (opts.align === "left") x = anchorXPt;
+  else if (opts.align === "right") x = anchorXPt - textW;
+  else x = anchorXPt - textW / 2;
   const y = PAGE_H - opts.topPx * SCALE - size * 0.78;
   page.drawText(value, { x, y, size, font: opts.font, color: opts.color });
 }
@@ -368,40 +404,78 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   const page = pdf.getPage(0);
 
   // ── 1. PROJECT name + timeline ──
+  // Mendukung manual line break (\n) DAN auto-wrap saat satu baris kepanjangan.
+  // Step:
+  //   1. Split text dgn `\n` → manual lines (preserve user intent).
+  //   2. Per manual line, auto-wrap kalau lebar > projMaxW.
+  //   3. Auto-shrink global size (turun 1pt) sampai total lines <= MAX_LINES.
+  //   4. Render tiap line di Y = topPx + i * lineAdvance dgn alignment user.
+  //   5. Subtitle (timeline tanggal) dihitung dari Y baris terakhir + gap →
+  //      otomatis turun saat judul jadi 2-4 baris, gak nimpa hotel section.
   const projectName = pick(cfg.projectName.text, (data.projectName || "—").trim());
-  let projSize = cfg.projectName.size;
-  let projLines: string[] = [projectName];
   const projMaxW = 285 * SCALE;
   const projBold = fontFor("projectName", "bold");
   const projReg = fontFor("projectName", "regular");
+  const projAlign: IghTextAlign = cfg.projectName.align ?? "left";
+  // 4 baris cukup untuk: "PT NAMA AGENCY" / "Umrah 9 Hari" / "VIP Plus" / "Mei 2026"
+  // — kalau lebih dari ini, biasanya udah berbenturan dgn hotel section.
+  const MAX_TITLE_LINES = 4;
+  const manualSegments = projectName.split("\n");
+  let projSize = cfg.projectName.size;
+  let projLines: string[] = [];
   while (projSize > 14) {
-    projLines = wrapAtSize(projectName, projBold, projSize, projMaxW);
-    if (projLines.length <= 2) break;
+    projLines = [];
+    for (const seg of manualSegments) {
+      // Empty manual line (user double-tap Enter) = preserved as blank gap.
+      if (!seg.trim()) {
+        projLines.push("");
+        continue;
+      }
+      const wrapped = wrapAtSize(seg, projBold, projSize, projMaxW);
+      projLines.push(...wrapped);
+    }
+    if (projLines.length <= MAX_TITLE_LINES) break;
     projSize -= 1;
   }
-  if (projLines.length > 2) projLines = projLines.slice(0, 2);
+  if (projLines.length > MAX_TITLE_LINES) projLines = projLines.slice(0, MAX_TITLE_LINES);
   // Pakai lineGap absolut (px) supaya user bisa rapetin/longgarin tanpa tergantung font size.
   const projLH = projSize + cfg.projectName.lineGapPx;
   let py = cfg.projectName.topPx;
   for (const line of projLines) {
-    drawText(page, line, {
-      leftPx: cfg.projectName.xPx, topPx: py, size: projSize, font: projBold, color: ORANGE,
-    });
+    // Skip drawText untuk baris kosong tapi tetep advance Y supaya gap visible.
+    if (line) {
+      drawTextAligned(page, line, {
+        anchorXPx: cfg.projectName.xPx,
+        topPx: py,
+        size: projSize,
+        font: projBold,
+        color: ORANGE,
+        align: projAlign,
+        maxWidthPx: 285,
+      });
+    }
     py += projLH;
   }
 
   // Timeline (Periode) — "21 Mei 2026 - 29 Mei 2026 (9 hari)"
-  // Y dihitung dinamis: end-of-title (py) + mainHeaderGap + offset Y opsional.
-  // X dihitung: projectName.xPx + offset X opsional.
+  // Y dihitung dinamis: end-of-title (py, sudah include semua baris title) +
+  // mainHeaderGap + offset Y opsional. Jadi kalau title jadi 2-4 baris,
+  // subtitle otomatis turun gak tumpang tindih.
+  // X mengikuti alignment title supaya konsisten visual (left-aligned title
+  // → subtitle juga left, dst).
   // Resolve order: mainHeaderGap (canonical) → headerSubtitleGap (deprecated,
   // preset lama) → 6 (hardcoded asli) supaya preset lama tetap render identik.
   const subtitleGap = cfg.mainHeaderGap ?? cfg.headerSubtitleGap ?? 6;
   const subtitleXOff = cfg.headerSubtitleOffset?.xPx ?? 0;
   const subtitleYOff = cfg.headerSubtitleOffset?.yPx ?? 0;
-  drawText(page, data.timeline || "—", {
-    leftPx: cfg.projectName.xPx + subtitleXOff,
+  drawTextAligned(page, data.timeline || "—", {
+    anchorXPx: cfg.projectName.xPx + subtitleXOff,
     topPx: py + subtitleGap + subtitleYOff,
-    size: 11, font: projReg, color: GREY_MUTED, maxWidthPx: 285,
+    size: 11,
+    font: projReg,
+    color: GREY_MUTED,
+    align: projAlign,
+    maxWidthPx: 285,
   });
 
   // ── 2. HEADER META (Invoice to & Date) ──

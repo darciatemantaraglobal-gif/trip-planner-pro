@@ -98,18 +98,28 @@ function wrapText(text: string, maxWidthPx: number, sizePt: number, weight = "bo
   return result;
 }
 
-/** Hitung jumlah baris projectName setelah wrap + auto-shrink (1 atau 2). */
+/** Hitung jumlah baris projectName: split('\n') dulu (manual line break dari
+ *  user), lalu auto-wrap tiap segmen. Sinkron dgn generator (MAX 4 baris). */
 function projectNameLineCount(text: string, baseSize: number): number {
-  const t = (text || "").trim();
-  if (!t) return 1;
+  if (!text || !text.trim()) return 1;
   const PROJ_MAX_W_TPL = 285; // template-px, sesuai generator
+  const MAX_LINES = 4; // sinkron dgn generateIghPdf MAX_TITLE_LINES
+  const segments = text.split("\n");
   let size = baseSize;
   while (size > 14) {
-    const lines = wrapText(t, PROJ_MAX_W_TPL, size);
-    if (lines.length <= 2) return Math.max(1, lines.length);
+    let total = 0;
+    for (const seg of segments) {
+      if (!seg.trim()) {
+        total += 1; // empty manual line tetep advance Y
+        continue;
+      }
+      const lines = wrapText(seg, PROJ_MAX_W_TPL, size);
+      total += Math.max(1, lines.length);
+    }
+    if (total <= MAX_LINES) return Math.max(1, total);
     size -= 1;
   }
-  return 2; // capped di generator
+  return MAX_LINES;
 }
 
 type ElementKey =
@@ -154,7 +164,7 @@ function buildElements(
     const heightPx = (lines - 1) * lineAdvance + textBoxH(s);
     els.push({
       key: "projectName",
-      label: lines > 1 ? "Project Name (2 baris)" : "Project Name",
+      label: lines > 1 ? `Project Name (${lines} baris)` : "Project Name",
       xPx: layout.projectName.xPx,
       yPx: textBoxY(layout.projectName.topPx, s),
       widthPx: 285,

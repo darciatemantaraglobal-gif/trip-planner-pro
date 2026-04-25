@@ -48,7 +48,10 @@ export const FONT_FAMILY_URLS: Record<IghFontFamily, { regular: string; semiBold
 
 export interface IghLayoutConfig {
   projectName: {
-    /** X (top-left, template px) */
+    /** X (top-left, template px). Interpretasinya tergantung `align`:
+     *   - "left"   → X = batas kiri tiap baris (default, kompat lama)
+     *   - "center" → X = titik tengah horizontal tiap baris
+     *   - "right"  → X = batas kanan tiap baris */
     xPx: number;
     /** Y (top-left, template px) baris pertama */
     topPx: number;
@@ -56,8 +59,12 @@ export interface IghLayoutConfig {
     size: number;
     /** Jarak vertikal absolut (px) antar baris bila project name multi-line */
     lineGapPx: number;
-    /** Override teks. Kosong = pakai data dari kalkulator. */
+    /** Override teks. Kosong = pakai data dari kalkulator.
+     *  Mendukung manual line break (\n) — tiap baris di-render terpisah. */
     text?: string;
+    /** Horizontal alignment tiap baris judul. Default "left" supaya preset
+     *  lama (yg belum punya field ini) tetap render identik. */
+    align?: IghTextAlign;
   };
   metaInfo: {
     /** X invoice/customer */

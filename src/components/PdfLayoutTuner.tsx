@@ -689,16 +689,22 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             Project Name
           </h4>
           <TextRow
-            label="Edit Teks (override)"
+            label="Edit Teks (override) — Enter = baris baru"
             value={local.projectName.text ?? ""}
-            placeholder="Kosong = pakai data kalkulator"
+            placeholder="Kosong = pakai data kalkulator. Tekan Enter untuk baris baru."
+            multiline
             onChange={(v) => patch("projectName", { text: v })}
           />
           <SliderRow
             label="X Position"
             value={local.projectName.xPx}
-            min={20} max={300} step={1} unit="px"
+            min={20} max={700} step={1} unit="px"
             onChange={(v) => patch("projectName", { xPx: v })}
+          />
+          <AlignRow
+            label="Alignment Judul"
+            value={local.projectName.align ?? "left"}
+            onChange={(v) => patch("projectName", { align: v })}
           />
           <SliderRow
             label="Y Position"
