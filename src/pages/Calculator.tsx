@@ -27,6 +27,7 @@ import {
   computeGroupMatrix,
   defaultPaxTiers,
   ROOM_SHARING,
+  resolveRoomRate,
   type HotelRow,
   type TransportRow,
   type TicketRow,
@@ -40,6 +41,7 @@ import {
   type CostUnit,
 } from "@/features/calculator/pricing";
 import { GroupMatrixSection, DEFAULT_GROUP_SETTINGS, type GroupSettings } from "@/features/calculator/GroupMatrixSection";
+import { HotelRatesCell } from "@/features/calculator/HotelRatesCell";
 import { QuotationMetaSection } from "@/features/calculator/QuotationMetaSection";
 import { cn } from "@/lib/utils";
 import { useRatesStore } from "@/store/ratesStore";
@@ -1137,9 +1139,8 @@ export default function Calculator() {
                   <Th>Nama Hotel</Th>
                   <Th>Tipe Kamar</Th>
                   <Th right>Hari</Th>
-                  <Th right>Harga/Malam</Th>
+                  <Th right>Rate / Malam (Q · T · D)</Th>
                   <Th right>Kamar</Th>
-                  <Th right>Total Asing</Th>
                   <Th right>Total IDR</Th>
                   <Th right>Per Pax IDR</Th>
                   <Th> </Th>
@@ -1149,11 +1150,14 @@ export default function Calculator() {
                 {calc.hotels.map((h) => {
                   const cur = h.currency ?? "SAR";
                   const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
-                  const foreignAmount = h.days * h.pricePerNight * h.rooms;
+                  // Active rate honors per-room-type pricing (or supplement
+                  // fallback) when roomType is set; otherwise base/Quad.
+                  const activeRate = h.roomType ? resolveRoomRate(h, h.roomType) : (h.pricePerNight ?? 0);
+                  const foreignAmount = h.days * activeRate * h.rooms;
                   const totalIDR = foreignAmount * rate;
                   const capacity = h.roomType ? ROOM_CAPACITY[h.roomType] : 0;
                   const perPaxIDR = capacity > 0
-                    ? (h.days * h.pricePerNight * rate) / capacity
+                    ? (h.days * activeRate * rate) / capacity
                     : totalIDR / safePax;
                   return (
                     <tr key={h.id} className="hover:bg-orange-50/30 transition-colors">
@@ -1167,14 +1171,10 @@ export default function Calculator() {
                         />
                       </Td>
                       <Td right><NumCell value={h.days} onChange={(v) => updateHotel(h.id, { days: v })} /></Td>
-                      <Td right>
-                        <div className="flex items-center gap-1">
-                          <NumCell value={h.pricePerNight} onChange={(v) => updateHotel(h.id, { pricePerNight: v })} />
-                          <RowCurrencyToggle value={cur} onChange={(v) => updateHotel(h.id, { currency: v })} />
-                        </div>
+                      <Td>
+                        <HotelRatesCell hotel={h} onChange={(patch) => updateHotel(h.id, patch)} />
                       </Td>
                       <Td right><NumCell value={h.rooms} onChange={(v) => updateHotel(h.id, { rooms: v })} /></Td>
-                      <Td right muted mono>{cur === "SAR" ? fmtSAR(foreignAmount) : fmtUSD(foreignAmount)}</Td>
                       <Td right bold mono>{formatCurrency(totalIDR)}</Td>
                       <Td right muted mono>
                         {formatCurrency(perPaxIDR)}

@@ -2,6 +2,14 @@
 
 Aplikasi manajemen trip Umrah & Haji berbasis React + Vite + TypeScript + shadcn/ui.
 
+## Pricing Matrix — Granular per-room rates (Apr 2026)
+Pricing logic untuk Umrah grup di-rework supaya cocok dengan kondisi hotel real (Quad/Triple/Double punya rate beda).
+- **`HotelRow`** (`src/features/calculator/pricing.ts`): tambah field opsional `pricePerNightTriple`, `pricePerNightDouble`, `useSupplement`, `supplementTriple`, `supplementDouble`. Field lama `pricePerNight` = base/Quad. Helper `resolveRoomRate(hotel, room)` resolve rate per kamar — pake rate eksplisit kalau ada, fallback ke `base + supplement` kalau `useSupplement`, terakhir fallback ke base.
+- **`computeProfessionalQuote`** pake `resolveRoomRate(h, h.roomType)` kalau `roomType` di-set (back-compat: kalau gak di-set, pake `pricePerNight`).
+- **`computeGroupMatrix`** sekarang generate rate IDR per room type (`hotelBreakdown[].ratesPerRoomIDR.{Quad,Triple,Double}`). Tiap `GroupMatrixCell` punya `hotelPerPaxIDR` dan pake rate kamar yang sesuai → spread harga Q/T/D mencerminkan harga hotel beneran, bukan cuma divide-by-sharing dari satu rate. Field lama `hotelPerNightIDR` di-keep utk back-compat (point ke Quad rate).
+- **UI**: komponen `HotelRatesCell` (`src/features/calculator/HotelRatesCell.tsx`) ganti single "Harga/Malam" cell. Stack 3 input mini (Q/T/D) per hotel + currency selector + toggle mode rate-eksplisit ↔ supplement (icon ArrowLeftRight). Toggle pre-fill nilai antar mode supaya gak hilang. Dipake di Calculator.tsx + PackageDetail.tsx.
+- **Visual matrix**: `GroupMatrixSection.tsx` footer breakdown ganti dari "harga 1 rate per malam" → "harga 1 kamar per stay per room type" (Q/T/D). Kalau ketiga rate sama, collapse jadi 1 angka utk readability.
+
 ## Supabase (Cloud Sync) — v1
 - **Client**: `src/lib/supabase.ts` — pakai `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Helper `isSupabaseConfigured()` jadi feature flag.
 - **Schema**: `supabase/schema.sql` — tables (trips, jamaah, jamaah_docs, packages, package_calculations, notes, pdf_templates, pdf_layout_presets) + storage buckets (jamaah-photos, jamaah-docs, pdf-templates). Jalankan sekali di SQL Editor Supabase. Untuk DB existing yang sudah dijalankan sebelumnya, jalankan migration `supabase/migrations/2026_04_23_pdf_layout_presets.sql`.

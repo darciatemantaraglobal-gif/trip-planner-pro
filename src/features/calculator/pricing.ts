@@ -17,10 +17,42 @@ export interface HotelRow {
   id: string;
   label: string;
   days: number;
-  pricePerNight: number; // currency per room per night
+  /** Base / Quad rate per room per night (back-compat single-rate field). */
+  pricePerNight: number;
   rooms: number;         // number of rooms
   roomType?: "Quad" | "Triple" | "Double"; // sharing type — Quad=4, Triple=3, Double=2
   currency?: "IDR" | "SAR" | "USD"; // default SAR
+  // ── Granular per-room-type rates (per room per night, in `currency`) ──
+  /** Triple-room nightly rate. If unset, falls back per `useSupplement`. */
+  pricePerNightTriple?: number;
+  /** Double-room nightly rate. If unset, falls back per `useSupplement`. */
+  pricePerNightDouble?: number;
+  /** When true, Triple/Double rates = `pricePerNight` + supplement. */
+  useSupplement?: boolean;
+  /** Supplement added to base for Triple rooms (only if `useSupplement`). */
+  supplementTriple?: number;
+  /** Supplement added to base for Double rooms (only if `useSupplement`). */
+  supplementDouble?: number;
+}
+
+/**
+ * Resolve the per-room nightly rate for a given room type, applying the
+ * supplement-fallback rule:
+ *   - Quad   → always base `pricePerNight`
+ *   - Triple → if `useSupplement` → base + supplementTriple
+ *              else → explicit pricePerNightTriple, or base if unset
+ *   - Double → same pattern with supplementDouble / pricePerNightDouble
+ */
+export function resolveRoomRate(h: HotelRow, room: "Quad" | "Triple" | "Double"): number {
+  const base = h.pricePerNight ?? 0;
+  if (room === "Quad") return base;
+  if (h.useSupplement) {
+    const supp = room === "Triple" ? (h.supplementTriple ?? 0) : (h.supplementDouble ?? 0);
+    return base + supp;
+  }
+  const explicit = room === "Triple" ? h.pricePerNightTriple : h.pricePerNightDouble;
+  if (typeof explicit === "number" && explicit > 0) return explicit;
+  return base;
 }
 
 export interface TransportRow {
@@ -175,10 +207,14 @@ export function computeProfessionalQuote(input: ProfessionalCalcInput): Professi
   }
 
   // ── 1. Hotel (currency per room per night × rooms × days) ─────────────────
+  // If `roomType` is set, use the room-specific rate (Quad/Triple/Double)
+  // resolved via `resolveRoomRate` (handles explicit rates + supplement
+  // fallback). Otherwise fall back to the base `pricePerNight` (back-compat).
   let hotelIDR = 0;
   for (const h of hotels) {
     const cur = h.currency ?? "SAR";
-    const foreignAmount = h.days * h.pricePerNight * h.rooms;
+    const ratePerNight = h.roomType ? resolveRoomRate(h, h.roomType) : (h.pricePerNight ?? 0);
+    const foreignAmount = h.days * ratePerNight * h.rooms;
     const idr = toIDR(foreignAmount, cur);
     trackForeign(foreignAmount, cur);
     hotelIDR += idr;
@@ -387,13 +423,24 @@ export interface GroupMatrixCell {
   perPaxIDR: number;
   perPaxDisplay: number;     // dalam displayCurrency, sudah di-round
   hppPerPaxIDR: number;
+  hotelPerPaxIDR: number;    // hotel cost share for this room type, per pax
+}
+
+export interface HotelMatrixBreakdown {
+  hotelId: string;
+  label: string;
+  nights: number;
+  /** Per-room price for the entire stay (nights × rate), in IDR, per room type. */
+  ratesPerRoomIDR: Record<RoomType, number>;
 }
 
 export interface GroupMatrixQuote {
   cells: GroupMatrixCell[];
   fixedTotalIDR: number;     // total biaya fixed grup (transport+staff+commission)
   perPaxFlatIDR: number;     // total biaya per-pax flat (tiket+visa+dest+fnb)
+  /** @deprecated kept for back-compat — use `hotelBreakdown` instead. */
   hotelPerNightIDR: { hotelId: string; label: string; pricePerRoomIDR: number; nights: number }[];
+  hotelBreakdown: HotelMatrixBreakdown[];
   displayCurrency: CalcCurrency;
   totalSAR: number;
   totalUSD: number;
@@ -463,29 +510,54 @@ export function computeGroupMatrix(input: GroupMatrixInput): GroupMatrixQuote {
   }
   fixedTotalIDR += commissionFee;
 
-  // ── Hotel per kamar per malam, di-IDR-kan
-  const hotelPerNightIDR = hotels.map((h) => ({
-    hotelId: h.id,
-    label: h.label || "Hotel",
-    pricePerRoomIDR: toIDRWith(h.pricePerNight, h.currency ?? "SAR", rates) * h.days,
-    nights: h.days,
-  }));
+  // ── Hotel: per-room price for the full stay, computed per ROOM TYPE.
+  //    Rate per night is room-type-specific (resolveRoomRate handles
+  //    explicit rates + supplement fallback). Multiplied by nights to get
+  //    the cost of ONE room for the whole stay, in IDR.
+  const hotelBreakdown: HotelMatrixBreakdown[] = hotels.map((h) => {
+    const cur = h.currency ?? "SAR";
+    const ratesPerRoomIDR: Record<RoomType, number> = {
+      Quad:   toIDRWith(resolveRoomRate(h, "Quad"),   cur, rates) * h.days,
+      Triple: toIDRWith(resolveRoomRate(h, "Triple"), cur, rates) * h.days,
+      Double: toIDRWith(resolveRoomRate(h, "Double"), cur, rates) * h.days,
+    };
+    return {
+      hotelId: h.id,
+      label: h.label || "Hotel",
+      nights: h.days,
+      ratesPerRoomIDR,
+    };
+  });
+  // Foreign-currency tracking — sum of all 3 room rates × nights so SAR/USD
+  // ticker reflects the full quoted spectrum (informational only).
   for (const h of hotels) {
     const cur = h.currency ?? "SAR";
-    trackForeign(h.pricePerNight * h.days, cur);
+    const sumRates = resolveRoomRate(h, "Quad") + resolveRoomRate(h, "Triple") + resolveRoomRate(h, "Double");
+    trackForeign(sumRates * h.days, cur);
   }
+  // Back-compat: keep old shape pointing at Quad rate.
+  const hotelPerNightIDR = hotelBreakdown.map((b) => ({
+    hotelId: b.hotelId,
+    label: b.label,
+    pricePerRoomIDR: b.ratesPerRoomIDR.Quad,
+    nights: b.nights,
+  }));
 
-  // ── Build cells
+  // ── Build cells. Each cell uses the room-type-specific hotel cost so
+  //    the spread between Quad/Triple/Double reflects real hotel pricing,
+  //    not just the divide-by-sharing math on a single rate.
   const cells: GroupMatrixCell[] = [];
   for (const tier of tiers) {
     const pax = Math.max(1, tier.min); // konservatif: harga buat skenario pax minimum
     for (const room of roomTypes) {
       const sharing = ROOM_SHARING[room];
       const rooms = Math.ceil(pax / sharing);
-      const hotelTotalIDR = hotelPerNightIDR.reduce(
-        (sum, h) => sum + h.pricePerRoomIDR * rooms,
+      // Hotel total grup utk room type ini = sum(harga 1 kamar × jumlah kamar)
+      const hotelTotalIDR = hotelBreakdown.reduce(
+        (sum, h) => sum + h.ratesPerRoomIDR[room] * rooms,
         0,
       );
+      const hotelPerPaxIDR = hotelTotalIDR / pax; // share of hotel per pax
       const hppGroupIDR = fixedTotalIDR + hotelTotalIDR + perPaxFlatIDR * pax;
       const hppPerPaxIDR = hppGroupIDR / pax;
       const sellingGroupIDR = hppGroupIDR * (1 + marginPercent / 100) - discount;
@@ -501,7 +573,7 @@ export function computeGroupMatrix(input: GroupMatrixInput): GroupMatrixQuote {
         perPaxDisplay = Math.round(perPaxDisplay / roundTo) * roundTo;
       }
 
-      cells.push({ tier, room, pax, rooms, perPaxIDR, perPaxDisplay, hppPerPaxIDR });
+      cells.push({ tier, room, pax, rooms, perPaxIDR, perPaxDisplay, hppPerPaxIDR, hotelPerPaxIDR });
     }
   }
 
@@ -510,6 +582,7 @@ export function computeGroupMatrix(input: GroupMatrixInput): GroupMatrixQuote {
     fixedTotalIDR,
     perPaxFlatIDR,
     hotelPerNightIDR,
+    hotelBreakdown,
     displayCurrency,
     totalSAR,
     totalUSD,

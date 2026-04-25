@@ -246,8 +246,15 @@ export function GroupMatrixSection({ settings, onChange, inputs, rates }: Props)
             <span className="text-slate-400"> (tiket + visa + dest + fnb)</span>
           </div>
           <div>
-            <span className="font-bold">Hotel:</span>{" "}
-            {quote.hotelPerNightIDR.map((h) => `${h.label} ${fmt(h.pricePerRoomIDR, "IDR")}/kmr`).join(" · ")}
+            <span className="font-bold">Hotel (per kamar / stay):</span>{" "}
+            {quote.hotelBreakdown.map((h) => {
+              const r = h.ratesPerRoomIDR;
+              const allEqual = r.Quad === r.Triple && r.Triple === r.Double;
+              if (allEqual) {
+                return `${h.label} ${fmt(r.Quad, "IDR")}`;
+              }
+              return `${h.label} Q ${fmt(r.Quad, "IDR")} · T ${fmt(r.Triple, "IDR")} · D ${fmt(r.Double, "IDR")}`;
+            }).join("  ·  ")}
           </div>
         </div>
       </div>
