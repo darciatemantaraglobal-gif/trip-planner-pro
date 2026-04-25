@@ -147,7 +147,7 @@ function makeDefault(): CalcState {
       { id: "h2", label: "Madinah", days: 3, pricePerNight: 0, rooms: 1 },
     ],
     transports: [{ id: "t1", label: "All Transport", fleet: 1, pricePerFleet: 0 }],
-    tickets: [{ id: "tk1", label: "SUB - JED", flightType: "Return", pricePerPax: 0, currency: "IDR" }],
+    tickets: [{ id: "tk1", label: "CGK - JED - CGK", flightType: "Return", pricePerPax: 0, currency: "IDR" }],
     visas: [{ id: "v1", label: "Visa Umroh", pricePerPax: 0 }],
     destinations: [{ id: "d1", label: "Tasreh", pricePerPax: 0 }],
     fnbs: [{ id: "f1", label: "Zam-zam", pricePerPax: 0 }],
@@ -270,6 +270,36 @@ const ROUTE_OPTIONS = [
   "CT MAKKAH",
   "CT MADINAH",
   "HOTEL STATION MAKKAH/MADINAH",
+];
+const FLIGHT_ROUTE_SUGGESTIONS = [
+  "CGK - JED - CGK",
+  "CGK - MED - CGK",
+  "SUB - JED - SUB",
+  "SUB - MED - SUB",
+  "KNO - JED - KNO",
+  "KNO - MED - KNO",
+  "UPG - JED - UPG",
+  "UPG - MED - UPG",
+  "BPN - JED - BPN",
+  "SOC - JED - SOC",
+  "PDG - JED - PDG",
+  "BTH - JED - BTH",
+  "CGK - JED",
+  "CGK - MED",
+  "JED - CGK",
+  "MED - CGK",
+  "SUB - JED",
+  "SUB - MED",
+  "JED - SUB",
+  "MED - SUB",
+  "KNO - JED",
+  "KNO - MED",
+  "JED - KNO",
+  "MED - KNO",
+  "UPG - JED",
+  "UPG - MED",
+  "JED - UPG",
+  "MED - UPG",
 ];
 const ROOM_TYPES = ["Quad", "Triple", "Double"] as const;
 const ROOM_CAPACITY: Record<typeof ROOM_TYPES[number], number> = { Quad: 4, Triple: 3, Double: 2 };
@@ -1252,17 +1282,16 @@ export default function Calculator() {
                   return (
                     <tr key={tk.id} className="hover:bg-orange-50/30 transition-colors">
                       <Td><SelectCell value={tk.airline ?? ""} onChange={(v) => updateTicket(tk.id, { airline: v })} options={AIRLINES} placeholder="Maskapai" /></Td>
-                      <Td><TextCell value={tk.label} onChange={(v) => updateTicket(tk.id, { label: v })} placeholder="cth: SUB - JED" /></Td>
+                      <Td><TextCell value={tk.label} onChange={(v) => updateTicket(tk.id, { label: v })} placeholder="cth: CGK - JED - CGK" suggestions={FLIGHT_ROUTE_SUGGESTIONS} listId={`flight-routes-${tk.id}`} /></Td>
                       <Td>
                         <select
-                          value={tk.flightType}
+                          value={tk.flightType === "Open Jaw" ? "Return" : tk.flightType}
                           onChange={(e) => updateTicket(tk.id, { flightType: e.target.value })}
                           style={M}
                           className="h-7 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 w-full"
                         >
                           <option value="Return">Return</option>
                           <option value="One Way">One Way</option>
-                          <option value="Open Jaw">Open Jaw</option>
                         </select>
                       </Td>
                       <Td right><NumCell value={tk.pricePerPax} onChange={(v) => updateTicket(tk.id, { pricePerPax: v })} /></Td>
