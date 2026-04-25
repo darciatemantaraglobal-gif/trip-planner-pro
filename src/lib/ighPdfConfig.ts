@@ -216,8 +216,16 @@ export interface IghLayoutConfig {
   };
   /** Jarak vertikal (template-px) antara baris terakhir Project Name dengan
    *  baris timeline/tanggal di bawahnya ("21 Mei 2026 - 29 Mei 2026 (9 hari)").
-   *  Default baru = 30. Legacy preset yg belum punya field ini fallback ke 6
-   *  (nilai hardcoded sebelum-nya) supaya tampilan lama persis sama. */
+   *  Default baru = 25. Legacy preset yg belum punya field ini fallback ke
+   *  `headerSubtitleGap`, lalu ke 6 (hardcoded lama) supaya tampilan lama
+   *  tetap persis sama.
+   *
+   *  Field ini menggantikan `headerSubtitleGap` (deprecated). Generator &
+   *  tuner sudah pakai `mainHeaderGap` sebagai sumber utama; field lama
+   *  cuma dipakai sebagai fallback baca-saja untuk preset yg belum migrasi. */
+  mainHeaderGap?: number;
+  /** @deprecated Pakai `mainHeaderGap`. Field lama, di-keep untuk
+   *  backward-compat saat baca preset/storage lama. */
   headerSubtitleGap?: number;
   /** Offset fine-tune posisi timeline subtitle (delta dari posisi yg dihitung
    *  via `headerSubtitleGap`). Buat geser mandiri kalau title-nya 2 baris atau
@@ -265,7 +273,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   // (kanan). WA di-tengahin di antara keduanya: starts ~310px, baseline 891.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
   whatsappPosition: { xPx: 290, yPx: 891 },
-  headerSubtitleGap: 30,
+  mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
 };
 
@@ -339,7 +347,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   // di-tune via PdfLayoutTuner per-mode storage.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
   whatsappPosition: { xPx: 290, yPx: 891 },
-  headerSubtitleGap: 30,
+  mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
 };
 
@@ -466,5 +474,19 @@ export function mergeConfig(
       "pdfCurrency" in (override as object)
         ? (override as { pdfCurrency?: IghPdfCurrency }).pdfCurrency ?? base.pdfCurrency ?? "USD"
         : base.pdfCurrency ?? "USD",
+    // Header gap & timeline subtitle offset — scalar/atomik. Override penuh
+    // kalau ada di payload, fallback ke base. Wajib di-carry biar tuning
+    // user gak hilang setelah reload (mergeConfig dipanggil di loadPresetsCache
+    // dan loadIghLayoutConfig).
+    mainHeaderGap:
+      override.mainHeaderGap ?? base.mainHeaderGap ?? base.headerSubtitleGap,
+    headerSubtitleGap:
+      override.headerSubtitleGap ?? base.headerSubtitleGap,
+    headerSubtitleOffset: override.headerSubtitleOffset
+      ? { ...(base.headerSubtitleOffset ?? { xPx: 0, yPx: 0 }), ...override.headerSubtitleOffset }
+      : base.headerSubtitleOffset,
+    whatsappPosition: override.whatsappPosition
+      ? { ...(base.whatsappPosition ?? { xPx: 0, yPx: 0 }), ...override.whatsappPosition }
+      : base.whatsappPosition,
   };
 }

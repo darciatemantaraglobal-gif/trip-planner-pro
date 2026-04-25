@@ -114,6 +114,7 @@ function projectNameLineCount(text: string, baseSize: number): number {
 
 type ElementKey =
   | "projectName"
+  | "headerTimeline"
   | "metaInfoCustomer"
   | "metaInfoDate"
   | "hotelMakkah"
@@ -159,6 +160,27 @@ function buildElements(
       widthPx: 285,
       heightPx,
       size: s,
+    });
+
+    // ── Header Timeline (subtitle tanggal di bawah Project Name) ──
+    // Bbox dihitung sinkron dgn generateIghPdf: end-of-title = topPx + lines *
+    // (size + lineGapPx). Subtitle Y = endOfTitle + mainHeaderGap + offsetY.
+    // X = projectName.xPx + offsetX. Subtitle size hardcoded 11 di generator.
+    // Bbox ini draggable independen dari projectName (handler di applyTranslate
+    // cuma update headerSubtitleOffset, gak nyentuh projectName.topPx).
+    const subtitleSize = 11;
+    const endOfTitlePx = layout.projectName.topPx + lines * lineAdvance;
+    const subtitleGapPx = layout.mainHeaderGap ?? layout.headerSubtitleGap ?? 6;
+    const subtitleXOffPx = layout.headerSubtitleOffset?.xPx ?? 0;
+    const subtitleYOffPx = layout.headerSubtitleOffset?.yPx ?? 0;
+    els.push({
+      key: "headerTimeline",
+      label: "Tanggal (Subtitle)",
+      xPx: layout.projectName.xPx + subtitleXOffPx,
+      yPx: textBoxY(endOfTitlePx + subtitleGapPx + subtitleYOffPx, subtitleSize),
+      widthPx: 285,
+      heightPx: textBoxH(subtitleSize),
+      size: subtitleSize,
     });
   }
 
@@ -320,6 +342,17 @@ function applyTranslate(
         topPx: layout.projectName.topPx + dyPx,
       };
       break;
+    case "headerTimeline": {
+      // Subtitle Tanggal di-drag mandiri → cuma update headerSubtitleOffset
+      // (xPx & yPx). Project Name TIDAK ikut bergerak. Resolve current offset
+      // dari layout, fallback {0,0} kalau preset lama belum punya field.
+      const curOff = layout.headerSubtitleOffset ?? { xPx: 0, yPx: 0 };
+      next.headerSubtitleOffset = {
+        xPx: curOff.xPx + dxPx,
+        yPx: curOff.yPx + dyPx,
+      };
+      break;
+    }
     case "metaInfoCustomer": {
       // Resolve current Y untuk customer (fallback ke legacy topPx supaya
       // preset lama yg belum punya customerYPx tetap geser dari posisi visual
@@ -474,7 +507,7 @@ const SNAP_THRESHOLD_TPL = 3; // template-px (~1.5 CSS-px di display ratio 0.5)
 
 /** Element keys yang berbasis teks (punya baseline yang bermakna untuk align). */
 const TEXT_KEYS: ReadonlySet<ElementKey> = new Set<ElementKey>([
-  "projectName", "metaInfoCustomer", "metaInfoDate", "hotelMakkah", "hotelMadinah", "checklist",
+  "projectName", "headerTimeline", "metaInfoCustomer", "metaInfoDate", "hotelMakkah", "hotelMadinah", "checklist",
 ]);
 
 /** Hitung baseline-Y (template-px) elemen text dari cap-top (yPx).

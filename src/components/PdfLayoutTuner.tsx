@@ -680,16 +680,19 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             onChange={(v) => patch("projectName", { lineGapPx: v })}
           />
 
-          {/* HEADER SUBTITLE GAP — jarak Title ke baris timeline tanggal di
-              bawahnya. Dipisah dari lineGapPx (yg cuma antar baris title).
-              Range 10-100 supaya bisa rapet atau renggang sesuai kebutuhan. */}
+          {/* MAIN HEADER GAP — jarak Title (Project Name) ke baris timeline
+              tanggal di bawahnya. Dipisah dari lineGapPx (yg cuma antar baris
+              title). Range 10-100 supaya bisa rapet atau renggang sesuai
+              kebutuhan. Field canonical = `mainHeaderGap` (default 25); field
+              lama `headerSubtitleGap` masih dibaca untuk preset lama tapi
+              tidak ditulis ulang. */}
           <div className="pt-2 mt-1 border-t border-slate-200">
             <SliderRow
               label="Jarak Judul ke Tanggal"
-              value={local.headerSubtitleGap ?? 30}
+              value={local.mainHeaderGap ?? local.headerSubtitleGap ?? 25}
               min={10} max={100} step={1} unit="px"
               onChange={(v) =>
-                setLocal((prev) => ({ ...prev, headerSubtitleGap: v }))
+                setLocal((prev) => ({ ...prev, mainHeaderGap: v }))
               }
             />
             <SliderRow
