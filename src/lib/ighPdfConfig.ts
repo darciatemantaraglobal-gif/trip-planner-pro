@@ -241,6 +241,12 @@ export interface IghLayoutConfig {
     xPx: number;
     yPx: number;
   };
+  /** Lebar (template-px) bounding box subtitle "Tanggal" di bawah Project Name.
+   *  Dipakai sebagai `maxWidthPx` di generator: kalau teks kepanjangan, di-wrap
+   *  ke baris berikutnya (multi-line) sebelum di-truncate. Juga dipakai sebagai
+   *  lebar bbox biru di Edit Mode supaya visual sinkron dgn output PDF.
+   *  Default 285 (kompat lama, sebelumnya hardcoded). Range UI: 100..600. */
+  subtitleWidthPx?: number;
   /** Format tampilan harga di tabel matrix & box harga.
    *  - `"compact"` (default) → ringkas pakai satuan: "30,5 jt", "1,2 M".
    *  - `"full"` → nominal lengkap dengan ribuan: "Rp 30.123.456".
@@ -289,6 +295,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   whatsappPosition: { xPx: 290, yPx: 891 },
   mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
+  subtitleWidthPx: 285,
   priceDisplayMode: "compact",
 };
 
@@ -364,6 +371,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   whatsappPosition: { xPx: 290, yPx: 891 },
   mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
+  subtitleWidthPx: 285,
   priceDisplayMode: "compact",
 };
 
@@ -501,6 +509,12 @@ export function mergeConfig(
     headerSubtitleOffset: override.headerSubtitleOffset
       ? { ...(base.headerSubtitleOffset ?? { xPx: 0, yPx: 0 }), ...override.headerSubtitleOffset }
       : base.headerSubtitleOffset,
+    // subtitleWidthPx: scalar override. Preset lama yg belum punya field ini
+    // fallback ke base (default 285) → tampilan lama tetap identik.
+    subtitleWidthPx:
+      "subtitleWidthPx" in (override as object)
+        ? (override as { subtitleWidthPx?: number }).subtitleWidthPx ?? base.subtitleWidthPx ?? 285
+        : base.subtitleWidthPx ?? 285,
     whatsappPosition: override.whatsappPosition
       ? { ...(base.whatsappPosition ?? { xPx: 0, yPx: 0 }), ...override.whatsappPosition }
       : base.whatsappPosition,

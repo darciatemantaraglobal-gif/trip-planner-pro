@@ -354,6 +354,7 @@ export function PdfPreviewDialog({ open, onOpenChange, data }: Props) {
         imgRect={imgRect}
         enabled={editMode && !!previewUrl}
         projectNameText={data.projectName}
+        timelineText={data.timeline}
       />
     </div>
   );

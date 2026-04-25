@@ -768,9 +768,22 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
                 }))
               }
             />
+            {/* LEBAR KOTAK SUBTITLE — kalau tanggal panjang (mis. "01 September
+                2026 - 09 September 2026"), default 285px bisa kepotong dgn "...".
+                Bikin lebar lebih besar supaya muat 1 baris, atau biarin di-wrap
+                multi-line di generator kalau lebar maksimal pun masih kurang. */}
+            <SliderRow
+              label="Lebar Kotak Subtitle"
+              value={local.subtitleWidthPx ?? 285}
+              min={100} max={600} step={5} unit="px"
+              onChange={(v) =>
+                setLocal((prev) => ({ ...prev, subtitleWidthPx: v }))
+              }
+            />
             <p className="text-[9px] text-slate-400 leading-snug mt-1">
               Jarak utama dihitung otomatis dari bawah judul. Pakai X/Y Offset
-              untuk fine-tune mandiri (mis. judul 2 baris).
+              untuk fine-tune mandiri (mis. judul 2 baris). <strong>Lebar Kotak</strong>{" "}
+              menentukan kapan teks tanggal mulai turun ke baris bawah (auto-wrap).
             </p>
           </div>
         </section>

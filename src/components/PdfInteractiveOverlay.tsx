@@ -151,6 +151,7 @@ function buildElements(
   layout: IghLayoutConfig,
   mode: IghLayoutMode,
   projectNameText: string,
+  timelineText: string,
 ): OverlayElement[] {
   const els: OverlayElement[] = [];
 
@@ -176,6 +177,10 @@ function buildElements(
     // Bbox dihitung sinkron dgn generateIghPdf: end-of-title = topPx + lines *
     // (size + lineGapPx). Subtitle Y = endOfTitle + mainHeaderGap + offsetY.
     // X = projectName.xPx + offsetX. Subtitle size hardcoded 11 di generator.
+    // Lebar = layout.subtitleWidthPx (default 285) → kalau user kasih nilai
+    // lebih besar via Tuner, bbox biru ikut melebar. Kalau timeline kepanjangan
+    // setelah lebar maksimal pun, di-wrap multi-line di generator → bbox tinggi
+    // disesuaikan jumlah baris yg sebenernya akan dirender.
     // Bbox ini draggable independen dari projectName (handler di applyTranslate
     // cuma update headerSubtitleOffset, gak nyentuh projectName.topPx).
     const subtitleSize = 11;
@@ -183,13 +188,24 @@ function buildElements(
     const subtitleGapPx = layout.mainHeaderGap ?? layout.headerSubtitleGap ?? 6;
     const subtitleXOffPx = layout.headerSubtitleOffset?.xPx ?? 0;
     const subtitleYOffPx = layout.headerSubtitleOffset?.yPx ?? 0;
+    const subtitleWidthPx = layout.subtitleWidthPx ?? 285;
+    // Estimasi jumlah baris subtitle pakai measureCtx (regular weight). Kalau
+    // teks fit dalam 1 baris → 1, kalau enggak → multi-line. Min 1 baris supaya
+    // bbox tetap kelihatan walau text kosong.
+    const subtitleTextTrim = (timelineText || "").trim();
+    const subtitleLines = subtitleTextTrim
+      ? wrapText(subtitleTextTrim, subtitleWidthPx, subtitleSize, "normal").length
+      : 1;
+    const subtitleLineAdvancePx = subtitleSize * 1.25;
+    const subtitleHeightPx =
+      (subtitleLines - 1) * subtitleLineAdvancePx + textBoxH(subtitleSize);
     els.push({
       key: "headerTimeline",
       label: "Tanggal (Subtitle)",
       xPx: layout.projectName.xPx + subtitleXOffPx,
       yPx: textBoxY(endOfTitlePx + subtitleGapPx + subtitleYOffPx, subtitleSize),
-      widthPx: 285,
-      heightPx: textBoxH(subtitleSize),
+      widthPx: subtitleWidthPx,
+      heightPx: subtitleHeightPx,
       size: subtitleSize,
     });
   }
@@ -486,6 +502,9 @@ interface Props {
   enabled: boolean;
   /** Teks project name dari kalkulator — buat ngitung wrap multi-line. */
   projectNameText?: string;
+  /** Teks timeline (tanggal) dari kalkulator — buat ngitung tinggi bbox
+   *  subtitle saat di-wrap multi-line. Default "" → bbox 1 baris. */
+  timelineText?: string;
 }
 
 type DragState =
@@ -587,7 +606,7 @@ function applySnap(
   return { dx: outDx, dy: outDy, xGuides, yGuides };
 }
 
-export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled, projectNameText = "" }: Props) {
+export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled, projectNameText = "", timelineText = "" }: Props) {
   // Ghost layout dipakai cuma selama drag aktif. Null = pakai `layout`.
   const [ghost, setGhost] = useState<IghLayoutConfig | null>(null);
   const [selected, setSelected] = useState<Set<ElementKey>>(() => new Set());
@@ -606,12 +625,12 @@ export function PdfInteractiveOverlay({ layout, mode, onChange, imgRect, enabled
 
   const effective = ghost ?? layout;
   const elements = useMemo(
-    () => buildElements(effective, mode, projectNameText),
-    [effective, mode, projectNameText],
+    () => buildElements(effective, mode, projectNameText, timelineText),
+    [effective, mode, projectNameText, timelineText],
   );
   const baseElements = useMemo(
-    () => buildElements(layout, mode, projectNameText),
-    [layout, mode, projectNameText],
+    () => buildElements(layout, mode, projectNameText, timelineText),
+    [layout, mode, projectNameText, timelineText],
   );
 
   const scale = imgRect ? imgRect.width / TEMPLATE_WIDTH_PX : 0;

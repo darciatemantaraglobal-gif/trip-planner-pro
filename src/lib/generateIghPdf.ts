@@ -468,15 +468,30 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   const subtitleGap = cfg.mainHeaderGap ?? cfg.headerSubtitleGap ?? 6;
   const subtitleXOff = cfg.headerSubtitleOffset?.xPx ?? 0;
   const subtitleYOff = cfg.headerSubtitleOffset?.yPx ?? 0;
-  drawTextAligned(page, data.timeline || "—", {
-    anchorXPx: cfg.projectName.xPx + subtitleXOff,
-    topPx: py + subtitleGap + subtitleYOff,
-    size: 11,
-    font: projReg,
-    color: GREY_MUTED,
-    align: projAlign,
-    maxWidthPx: 285,
-  });
+  // Lebar subtitle = config (default 285). Kalau timeline kepanjangan, di-wrap
+  // ke baris berikutnya pakai wrapAtSize (greedy by space) sebelum di-truncate.
+  // Sinkron dgn bbox di PdfInteractiveOverlay supaya Edit Mode tampilannya pas.
+  const SUBTITLE_PT = 11;
+  const subtitleWidthPx = cfg.subtitleWidthPx ?? 285;
+  const subtitleMaxW = subtitleWidthPx * SCALE;
+  const timelineText = data.timeline || "—";
+  const subtitleLines = wrapAtSize(timelineText, projReg, SUBTITLE_PT, subtitleMaxW);
+  // Line advance untuk subtitle: ratio 1.25× size. Cocok dgn bbox heightPx
+  // ratio TEXT_HEIGHT_RATIO (1.61) di overlay → bbox tetap nge-cover semua line.
+  const subtitleLineAdvancePx = SUBTITLE_PT * 1.25;
+  let subtitleY = py + subtitleGap + subtitleYOff;
+  for (const line of subtitleLines) {
+    drawTextAligned(page, line, {
+      anchorXPx: cfg.projectName.xPx + subtitleXOff,
+      topPx: subtitleY,
+      size: SUBTITLE_PT,
+      font: projReg,
+      color: GREY_MUTED,
+      align: projAlign,
+      maxWidthPx: subtitleWidthPx,
+    });
+    subtitleY += subtitleLineAdvancePx;
+  }
 
   // ── 2. HEADER META (Invoice to & Date) ──
   // Date dan Invoice punya Y independen (customerYPx / dateYPx). Kalau belum
