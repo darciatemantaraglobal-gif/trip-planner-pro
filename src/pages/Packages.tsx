@@ -172,9 +172,15 @@ export default function Packages() {
 
   const handleDelete = async () => {
     if (!deletingId) return;
-    await remove(deletingId);
-    toast.success("Paket dihapus");
-    setDeletingId(null);
+    try {
+      await remove(deletingId);
+      toast.success("Paket dihapus");
+      setDeletingId(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Hapus paket gagal.";
+      console.error("[Packages] hapus paket gagal:", err);
+      toast.error(msg);
+    }
   };
 
   const deletingPkg = items.find((p) => p.id === deletingId);

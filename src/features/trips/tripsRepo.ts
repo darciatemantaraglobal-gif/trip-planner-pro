@@ -218,9 +218,26 @@ export async function updateTrip(id: string, patch: Partial<Trip>): Promise<Trip
 
 export async function deleteTrip(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("trips").delete().eq("id", id);
-    if (error) throw error;
+    // Lihat catatan di deletePackage: tanpa `.select()`, RLS-blocked DELETE
+    // gak ngelempar error — kita harus verifikasi rows yg ke-delete.
+    const { data, error } = await supabase!
+      .from("trips")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error(`[trips] DELETE id=${id} gagal:`, error);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      const msg =
+        `Hapus trip gagal — server tidak menghapus baris (kemungkinan ` +
+        `RLS DELETE policy nge-blok). Cek policy "trips_delete" di Supabase.`;
+      console.error(`[trips] DELETE id=${id} silently blocked:`, { data });
+      throw new Error(msg);
+    }
   }
+  // Server (or local-only mode) confirmed → bersihin cache lokal.
   save(TRIPS_KEY, load<Trip>(TRIPS_KEY, []).filter((t) => t.id !== id));
   save(JAMAAH_KEY, load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.tripId !== id));
 }
@@ -380,8 +397,22 @@ export async function updateJamaah(id: string, patch: Partial<Jamaah>): Promise<
 
 export async function deleteJamaah(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("jamaah").delete().eq("id", id);
-    if (error) throw error;
+    const { data, error } = await supabase!
+      .from("jamaah")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error(`[jamaah] DELETE id=${id} gagal:`, error);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      const msg =
+        `Hapus jamaah gagal — server tidak menghapus baris (kemungkinan ` +
+        `RLS DELETE policy nge-blok). Cek policy "jamaah_delete" di Supabase.`;
+      console.error(`[jamaah] DELETE id=${id} silently blocked:`, { data });
+      throw new Error(msg);
+    }
   }
   save(JAMAAH_KEY, load<Jamaah>(JAMAAH_KEY, []).filter((j) => j.id !== id));
   save(DOCS_KEY, load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.jamaahId !== id));
@@ -428,8 +459,22 @@ export async function addDoc(draft: Omit<JamaahDoc, "id" | "createdAt">): Promis
 
 export async function deleteDoc(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("jamaah_docs").delete().eq("id", id);
-    if (error) throw error;
+    const { data, error } = await supabase!
+      .from("jamaah_docs")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error(`[jamaah_docs] DELETE id=${id} gagal:`, error);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      const msg =
+        `Hapus dokumen gagal — server tidak menghapus baris (kemungkinan ` +
+        `RLS DELETE policy nge-blok). Cek policy "jamaah_docs_delete" di Supabase.`;
+      console.error(`[jamaah_docs] DELETE id=${id} silently blocked:`, { data });
+      throw new Error(msg);
+    }
   }
   save(DOCS_KEY, load<JamaahDoc>(DOCS_KEY, []).filter((d) => d.id !== id));
 }

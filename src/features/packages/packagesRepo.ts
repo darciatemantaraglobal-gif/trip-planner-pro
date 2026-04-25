@@ -137,9 +137,28 @@ export async function updatePackage(id: string, patch: Partial<PackageDraft>): P
 
 export async function deletePackage(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
-    const { error } = await supabase!.from("packages").delete().eq("id", id);
-    if (error) throw error;
+    // ⚠️ Penting: chain `.select('id')` setelah `.delete()` supaya kita dapat
+    // balikan baris yg ke-delete. Tanpa ini, kalau RLS policy nge-blok DELETE,
+    // Supabase NGGAK ngelempar error — cuma return 0 rows. Akibatnya cache
+    // dibersihin di klien, tapi row di DB masih ada → muncul lagi pas refresh.
+    const { data, error } = await supabase!
+      .from("packages")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error(`[packages] DELETE id=${id} gagal:`, error);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      const msg =
+        `Hapus paket gagal — server tidak menghapus baris (kemungkinan ` +
+        `RLS DELETE policy nge-blok). Cek policy "packages_delete" di Supabase.`;
+      console.error(`[packages] DELETE id=${id} silently blocked:`, { data });
+      throw new Error(msg);
+    }
   }
+  // Hanya bersihin cache lokal SETELAH server konfirmasi delete sukses.
   saveStore(loadStore().filter((p) => p.id !== id));
 }
 

@@ -767,9 +767,15 @@ export default function Dashboard() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await removeTrip(deleteTarget.id);
-    toast.success(`Paket "${deleteTarget.name}" dihapus.`);
-    setDeleteTarget(null);
+    try {
+      await removeTrip(deleteTarget.id);
+      toast.success(`Paket "${deleteTarget.name}" dihapus.`);
+      setDeleteTarget(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Hapus trip gagal.";
+      console.error("[Dashboard] hapus trip gagal:", err);
+      toast.error(msg);
+    }
   };
 
   return (
