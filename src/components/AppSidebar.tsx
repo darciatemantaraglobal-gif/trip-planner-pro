@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck, StickyNote, FileSpreadsheet, Bus } from "lucide-react";
+import { LayoutDashboard, Calculator, Package, GitBranch, LogOut, Settings, X, FileText, ShieldCheck, StickyNote, FileSpreadsheet } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -38,7 +38,6 @@ export function AppSidebar({ open = false, onClose }: AppSidebarProps) {
         { title: t.nav_calculator, url: "/calculator", icon: Calculator, end: false },
         { title: t.nav_packages, url: "/packages", icon: Package, end: false },
         { title: t.nav_progress, url: "/progress", icon: GitBranch, end: false },
-        { title: t.nav_transport, url: "/transport", icon: Bus, end: false },
       ],
     },
     {

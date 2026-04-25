@@ -267,11 +267,9 @@ function NumCell({ value, onChange, placeholder }: {
 
 const TRANSPORT_TYPES = ["Camry", "GMC", "Staria", "Hiace", "Coaster", "Bus", "HHR Train"];
 const ROUTE_OPTIONS = [
-  "JED-MEK/MEK-JED",
-  "JED-MED/MED-JED",
-  "MED-MEK/MEK-MED",
-  "MED-MED",
-  "THAIF",
+  "CT MAKKAH",
+  "CT MADINAH",
+  "HOTEL STATION MAKKAH/MADINAH",
 ];
 const ROOM_TYPES = ["Quad", "Triple", "Double"] as const;
 const ROOM_CAPACITY: Record<typeof ROOM_TYPES[number], number> = { Quad: 4, Triple: 3, Double: 2 };

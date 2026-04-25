@@ -8,7 +8,6 @@ export interface Translations {
   nav_progress: string;
   nav_pdf: string;
   nav_notes: string;
-  nav_transport: string;
   nav_settings: string;
   nav_logout: string;
   nav_group_operational: string;
@@ -123,7 +122,6 @@ const id: Translations = {
   nav_progress: "Progress",
   nav_pdf: "Generator PDF",
   nav_notes: "Catatan",
-  nav_transport: "Transportasi",
   nav_settings: "Pengaturan",
   nav_logout: "Logout",
   nav_group_operational: "Operasional",
@@ -232,7 +230,6 @@ const en: Translations = {
   nav_progress: "Progress",
   nav_pdf: "PDF Generator",
   nav_notes: "Notes",
-  nav_transport: "Transport",
   nav_settings: "Settings",
   nav_logout: "Logout",
   nav_group_operational: "Operations",
@@ -341,7 +338,6 @@ const ar: Translations = {
   nav_progress: "التقدم",
   nav_pdf: "مولد PDF",
   nav_notes: "ملاحظات",
-  nav_transport: "النقل",
   nav_settings: "الإعدادات",
   nav_logout: "خروج",
   nav_group_operational: "العمليات",
