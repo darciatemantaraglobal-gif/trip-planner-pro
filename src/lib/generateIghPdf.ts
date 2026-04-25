@@ -196,28 +196,32 @@ function fetchBytesCached(url: string): Promise<Uint8Array> {
   return p;
 }
 
-function fmtIdr(n: number): string {
-  return "Rp. " + Math.round(n).toLocaleString("id-ID");
-}
-
-/** Format harga dengan symbol prefix (mis. "$815"). 0/undefined → "—". */
-function fmtMoney(n: number | undefined, symbol: string): string {
-  if (!n || !Number.isFinite(n) || n <= 0) return "—";
-  const rounded = Math.round(n);
-  // USD/SAR pakai pemisah "," (en-US). Kalau Rp, biarin id-ID.
-  const locale = symbol.trim().toLowerCase().startsWith("rp") ? "id-ID" : "en-US";
-  return `${symbol}${rounded.toLocaleString(locale)}`;
+/** Format IDR ringkas utk hemat ruang di tabel:
+ *   - >= 1 miliar → "1,2 M"   (1 desimal koma, satuan Miliar)
+ *   - >= 1 juta   → "30,5 jt" (1 desimal koma, satuan juta)
+ *   - < 1 juta    → "Rp 500.000" (full format id-ID)
+ *  Decimal ".0" di-trim supaya 30 jt (bukan "30,0 jt"). */
+function fmtCompactIdr(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  const trim = (s: string) => s.replace(/,0$/, "");
+  if (n >= 1_000_000_000) {
+    return `${trim((n / 1_000_000_000).toFixed(1).replace(".", ","))} M`;
+  }
+  if (n >= 1_000_000) {
+    return `${trim((n / 1_000_000).toFixed(1).replace(".", ","))} jt`;
+  }
+  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 }
 
 /** Format harga sesuai mata uang target. Style:
- *   - IDR → "Rp 30.500.000"      (id-ID, no decimals)
+ *   - IDR → "30,5 jt" / "1,2 M" / "Rp 500.000" (compact format, hemat kolom)
  *   - SAR → "SAR 3,500"          (en-US, no decimals)
  *   - USD → "$1,776"             (en-US, no decimals)
  *  0/undefined/NaN → "—". */
 function fmtCurrency(n: number | undefined, currency: "USD" | "IDR" | "SAR"): string {
   if (!n || !Number.isFinite(n) || n <= 0) return "—";
+  if (currency === "IDR") return fmtCompactIdr(n);
   const rounded = Math.round(n);
-  if (currency === "IDR") return `Rp ${rounded.toLocaleString("id-ID")}`;
   if (currency === "SAR") return `SAR ${rounded.toLocaleString("en-US")}`;
   return `$${rounded.toLocaleString("en-US")}`;
 }
@@ -466,7 +470,7 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     );
     const priceText = pick(
       cfg.pricing.priceText,
-      targetCur === "IDR" ? fmtIdr(data.pricePerPaxIDR || 0) : fmtCurrency(priceInTarget, targetCur),
+      fmtCurrency(targetCur === "IDR" ? (data.pricePerPaxIDR || 0) : priceInTarget, targetCur),
     );
     drawTextCentered(page, paxText, {
       ...PAX_BOX, size: cfg.pricing.size + 4, minSize: 14, font: priceBold, color: WHITE,
@@ -507,8 +511,9 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   // rect supaya teks Include/Exclude tampil bersih tanpa sekat garis.
   maskChecklistDividers(page, cfg.checklist.leftXPx, ROW_BASELINES);
   maskChecklistDividers(page, cfg.checklist.rightXPx, ROW_BASELINES);
-  drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size, cfg.checklist.sudahTermasukAlign ?? "center");
-  drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size, cfg.checklist.belumTermasukAlign ?? "center");
+  const bulletSymbol = (cfg.checklist.listBullet ?? "•").trim();
+  drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size, cfg.checklist.sudahTermasukAlign ?? "center", bulletSymbol);
+  drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size, cfg.checklist.belumTermasukAlign ?? "center", bulletSymbol);
 
   return pdf.save();
 }
@@ -640,6 +645,12 @@ function splitOverrideOrUse(override: string | undefined, fallback: string[]): s
  *    - "center" → titik tengah teks (lebar dihitung lalu dibagi 2)
  *    - "left"   → koordinat awal teks (left edge)
  *    - "right"  → batas akhir teks (right edge)
+ *
+ *  `bullet` (optional, default "•") di-prepend di depan tiap baris dgn 1 space
+ *  separator. String kosong = no bullet (back-compat). Untuk align="center"
+ *  bullet+text di-treat sbg satu unit yang di-center → bullet stays in front.
+ *  Truncation budget mempertimbangkan lebar bullet+space supaya teks utama
+ *  yang di-truncate, bukan ke-cut di tengah simbol.
  */
 function drawList(
   page: PDFPage,
@@ -649,19 +660,27 @@ function drawList(
   font: PDFFont,
   baseSize = 10,
   align: "left" | "center" | "right" = "center",
+  bullet = "•",
 ) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, rowBaselines.length);
   // Width budget per row ~ 235px (kolom asli template).
   const COL_WIDTH = 235;
   const maxW = (COL_WIDTH - 8) * SCALE;
   const anchorXPt = anchorXPx * SCALE;
+  const prefix = bullet ? `${bullet} ` : "";
   for (let i = 0; i < cleaned.length; i++) {
     const baselinePx = rowBaselines[i];
     let size = baseSize;
-    while (size > 7 && font.widthOfTextAtSize(cleaned[i], size) > maxW) size -= 0.5;
-    const value = font.widthOfTextAtSize(cleaned[i], size) > maxW
-      ? truncateToWidth(cleaned[i], font, size, maxW)
-      : cleaned[i];
+    // Auto-shrink berdasar full string (prefix + body) supaya prefix gak
+    // ngedorong teks keluar kolom.
+    while (size > 7 && font.widthOfTextAtSize(prefix + cleaned[i], size) > maxW) size -= 0.5;
+    let body = cleaned[i];
+    if (font.widthOfTextAtSize(prefix + body, size) > maxW) {
+      // Truncate body saja; prefix dijaga supaya bullet selalu utuh.
+      const prefixW = font.widthOfTextAtSize(prefix, size);
+      body = truncateToWidth(body, font, size, Math.max(0, maxW - prefixW));
+    }
+    const value = prefix + body;
     const textW = font.widthOfTextAtSize(value, size);
     let x: number;
     if (align === "left")       x = anchorXPt;

@@ -153,6 +153,11 @@ export interface IghLayoutConfig {
     /** Horizontal alignment of "Belum Termasuk" text relative to `rightXPx`.
      *  Default "center". */
     belumTermasukAlign?: IghTextAlign;
+    /** Simbol bullet yang otomatis dipasang di depan tiap baris checklist
+     *  (Sudah / Belum Termasuk). Default "•". String kosong = tidak ada bullet
+     *  (back-compat utk preset lama yang gak punya field ini → tetap dapat
+     *  default "•" via mergeConfig). */
+    listBullet?: string;
   };
   fonts: {
     /** Default family untuk semua section (kecuali yg di-override) */
@@ -225,6 +230,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
     size: 10,
     sudahTermasukAlign: "center",
     belumTermasukAlign: "center",
+    listBullet: "•",
   },
   fonts: { family: "Poppins", overrides: {} },
   pdfCurrency: "USD",
@@ -296,6 +302,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
     size: 10,
     sudahTermasukAlign: "center",
     belumTermasukAlign: "center",
+    listBullet: "•",
   },
   fonts: { family: "Poppins", overrides: {} },
   pdfCurrency: "USD",

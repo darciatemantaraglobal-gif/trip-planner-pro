@@ -989,6 +989,12 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             value={local.checklist.belumTermasukAlign ?? "center"}
             onChange={(v) => patch("checklist", { belumTermasukAlign: v })}
           />
+          <TextRow
+            label="Simbol List"
+            value={local.checklist.listBullet ?? "•"}
+            placeholder="• / - / ● / ★ (kosong = no bullet)"
+            onChange={(v) => patch("checklist", { listBullet: v })}
+          />
           <SliderRow
             label="Y Baris Pertama"
             value={local.checklist.firstBaselinePx}
