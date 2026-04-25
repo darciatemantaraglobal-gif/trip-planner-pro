@@ -1473,8 +1473,10 @@ export default function Calculator() {
                 {calc.staffs.map((s) => {
                   const cur = s.currency ?? "SAR";
                   const rate = cur === "SAR" ? sarRate : cur === "USD" ? usdRate : 1;
-                  const totalIDR = s.totalCost * rate;
-                  const perPaxForeign = s.totalCost / safePax;
+                  const count = Math.max(1, (s as StaffRow).numStaff ?? 1);
+                  const totalForeign = s.totalCost * count;
+                  const totalIDR = totalForeign * rate;
+                  const perPaxForeign = totalForeign / safePax;
                   return (
                     <tr key={s.id} className="hover:bg-orange-50/30 transition-colors">
                       <Td><TextCell value={s.label} onChange={(v) => updateStaff(s.id, { label: v })} placeholder="cth: Muthowif" /></Td>

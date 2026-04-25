@@ -240,13 +240,25 @@ export function computeProfessionalQuote(input: ProfessionalCalcInput): Professi
   }
 
   // ── 7. Staff (currency group cost, default SAR) ───────────────────────────
+  // totalCost = biaya per orang staff. Dikali numStaff (default 1) buat dapet
+  // total grup. Misal Muthowif SAR 250 × 5 staff = SAR 1.250.
   let staffIDR = 0;
   for (const s of staffs) {
     const cur = s.currency ?? "SAR";
-    const idr = toIDR(s.totalCost, cur);
-    trackForeign(s.totalCost, cur);
+    const count = Math.max(1, s.numStaff ?? 1);
+    const totalForeign = s.totalCost * count;
+    const idr = toIDR(totalForeign, cur);
+    trackForeign(totalForeign, cur);
     staffIDR += idr;
-    breakdown.push({ id: s.id, category: "Staff", label: s.label || "Guide", notesSAR: cur === "SAR" ? s.totalCost : 0, notesUSD: cur === "USD" ? s.totalCost : 0, groupIDR: idr, perPaxIDR: idr / safePax });
+    breakdown.push({
+      id: s.id,
+      category: "Staff",
+      label: s.label || "Guide",
+      notesSAR: cur === "SAR" ? totalForeign : 0,
+      notesUSD: cur === "USD" ? totalForeign : 0,
+      groupIDR: idr,
+      perPaxIDR: idr / safePax,
+    });
   }
 
   const hpp = hotelIDR + transportIDR + ticketIDR + visaIDR + destinationIDR + fnbIDR + staffIDR;
