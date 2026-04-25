@@ -149,9 +149,44 @@ async function callEdgeFunction(name: string, body: unknown, accessToken?: strin
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
     method: "POST", headers, body: JSON.stringify(body),
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { error?: string }).error ?? `Function ${name} failed (${res.status})`);
+  // Body bisa kosong (gateway 401 sometimes), atau json shape `{error}` (function)
+  // atau `{message, code}` (gateway). Coba parse dua-duanya.
+  const text = await res.text();
+  let json: { error?: string; message?: string; msg?: string } = {};
+  try { json = text ? JSON.parse(text) : {}; } catch { /* keep empty */ }
+  if (!res.ok) {
+    const serverMsg = json.error ?? json.message ?? json.msg ?? text.slice(0, 200);
+    if (res.status === 401) {
+      // Gateway 401 = JWT expired/invalid sebelum function jalan. Kasih hint
+      // konkret biar user tau harus re-login, bukan generic "(401)".
+      throw new Error(
+        serverMsg
+          ? `Sesi expired / token invalid (401): ${serverMsg}. Coba logout lalu login ulang.`
+          : `Sesi expired / token invalid (401). Coba logout lalu login ulang.`,
+      );
+    }
+    throw new Error(serverMsg || `Function ${name} failed (${res.status})`);
+  }
   return json;
+}
+
+// Ambil access_token yg fresh — refresh dulu kalo session-nya udah deket
+// expiry, supaya Supabase gateway gak nolak 401 di Edge Function call.
+async function getFreshAccessToken(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data: sess } = await supabase.auth.getSession();
+  const session = sess.session;
+  if (!session) return null;
+
+  // expires_at = unix seconds. Kalau < 60 detik lagi expire, refresh dulu.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const expiresAt = session.expires_at ?? 0;
+  if (expiresAt && expiresAt - nowSec < 60) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession();
+    if (error) return session.access_token; // fallback ke token lama
+    return refreshed.session?.access_token ?? session.access_token;
+  }
+  return session.access_token;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -250,18 +285,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   inviteMember: async (email, password, displayName, role = "staff") => {
     const { user } = get();
     if (!user || user.role !== "owner") throw new Error("Hanya owner yang bisa invite.");
-    const { data: sess } = await supabase!.auth.getSession();
-    const token = sess.session?.access_token;
-    if (!token) throw new Error("Session tidak valid.");
+    const token = await getFreshAccessToken();
+    if (!token) throw new Error("Session tidak valid — login ulang dulu.");
     await callEdgeFunction("invite-member", { email, password, displayName, role }, token);
   },
 
   removeMember: async (userId) => {
     const { user } = get();
     if (!user || user.role !== "owner") throw new Error("Hanya owner yang bisa hapus.");
-    const { data: sess } = await supabase!.auth.getSession();
-    const token = sess.session?.access_token;
-    if (!token) throw new Error("Session tidak valid.");
+    const token = await getFreshAccessToken();
+    if (!token) throw new Error("Session tidak valid — login ulang dulu.");
     await callEdgeFunction("remove-member", { userId }, token);
   },
 
