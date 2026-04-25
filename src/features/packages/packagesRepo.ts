@@ -17,6 +17,7 @@ export interface Package {
   emoji: string;
   coverImage?: string;
   departureDate?: string;
+  returnDate?: string;
   airline?: string;
   hotelLevel?: HotelLevel;
   notes?: string;
@@ -60,6 +61,7 @@ const fromRow = (r: Record<string, unknown>): Package => ({
   emoji: String(r.emoji ?? "📦"),
   coverImage: (r.cover_image as string) ?? undefined,
   departureDate: (r.departure_date as string) ?? undefined,
+  returnDate: (r.return_date as string) ?? undefined,
   airline: (r.airline as string) ?? undefined,
   hotelLevel: (r.hotel_level as HotelLevel) ?? undefined,
   notes: (r.notes as string) ?? undefined,
@@ -71,7 +73,7 @@ const toRow = (p: Package, agencyId?: string) => ({
   id: p.id, name: p.name, destination: p.destination,
   people: p.people, days: p.days, hpp: p.hpp, total_idr: p.totalIDR,
   status: p.status, emoji: p.emoji, cover_image: p.coverImage ?? null,
-  departure_date: p.departureDate ?? null, airline: p.airline ?? null,
+  departure_date: p.departureDate ?? null, return_date: p.returnDate ?? null, airline: p.airline ?? null,
   hotel_level: p.hotelLevel ?? null, notes: p.notes ?? null,
   facilities: p.facilities ?? null,
   created_at: p.createdAt, updated_at: p.updatedAt,

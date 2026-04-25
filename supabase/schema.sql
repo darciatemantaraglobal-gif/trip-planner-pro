@@ -133,6 +133,7 @@ create table if not exists public.packages (
   emoji           text not null default '📦',
   cover_image     text,
   departure_date  text,
+  return_date     text,
   airline         text,
   hotel_level     text,
   notes           text,
@@ -141,6 +142,7 @@ create table if not exists public.packages (
   updated_at      timestamptz not null default now()
 );
 alter table public.packages add column if not exists agency_id uuid references public.agencies(id) on delete cascade;
+alter table public.packages add column if not exists return_date text;
 create index if not exists packages_agency_idx on public.packages(agency_id);
 
 create table if not exists public.package_calculations (

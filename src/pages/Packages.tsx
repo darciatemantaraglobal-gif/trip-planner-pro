@@ -49,6 +49,7 @@ interface ProfessionalCalcState {
 type EnrichedPackage = Package & {
   startDate?: string;
   departureDate?: string;
+  returnDate?: string;
   airline?: string;
   maskapai?: string;
   hotelLevel?: string | number;

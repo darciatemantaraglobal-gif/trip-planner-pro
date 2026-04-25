@@ -903,9 +903,29 @@ export default function PackageDetail() {
             <span className="text-xl md:text-3xl">{pkg.emoji}</span>
             <h1 className="text-base md:text-2xl font-bold truncate" style={M}>
               {pkg.name}
-              {pkg.departureDate && (
-                <span className="text-muted-foreground font-semibold"> — {formatDate(pkg.departureDate, "full")}</span>
-              )}
+              {(() => {
+                const dep = pkg.departureDate;
+                const ret = pkg.returnDate;
+                if (!dep && !ret) return null;
+                if (dep && ret) {
+                  const startStr = formatDate(dep, "short");
+                  const endStr = formatDate(ret, "short");
+                  // Drop trailing year on the start date when both fall in the same year
+                  // to produce a tidy range like "25 Apr - 03 Mei 2026".
+                  const startYear = startStr.match(/\d{4}\s*$/)?.[0]?.trim();
+                  const endYear = endStr.match(/\d{4}\s*$/)?.[0]?.trim();
+                  const startTrim =
+                    startYear && endYear && startYear === endYear
+                      ? startStr.replace(/\s*\d{4}\s*$/, "")
+                      : startStr;
+                  return (
+                    <span className="text-muted-foreground font-semibold"> — {startTrim} – {endStr}</span>
+                  );
+                }
+                return (
+                  <span className="text-muted-foreground font-semibold"> — {formatDate((dep ?? ret)!, "full")}</span>
+                );
+              })()}
             </h1>
             <Badge className={`${statusVariant[pkg.status]} border-0 text-[10px] px-1.5 py-0.5`}>{pkg.status}</Badge>
             <SyncStatusBadge packageId={id} />
@@ -1074,8 +1094,8 @@ export default function PackageDetail() {
           {/* ── Package Info ── */}
           <div className="rounded-xl border border-orange-200 bg-white p-3 md:p-4 space-y-2.5 md:space-y-3">
             <p style={M} className="text-[10px] font-extrabold uppercase tracking-wide text-orange-600">Info Paket</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
-              <div className="col-span-2 space-y-1">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5 md:gap-3">
+              <div className="col-span-2 md:col-span-3 space-y-1">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Nama Paket</label>
                 <input
                   type="text"
@@ -1085,7 +1105,7 @@ export default function PackageDetail() {
                   className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="col-span-1 md:col-span-2 space-y-1">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Destinasi</label>
                 <input
                   type="text"
@@ -1095,7 +1115,7 @@ export default function PackageDetail() {
                   className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="col-span-1 md:col-span-1 space-y-1">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Jumlah Pax</label>
                 <div className="flex gap-1.5">
                   <input
@@ -1118,6 +1138,67 @@ export default function PackageDetail() {
                     ={jamaah.length}
                   </button>
                 </div>
+              </div>
+              {/* Dual date row — Tanggal Berangkat + Tanggal Pulang.
+                  Auto-computes pkg.days dari selisih hari (inklusif start),
+                  dan langsung di-persist ke kolom departure_date / return_date
+                  via update() (auto-sync). Validation: tanggal pulang ≥ berangkat. */}
+              <div className="col-span-1 md:col-span-3 space-y-1">
+                <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Tanggal Berangkat</label>
+                <input
+                  type="date"
+                  value={pkg.departureDate ?? ""}
+                  onChange={(e) => {
+                    const dep = e.target.value || undefined;
+                    let ret = pkg.returnDate;
+                    // Validation: jika tanggal pulang lebih awal dari berangkat baru,
+                    // kosongkan supaya user pilih ulang (hindari data error).
+                    if (dep && ret && ret < dep) ret = undefined;
+                    const patch: Partial<typeof pkg> = { departureDate: dep, returnDate: ret };
+                    if (dep && ret) {
+                      const ms = new Date(ret + "T00:00:00").getTime() - new Date(dep + "T00:00:00").getTime();
+                      const diff = Math.round(ms / 86400000) + 1;
+                      if (diff > 0) patch.days = diff;
+                    }
+                    update(id!, patch);
+                  }}
+                  style={M}
+                  className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+              </div>
+              <div className="col-span-1 md:col-span-3 space-y-1">
+                <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+                  Tanggal Pulang
+                  {pkg.departureDate && pkg.returnDate && (
+                    <span className="ml-1.5 text-[9px] text-orange-500 normal-case font-semibold">
+                      · {Math.max(1, Math.round((new Date(pkg.returnDate + "T00:00:00").getTime() - new Date(pkg.departureDate + "T00:00:00").getTime()) / 86400000) + 1)} Hari
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="date"
+                  value={pkg.returnDate ?? ""}
+                  min={pkg.departureDate ?? undefined}
+                  onChange={(e) => {
+                    const ret = e.target.value || undefined;
+                    // Guard: jika user pilih tanggal pulang lebih awal dari berangkat,
+                    // tolak (browser min sudah cegah, tapi belt-and-suspenders).
+                    if (ret && pkg.departureDate && ret < pkg.departureDate) {
+                      toast.error("Tanggal pulang tidak boleh sebelum tanggal berangkat.");
+                      return;
+                    }
+                    const patch: Partial<typeof pkg> = { returnDate: ret };
+                    if (ret && pkg.departureDate) {
+                      const ms = new Date(ret + "T00:00:00").getTime() - new Date(pkg.departureDate + "T00:00:00").getTime();
+                      const diff = Math.round(ms / 86400000) + 1;
+                      if (diff > 0) patch.days = diff;
+                    }
+                    update(id!, patch);
+                  }}
+                  disabled={!pkg.departureDate}
+                  style={M}
+                  className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400 disabled:bg-slate-50 disabled:text-muted-foreground disabled:cursor-not-allowed"
+                />
               </div>
             </div>
           </div>
