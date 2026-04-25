@@ -88,8 +88,22 @@ create table if not exists public.jamaah (
 alter table public.jamaah add column if not exists agency_id uuid references public.agencies(id) on delete cascade;
 alter table public.jamaah add column if not exists needs_review boolean not null default false;
 alter table public.jamaah add column if not exists passport_expiry text;
+alter table public.jamaah add column if not exists payment_status text not null default 'Belum Lunas';
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'jamaah_payment_status_check'
+      and conrelid = 'public.jamaah'::regclass
+  ) then
+    alter table public.jamaah
+      add constraint jamaah_payment_status_check
+      check (payment_status in ('Belum Lunas', 'DP', 'Lunas'));
+  end if;
+end $$;
 create index if not exists jamaah_trip_idx on public.jamaah(trip_id);
 create index if not exists jamaah_agency_idx on public.jamaah(agency_id);
+create index if not exists jamaah_payment_status_idx on public.jamaah(payment_status);
 
 create table if not exists public.jamaah_docs (
   id          text primary key,

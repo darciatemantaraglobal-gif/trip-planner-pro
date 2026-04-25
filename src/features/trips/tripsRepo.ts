@@ -22,6 +22,13 @@ export interface Trip {
   createdAt: string;
 }
 
+/**
+ * Status pembayaran jamaah — di-enforce via CHECK constraint di Postgres
+ * (lihat migration `2026_04_25_jamaah_payment_status.sql`). Kalau nambah
+ * value baru di sini, JANGAN lupa update CHECK constraint juga.
+ */
+export type PaymentStatus = "Belum Lunas" | "DP" | "Lunas";
+
 export interface Jamaah {
   id: string;
   tripId: string;
@@ -35,6 +42,7 @@ export interface Jamaah {
   photoDataUrl?: string;
   needsReview?: boolean;
   bookingCode?: string;
+  paymentStatus?: PaymentStatus;
   createdAt: string;
 }
 
@@ -126,6 +134,11 @@ const tripToRow = (t: Trip, agencyId?: string) => ({
   ...(agencyId ? { agency_id: agencyId } : {}),
 });
 
+/** Coerce nilai apapun ke PaymentStatus yang valid; fallback "Belum Lunas". */
+function coercePaymentStatus(v: unknown): PaymentStatus {
+  return v === "Lunas" || v === "DP" ? v : "Belum Lunas";
+}
+
 const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
   id: String(r.id),
   tripId: String(r.trip_id),
@@ -138,6 +151,7 @@ const jamaahFromRow = (r: Record<string, unknown>): Jamaah => ({
   photoDataUrl: (r.photo_data_url as string) ?? undefined,
   needsReview: Boolean(r.needs_review),
   bookingCode: (r.booking_code as string) ?? undefined,
+  paymentStatus: coercePaymentStatus(r.payment_status),
   createdAt: String(r.created_at ?? new Date().toISOString()),
 });
 const jamaahToRow = (j: Jamaah, agencyId?: string) => ({
@@ -147,6 +161,7 @@ const jamaahToRow = (j: Jamaah, agencyId?: string) => ({
   photo_data_url: j.photoDataUrl ?? null,
   needs_review: !!j.needsReview,
   booking_code: j.bookingCode ?? null,
+  payment_status: j.paymentStatus ?? "Belum Lunas",
   created_at: j.createdAt,
   ...(agencyId ? { agency_id: agencyId } : {}),
 });

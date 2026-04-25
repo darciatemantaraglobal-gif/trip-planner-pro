@@ -40,6 +40,7 @@ import {
   type PackageCalcSyncStatus,
 } from "@/lib/packageCalcStorage";
 import { Cloud, CloudOff, Loader2 } from "lucide-react";
+import { JamaahDetailDrawer, PaymentStatusPill } from "@/components/JamaahDetailDrawer";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildGoogleCalendarUrl, downloadICS } from "@/lib/calendarExport";
 import { CalendarPlus, Download, ExternalLink } from "lucide-react";
@@ -558,20 +559,49 @@ function AddJamaahWithOcrDialog({ open, packageId, onClose }: { open: boolean; p
   );
 }
 
-function JamaahMiniCard({ jamaah, onDelete }: { jamaah: Jamaah; onDelete: (jamaah: Jamaah) => void }) {
+function JamaahMiniCard({
+  jamaah,
+  onDelete,
+  onOpen,
+}: {
+  jamaah: Jamaah;
+  onDelete: (jamaah: Jamaah) => void;
+  onOpen: (jamaah: Jamaah) => void;
+}) {
+  // Whole card is clickable utk buka detail drawer. Tombol delete (anak) pakai
+  // stopPropagation supaya gak ikut nge-trigger open drawer pas user nge-klik.
+  const status = jamaah.paymentStatus ?? "Belum Lunas";
   return (
-    <div className="rounded-xl border border-[hsl(var(--border))] bg-white p-2.5 flex items-center gap-2.5">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(jamaah)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(jamaah);
+        }
+      }}
+      className="rounded-xl border border-[hsl(var(--border))] bg-white p-2.5 flex items-center gap-2.5 cursor-pointer hover:border-[hsl(var(--primary))/0.4] hover:shadow-sm transition-all"
+    >
       <div className={cn("h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold text-sm shrink-0", jamaah.gender === "P" ? "bg-gradient-to-br from-pink-400 to-rose-500" : "bg-gradient-to-br from-blue-400 to-indigo-500")}>
         {jamaah.photoDataUrl ? <img src={jamaah.photoDataUrl} alt={jamaah.name} className="h-full w-full object-cover" /> : jamaah.name.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12.5px] font-semibold truncate" style={M}>{jamaah.name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[12.5px] font-semibold truncate flex-1 min-w-0" style={M}>{jamaah.name}</p>
+          <PaymentStatusPill status={status} size="xs" />
+        </div>
         <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10.5px] text-muted-foreground">
           {jamaah.passportNumber && <span className="inline-flex items-center gap-0.5 font-mono"><FileKey className="h-2.5 w-2.5 shrink-0" />{jamaah.passportNumber}</span>}
           {jamaah.phone && <span className="inline-flex items-center gap-0.5"><CreditCard className="h-2.5 w-2.5 shrink-0" />{jamaah.phone}</span>}
         </div>
       </div>
-      <button onClick={() => onDelete(jamaah)} className="h-7 w-7 rounded-lg hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-muted-foreground transition-colors shrink-0">
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(jamaah); }}
+        className="h-7 w-7 rounded-lg hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-muted-foreground transition-colors shrink-0"
+        title="Hapus jamaah"
+      >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
     </div>
@@ -649,6 +679,13 @@ export default function PackageDetail() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "jamaah" ? "jamaah" : "calculator");
   const [deleteTarget, setDeleteTarget] = useState<Jamaah | null>(null);
+  // Detail drawer — `detailJamaahId` jadi source-of-truth supaya drawer auto-refresh
+  // saat data jamaah di-update di store (mis. abis save → form re-sync ke nilai baru).
+  const [detailJamaahId, setDetailJamaahId] = useState<string | null>(null);
+  const detailJamaah = useMemo(
+    () => jamaah.find((j) => j.id === detailJamaahId) ?? null,
+    [jamaah, detailJamaahId],
+  );
   const [showSummary, setShowSummary] = useState(true);
   const [localRateSAR, setLocalRateSAR] = useState(0);
   const [localRateUSD, setLocalRateUSD] = useState(0);
@@ -1803,7 +1840,14 @@ export default function PackageDetail() {
             </div>
           ) : (
             <div className="grid gap-2 md:grid-cols-2">
-              {jamaah.map((person) => <JamaahMiniCard key={person.id} jamaah={person} onDelete={setDeleteTarget} />)}
+              {jamaah.map((person) => (
+                <JamaahMiniCard
+                  key={person.id}
+                  jamaah={person}
+                  onDelete={setDeleteTarget}
+                  onOpen={(j) => setDetailJamaahId(j.id)}
+                />
+              ))}
             </div>
           )}
         </TabsContent>
@@ -1818,6 +1862,12 @@ export default function PackageDetail() {
           onClose={() => { setBulkOpen(false); fetchJamaah(id); }}
         />
       )}
+
+      <JamaahDetailDrawer
+        jamaah={detailJamaah}
+        open={!!detailJamaah}
+        onOpenChange={(o) => { if (!o) setDetailJamaahId(null); }}
+      />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(value) => !value && setDeleteTarget(null)}>
         <AlertDialogContent className="bg-white">
