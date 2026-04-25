@@ -22,6 +22,7 @@ import {
   type IghLayoutConfig,
   type IghLayoutMode,
   type IghLayoutPreset,
+  type IghPdfCurrency,
   type IghSection,
   type IghTextAlign,
 } from "@/lib/ighPdfConfig";
@@ -422,6 +423,29 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {/* MATA UANG PDF — pilih currency utk render harga (matrix grup + box harga) */}
+        <section className="space-y-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 p-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+            Mata Uang PDF
+          </h4>
+          <Select
+            value={local.pdfCurrency ?? "USD"}
+            onValueChange={(v) => setLocal({ ...local, pdfCurrency: v as IghPdfCurrency })}
+          >
+            <SelectTrigger className="h-8 text-xs bg-white" data-testid="select-pdf-currency">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USD" data-testid="select-pdf-currency-usd">USD ($)</SelectItem>
+              <SelectItem value="IDR" data-testid="select-pdf-currency-idr">IDR (Rp)</SelectItem>
+              <SelectItem value="SAR" data-testid="select-pdf-currency-sar">SAR (SR)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[9px] leading-tight text-slate-500">
+            Otomatis konversi pakai kurs dari Settings kalau beda mata uang.
+          </p>
+        </section>
+
         {/* PRESETS */}
         <section className="space-y-2 rounded-lg border border-orange-200 bg-orange-50/50 p-2">
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-orange-700 flex items-center gap-1">

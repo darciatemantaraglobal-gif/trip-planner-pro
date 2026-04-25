@@ -832,19 +832,27 @@ export default function Calculator() {
     }
 
     // ── Group pricing rows: convert matrix cells (tier × room) → 1 row per tier
+    //    Bawa dua nilai per kamar: `quad/triple/double` di display currency
+    //    (USD by default) + `quadIDR/...` canonical IDR. Ini bikin generator
+    //    PDF bisa konversi ke currency apapun (USD/IDR/SAR) tanpa rounding error.
     const isGroupMode = calc.mode === "umroh_group";
-    let groupPricingRows: { paxLabel: string; quad?: number; triple?: number; double?: number }[] | undefined;
+    type GRow = {
+      paxLabel: string;
+      quad?: number;    triple?: number;    double?: number;
+      quadIDR?: number; tripleIDR?: number; doubleIDR?: number;
+    };
+    let groupPricingRows: GRow[] | undefined;
     if (isGroupMode && groupMatrix) {
-      const byTier = new Map<string, { paxLabel: string; quad?: number; triple?: number; double?: number }>();
+      const byTier = new Map<string, GRow>();
       for (const cell of groupMatrix.cells) {
         const key = `${cell.tier.min}-${cell.tier.max}`;
         const label = cell.tier.min === cell.tier.max
           ? `${cell.tier.min}`
           : `${cell.tier.min}-${cell.tier.max}`;
         const row = byTier.get(key) ?? { paxLabel: label };
-        if (cell.room === "Quad")   row.quad   = cell.perPaxDisplay;
-        if (cell.room === "Triple") row.triple = cell.perPaxDisplay;
-        if (cell.room === "Double") row.double = cell.perPaxDisplay;
+        if (cell.room === "Quad")   { row.quad   = cell.perPaxDisplay; row.quadIDR   = cell.perPaxIDR; }
+        if (cell.room === "Triple") { row.triple = cell.perPaxDisplay; row.tripleIDR = cell.perPaxIDR; }
+        if (cell.room === "Double") { row.double = cell.perPaxDisplay; row.doubleIDR = cell.perPaxIDR; }
         byTier.set(key, row);
       }
       groupPricingRows = Array.from(byTier.values());
@@ -865,12 +873,16 @@ export default function Calculator() {
       pax: calc.pax || 0,
       pricePerPaxIDR: quote?.perPaxFinal ?? 0,
       kursIdrPerUsd: effectiveRates.USD,
+      kursIdrPerSar: effectiveRates.SAR,
       included: userIncluded.length > 0 ? userIncluded : derivedIncluded.slice(0, 5),
       excluded: userExcluded.length > 0 ? userExcluded : defaultExcluded,
       mode: isGroupMode ? "group" : "private",
       groupPricing: groupPricingRows,
+      // Source currency dari perPaxDisplay di matrix — saat ini hardcoded USD
+      // di computeGroupMatrix call (line ~748). Kalau berubah, sinkronin.
+      displayCurrency: "USD",
     };
-  }, [calc, quote, effectiveRates.USD, groupMatrix]);
+  }, [calc, quote, effectiveRates.USD, effectiveRates.SAR, groupMatrix]);
 
   // ── Buat Trip otomatis dari hasil kalkulasi ──
   function parseDateRange(s: string): { start?: string; end?: string } {

@@ -12,6 +12,11 @@ export type IghFontFamily = "Montserrat" | "Poppins" | "Sk-Modernist";
  *  - "left":            X = left edge (start) of the text
  *  - "right":           X = right edge (end) of the text */
 export type IghTextAlign = "left" | "center" | "right";
+
+/** Mata uang yang dipakai utk render harga di PDF. Independent dari
+ *  display currency di kalkulator — kalau beda, generator otomatis konversi
+ *  pakai exchange rate yang dibawa data paket. */
+export type IghPdfCurrency = "USD" | "IDR" | "SAR";
 export type IghSection =
   | "projectName"
   | "metaInfo"
@@ -172,6 +177,10 @@ export interface IghLayoutConfig {
     /** Timestamp upload (ms) buat ditampilin di UI. */
     uploadedAt: number;
   } | null;
+  /** Mata uang yang dipakai render harga di PDF (matrix grup + box harga
+   *  private). Default "USD". Kalau beda dengan source unit di data paket,
+   *  generator otomatis konversi via `kursIdrPerUsd` / `kursIdrPerSar`. */
+  pdfCurrency?: IghPdfCurrency;
   /** Footer kontak admin — IG handle sudah pre-printed di template,
    *  WA di-render programmatic (icon + nomor + clickable link annotation). */
   footer: {
@@ -218,6 +227,7 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
     belumTermasukAlign: "center",
   },
   fonts: { family: "Poppins", overrides: {} },
+  pdfCurrency: "USD",
   // Footer (sejajar dengan "instagram.com/igh.tour" pre-printed pada template).
   // Instagram di template ada di template-px ~75..198 (kiri), email ~526..668
   // (kanan). WA di-tengahin di antara keduanya: starts ~310px, baseline 891.
@@ -288,6 +298,7 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
     belumTermasukAlign: "center",
   },
   fonts: { family: "Poppins", overrides: {} },
+  pdfCurrency: "USD",
   // Group template footer kemungkinan beda posisi — default sama dulu, bisa
   // di-tune via PdfLayoutTuner per-mode storage.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
@@ -410,5 +421,11 @@ export function mergeConfig(
       "customTemplate" in (override as object)
         ? (override as { customTemplate?: IghLayoutConfig["customTemplate"] }).customTemplate ?? null
         : base.customTemplate ?? null,
+    // pdfCurrency: scalar override. Kalau override punya field (termasuk
+    // explicitly undefined utk reset → fallback "USD"), pakai itu.
+    pdfCurrency:
+      "pdfCurrency" in (override as object)
+        ? (override as { pdfCurrency?: IghPdfCurrency }).pdfCurrency ?? base.pdfCurrency ?? "USD"
+        : base.pdfCurrency ?? "USD",
   };
 }

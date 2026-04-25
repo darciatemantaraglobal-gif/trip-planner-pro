@@ -48,6 +48,11 @@ export interface IghGroupPricingRow {
   quad?: number;
   triple?: number;
   double?: number;
+  /** Canonical IDR values per kamar — dipake kalau pdfCurrency != displayCurrency
+   *  supaya konversi akurat ke target apapun. Optional utk back-compat. */
+  quadIDR?: number;
+  tripleIDR?: number;
+  doubleIDR?: number;
 }
 
 export interface IghPdfData {
@@ -62,12 +67,18 @@ export interface IghPdfData {
   pax: number;
   pricePerPaxIDR: number;
   kursIdrPerUsd?: number;
+  /** IDR per 1 SAR — dipake utk konversi ke/dari SAR di PDF. */
+  kursIdrPerSar?: number;
   included: string[];
   excluded: string[];
   /** Mode template. Default 'private' (template lama). */
   mode?: "private" | "group";
   /** Data tabel grup — dipakai cuma kalau mode='group'. */
   groupPricing?: IghGroupPricingRow[];
+  /** Source currency dari nilai numeric `quad/triple/double` di groupPricing.
+   *  Default "USD" (back-compat). Kalau `cfg.pdfCurrency` beda dari ini,
+   *  generator otomatis konversi via IDR canonical / kurs. */
+  displayCurrency?: "USD" | "IDR" | "SAR";
 }
 
 // ── Coordinate helpers ─────────────────────────────────────────────────────
@@ -196,6 +207,50 @@ function fmtMoney(n: number | undefined, symbol: string): string {
   // USD/SAR pakai pemisah "," (en-US). Kalau Rp, biarin id-ID.
   const locale = symbol.trim().toLowerCase().startsWith("rp") ? "id-ID" : "en-US";
   return `${symbol}${rounded.toLocaleString(locale)}`;
+}
+
+/** Format harga sesuai mata uang target. Style:
+ *   - IDR → "Rp 30.500.000"      (id-ID, no decimals)
+ *   - SAR → "SAR 3,500"          (en-US, no decimals)
+ *   - USD → "$1,776"             (en-US, no decimals)
+ *  0/undefined/NaN → "—". */
+function fmtCurrency(n: number | undefined, currency: "USD" | "IDR" | "SAR"): string {
+  if (!n || !Number.isFinite(n) || n <= 0) return "—";
+  const rounded = Math.round(n);
+  if (currency === "IDR") return `Rp ${rounded.toLocaleString("id-ID")}`;
+  if (currency === "SAR") return `SAR ${rounded.toLocaleString("en-US")}`;
+  return `$${rounded.toLocaleString("en-US")}`;
+}
+
+/** Convert antar currency lewat IDR canonical. `valueIDR` (kalau ada) dipakai
+ *  duluan supaya akurat. Fallback: konversi dari `valueDisplay` di
+ *  `sourceCur` → IDR → target.
+ *  - kursUSD = IDR per 1 USD (mis. 16500)
+ *  - kursSAR = IDR per 1 SAR (mis. 4400)
+ *  Return value dalam target currency. */
+function convertViaIdr(
+  valueDisplay: number | undefined,
+  valueIDR: number | undefined,
+  sourceCur: "USD" | "IDR" | "SAR",
+  targetCur: "USD" | "IDR" | "SAR",
+  kursUSD = 1,
+  kursSAR = 1,
+): number | undefined {
+  if (sourceCur === targetCur) return valueDisplay;
+  // Resolve canonical IDR — prefer explicit IDR field kalau ada.
+  let idr: number | undefined;
+  if (typeof valueIDR === "number" && Number.isFinite(valueIDR) && valueIDR > 0) {
+    idr = valueIDR;
+  } else if (typeof valueDisplay === "number" && Number.isFinite(valueDisplay) && valueDisplay > 0) {
+    if (sourceCur === "IDR") idr = valueDisplay;
+    else if (sourceCur === "USD") idr = valueDisplay * (kursUSD || 1);
+    else                         idr = valueDisplay * (kursSAR || 1);
+  } else {
+    return undefined;
+  }
+  if (targetCur === "IDR") return idr;
+  if (targetCur === "USD") return idr / (kursUSD || 1);
+  return idr / (kursSAR || 1);
 }
 
 /** Pilih nilai dari override teks vs data kalkulator. */
@@ -357,6 +412,16 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     const gp = cfg.groupPricing;
     const groupBold = fontFor("groupPricing", "bold");
     const rows = data.groupPricing ?? [];
+    // Resolve target currency: pdfCurrency (Tuner dropdown) menang.
+    // Fallback: parse dari legacy currencySymbol field ("Rp"/"SAR"/"$").
+    const targetCur: "USD" | "IDR" | "SAR" =
+      cfg.pdfCurrency ??
+      (gp.currencySymbol.trim().toLowerCase().startsWith("rp") ? "IDR"
+        : gp.currencySymbol.trim().toUpperCase().startsWith("SAR") ? "SAR"
+        : "USD");
+    const sourceCur: "USD" | "IDR" | "SAR" = data.displayCurrency ?? "USD";
+    const kursUSD = data.kursIdrPerUsd ?? 1;
+    const kursSAR = data.kursIdrPerSar ?? 1;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const topPx = gp.topPx + i * gp.rowSpacingPx;
@@ -375,10 +440,13 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
           color: ORANGE,
         });
       };
+      const q = convertViaIdr(row.quad,   row.quadIDR,   sourceCur, targetCur, kursUSD, kursSAR);
+      const t = convertViaIdr(row.triple, row.tripleIDR, sourceCur, targetCur, kursUSD, kursSAR);
+      const d = convertViaIdr(row.double, row.doubleIDR, sourceCur, targetCur, kursUSD, kursSAR);
       cell(gp.paxCenterXPx, row.paxLabel || "—");
-      cell(gp.quadCenterXPx + gp.quadXOffsetPx, fmtMoney(row.quad, gp.currencySymbol));
-      cell(gp.tripleCenterXPx + gp.tripleXOffsetPx, fmtMoney(row.triple, gp.currencySymbol));
-      cell(gp.doubleCenterXPx + gp.doubleXOffsetPx, fmtMoney(row.double, gp.currencySymbol));
+      cell(gp.quadCenterXPx + gp.quadXOffsetPx,   fmtCurrency(q, targetCur));
+      cell(gp.tripleCenterXPx + gp.tripleXOffsetPx, fmtCurrency(t, targetCur));
+      cell(gp.doubleCenterXPx + gp.doubleXOffsetPx, fmtCurrency(d, targetCur));
     }
   } else {
     // Private template: 2 kotak orange (Pax + Harga per Pax).
@@ -386,7 +454,20 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     const PAX_BOX = { leftPx: cfg.pricing.paxXPx, topPx: cfg.pricing.topPx, widthPx: 114, heightPx: 61 };
     const PRICE_BOX = { leftPx: cfg.pricing.priceXPx, topPx: cfg.pricing.topPx, widthPx: 406, heightPx: 61 };
     const paxText = pick(cfg.pricing.paxText, String(Math.max(0, data.pax || 0)));
-    const priceText = pick(cfg.pricing.priceText, fmtIdr(data.pricePerPaxIDR || 0));
+    // Convert IDR price-per-pax → target PDF currency (USD/IDR/SAR).
+    const targetCur = cfg.pdfCurrency ?? "IDR"; // legacy default for private = IDR
+    const priceInTarget = convertViaIdr(
+      undefined,
+      data.pricePerPaxIDR || 0,
+      "IDR",
+      targetCur,
+      data.kursIdrPerUsd ?? 1,
+      data.kursIdrPerSar ?? 1,
+    );
+    const priceText = pick(
+      cfg.pricing.priceText,
+      targetCur === "IDR" ? fmtIdr(data.pricePerPaxIDR || 0) : fmtCurrency(priceInTarget, targetCur),
+    );
     drawTextCentered(page, paxText, {
       ...PAX_BOX, size: cfg.pricing.size + 4, minSize: 14, font: priceBold, color: WHITE,
       yOffsetPdf: cfg.pricing.yOffsetPdf,
