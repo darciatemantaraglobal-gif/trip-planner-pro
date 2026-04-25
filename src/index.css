@@ -71,22 +71,56 @@
   }
 
   :root[data-theme="dark"] {
-    --background: 24 30% 8%;
-    --foreground: 30 35% 94%;
-    --card: 24 25% 12%;
-    --card-foreground: 30 35% 94%;
-    --popover: 24 25% 12%;
-    --popover-foreground: 30 35% 94%;
-    --secondary: 24 22% 18%;
-    --secondary-foreground: 30 35% 94%;
-    --muted: 24 18% 18%;
-    --muted-foreground: 30 14% 68%;
-    --accent: 27 70% 18%;
-    --accent-foreground: 27 91% 78%;
-    --border: 24 18% 24%;
-    --input: 24 18% 24%;
-    --gradient-card: linear-gradient(135deg, hsl(24 25% 13%) 0%, hsl(24 28% 10%) 100%);
-    --shadow-card: 0 8px 40px -8px hsl(27 91% 34% / 0.24), 0 2px 8px -2px hsl(24 30% 3% / 0.35);
+    /* ── Premium Dark v2 ──
+       Vibe: matte black canvas + dark onyx surfaces + clean white text +
+       brand orange accents. Buang semua tone cokelat-tua biar gak muddy.
+       Reference hex (di-convert ke HSL):
+         #0D0D0D bg, #161617 card/sidebar, #1E1E1F input, #333 input-border,
+         #FFFFFF foreground, #94A3B8 muted, #F97316 brand orange. */
+    --background: 0 0% 5%;             /* #0D0D0D matte black */
+    --foreground: 0 0% 100%;           /* pure white judul/angka */
+
+    --card: 240 4% 9%;                 /* #161617 dark onyx */
+    --card-foreground: 0 0% 100%;
+    --popover: 240 4% 9%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Secondary = "tile / chip" surface satu tingkat di atas card */
+    --secondary: 240 3% 12%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 3% 14%;
+    --muted-foreground: 215 16% 65%;   /* #94A3B8 slate gray label */
+
+    /* Orange accent chip — dipake buat status badge, hover, etc. */
+    --accent: 27 91% 14%;              /* deep orange tint, bukan brown */
+    --accent-foreground: 27 95% 70%;
+
+    /* Primary tetap brand orange — udah match #F97316 */
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 27 91% 12%;
+
+    /* Border halus #2A2A2C, input border #333 (sedikit lebih terang
+       supaya field keliatan tappable). */
+    --border: 240 3% 17%;
+    --input: 0 0% 20%;                 /* #333 */
+    --ring: 24 95% 53%;                /* fokus = brand orange */
+
+    /* Status semantic — Lunas ijo, warning oranye, destructive merah */
+    --success: 142 71% 45%;
+    --warning: 24 95% 53%;
+    --destructive: 0 84% 60%;
+
+    /* Shadows: pakai orange transparan biar premium glow vibe */
+    --gradient-primary: linear-gradient(135deg, hsl(24 95% 53%), hsl(14 95% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(14 95% 55%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(240 4% 10%) 0%, hsl(240 4% 8%) 100%);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.40);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.55);
+    --shadow-lg: 0 14px 40px -10px hsl(0 0% 0% / 0.70);
+    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.55), 0 0 0 1px hsl(0 0% 100% / 0.04);
+    --shadow-glow: 0 0 24px hsl(24 95% 53% / 0.20);
   }
 
   :root[data-font-size="small"] {
@@ -208,13 +242,28 @@
   :root[data-theme="dark"] input,
   :root[data-theme="dark"] textarea,
   :root[data-theme="dark"] [role="combobox"] {
-    background-color: hsl(var(--secondary)) !important;
+    /* Premium dark v2: input bg #1E1E1F, border #333, focus orange glow. */
+    background-color: hsl(240 3% 12%) !important;
     color: hsl(var(--foreground)) !important;
+    border-color: hsl(0 0% 20%) !important;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
   }
 
   :root[data-theme="dark"] input::placeholder,
   :root[data-theme="dark"] textarea::placeholder {
     color: hsl(var(--muted-foreground)) !important;
+  }
+
+  /* Focus state: border + halo orange transparan (rgba(249,115,22,0.2)) */
+  :root[data-theme="dark"] input:focus,
+  :root[data-theme="dark"] input:focus-visible,
+  :root[data-theme="dark"] textarea:focus,
+  :root[data-theme="dark"] textarea:focus-visible,
+  :root[data-theme="dark"] [role="combobox"]:focus,
+  :root[data-theme="dark"] [role="combobox"][data-state="open"] {
+    border-color: hsl(24 95% 53%) !important;
+    box-shadow: 0 0 0 3px hsl(24 95% 53% / 0.20) !important;
+    outline: none !important;
   }
 
   /* ── Dark-mode overrides for pastel-50 utility backgrounds ──
@@ -303,8 +352,68 @@
 
   /* Slate / gray backgrounds used for the rate strip etc. */
   :root[data-theme="dark"] .bg-slate-50       { background-color: hsl(var(--secondary)) !important; }
+  :root[data-theme="dark"] .bg-slate-100      { background-color: hsl(var(--secondary)) !important; }
   :root[data-theme="dark"] .border-slate-100,
   :root[data-theme="dark"] .border-slate-200  { border-color: hsl(var(--border)) !important; }
+
+  /* ── Premium dark v2 polish ─────────────────────────────────────────
+     Sidebar: tipis 1px border + halo orange super-subtle.
+     Slider rail: pakai tone gelap, fill udah orange via --primary.
+     Card "selected" state: 1px orange border + glow halus.
+     Active nav icon dot: orange (sudah handled inline di AppSidebar). */
+
+  /* Sidebar surface — pakai card token, plus glow orange transparan halus. */
+  :root[data-theme="dark"] aside[class*="bg-white"] {
+    box-shadow: 0 8px 28px hsl(0 0% 0% / 0.50), 0 0 0 1px hsl(0 0% 100% / 0.04) !important;
+  }
+
+  /* shadcn Slider track — track gelap solid, range pakai primary (orange) */
+  :root[data-theme="dark"] [data-orientation="horizontal"] > .bg-secondary,
+  :root[data-theme="dark"] .bg-secondary[data-orientation="horizontal"] {
+    background-color: hsl(0 0% 18%) !important;
+  }
+  /* Slider thumb halo on hover/focus */
+  :root[data-theme="dark"] [role="slider"]:focus-visible,
+  :root[data-theme="dark"] [role="slider"]:hover {
+    box-shadow: 0 0 0 6px hsl(24 95% 53% / 0.20) !important;
+  }
+
+  /* Selected card / pressed state — anything with .ring-2.ring-orange* or
+     .border-primary atau aria-pressed/data-state=on dapet glow halus. */
+  :root[data-theme="dark"] [data-state="on"],
+  :root[data-theme="dark"] [aria-pressed="true"],
+  :root[data-theme="dark"] .ring-orange-500,
+  :root[data-theme="dark"] .ring-primary,
+  :root[data-theme="dark"] .border-primary {
+    border-color: hsl(24 95% 53%) !important;
+    box-shadow: 0 0 0 1px hsl(24 95% 53% / 0.50), 0 0 18px hsl(24 95% 53% / 0.18) !important;
+  }
+
+  /* Tabs / segmented control active pill — orange highlight */
+  :root[data-theme="dark"] [role="tab"][data-state="active"] {
+    background-color: hsl(24 95% 53%) !important;
+    color: hsl(0 0% 100%) !important;
+    box-shadow: 0 2px 12px hsl(24 95% 53% / 0.25) !important;
+  }
+
+  /* "Belum Lunas" badge — gradasi orange→merah biar masuk brand,
+     bukan slate yang ngilang di dark bg. Targets the existing class
+     combo in JamaahDetailDrawer / Dashboard alert. */
+  :root[data-theme="dark"] .bg-slate-100.text-slate-600,
+  :root[data-theme="dark"] .bg-slate-100.border-slate-200 {
+    background-image: linear-gradient(135deg, hsl(24 95% 53%), hsl(0 84% 55%)) !important;
+    background-color: transparent !important;
+    color: hsl(0 0% 100%) !important;
+    border-color: hsl(24 95% 53% / 0.40) !important;
+  }
+
+  /* Buttons / Tagihan-Belum-Lunas alert card di Dashboard pakai red-50;
+     biar tetep brand-aligned (orange→red) */
+  :root[data-theme="dark"] .from-red-50,
+  :root[data-theme="dark"] .to-red-50 {
+    --tw-gradient-from: hsl(24 95% 53% / 0.10) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: hsl(0 84% 55% / 0.10) var(--tw-gradient-to-position) !important;
+  }
 
   :root[data-compact="true"] {
     --radius: 0.75rem;
