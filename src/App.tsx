@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound.tsx";
 import Notes from "./pages/Notes";
 import ExportCenter from "./pages/ExportCenter";
+import Transport from "./pages/Transport";
 import { useRatesStore } from "@/store/ratesStore";
 import { usePackagesStore } from "@/store/packagesStore";
 import { useTripsStore } from "@/store/tripsStore";
@@ -152,6 +153,7 @@ function AnimatedRoutes() {
       <Route path="/paket/:id" element={<RequireAuth><DashboardLayout><TripDetail /></DashboardLayout></RequireAuth>} />
       <Route path="/paket/:id/jamaah/:jamaahId" element={<RequireAuth><DashboardLayout><JamaahProfile /></DashboardLayout></RequireAuth>} />
       <Route path="/notes" element={<RequireAuth><DashboardLayout><Notes /></DashboardLayout></RequireAuth>} />
+      <Route path="/transport" element={<RequireAuth><DashboardLayout><Transport /></DashboardLayout></RequireAuth>} />
       <Route path="/exports" element={<RequireAuth><DashboardLayout><ExportCenter /></DashboardLayout></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><DashboardLayout><Settings /></DashboardLayout></RequireAuth>} />
       <Route path="/auth" element={<Navigate to="/login" replace />} />
