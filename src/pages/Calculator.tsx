@@ -46,6 +46,7 @@ import { QuotationMetaSection } from "@/features/calculator/QuotationMetaSection
 import { cn } from "@/lib/utils";
 import { useRatesStore } from "@/store/ratesStore";
 import { useRegional } from "@/lib/regional";
+import { savePackageCalc } from "@/lib/packageCalcStorage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -974,6 +975,36 @@ export default function Calculator() {
       };
 
       const newPkg = await createPackage(draft);
+
+      // Persist seluruh row kalkulator (hotels/transports/visas/dst) ke
+      // package_calculations[newPkg.id] supaya pas user buka /packages/[id],
+      // semua input udah otomatis ke-load (bukan form kosong).
+      // Project hanya field yg ada di ProfessionalCalcState — PDF/quotation
+      // metadata (customerName, dateRange, dst) gak di-carry karena
+      // PackageDetail.calc shape-nya beda & gak butuh field itu.
+      const calcRowsPayload = {
+        mode: calc.mode,
+        packageName: name,
+        destination,
+        pax: Math.max(1, calc.pax || 1),
+        hotels: calc.hotels,
+        transports: calc.transports,
+        tickets: calc.tickets,
+        visas: calc.visas,
+        destinations: calc.destinations,
+        fnbs: calc.fnbs,
+        staffs: calc.staffs,
+        generalCosts: calc.generalCosts,
+        commissionFee: calc.commissionFee,
+        marginPercent: calc.marginPercent,
+        discount: calc.discount,
+        groupSettings: calc.groupSettings,
+      };
+      // Write-through: localStorage instan + cloud push (best-effort).
+      // PackageDetail bakal nge-read dari localStorage dulu (fast path),
+      // lalu pullPackageCalc nge-overwrite dgn versi cloud kalau beda.
+      savePackageCalc(newPkg.id, calcRowsPayload);
+
       toast.success("Paket Trip berhasil dibuat!", {
         description: `${name} · ${formatCurrency(quote.finalPrice)}`,
         action: {

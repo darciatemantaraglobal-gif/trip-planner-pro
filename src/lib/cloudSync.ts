@@ -28,7 +28,15 @@ export async function pullPackageCalc(packageId: string): Promise<unknown | null
   if (!isSupabaseConfigured()) return null;
   const { data, error } = await supabase!
     .from("package_calculations").select("payload").eq("package_id", packageId).maybeSingle();
-  if (error) return null;
+  if (error) {
+    // Sebelumnya silently return null → user gak tau cloud sync gagal.
+    // Sekarang log warning supaya gampang di-debug dari DevTools console.
+    console.warn(
+      `[cloudSync] pullPackageCalc(${packageId}) gagal:`,
+      error.message ?? error,
+    );
+    return null;
+  }
   return data?.payload ?? null;
 }
 

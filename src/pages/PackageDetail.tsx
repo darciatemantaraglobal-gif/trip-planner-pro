@@ -31,7 +31,8 @@ import { useRatesStore } from "@/store/ratesStore";
 import { useJamaahStore, type Jamaah } from "@/store/tripsStore";
 import { useRegional } from "@/lib/regional";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { pushPackageCalc, pullPackageCalc } from "@/lib/cloudSync";
+import { pullPackageCalc } from "@/lib/cloudSync";
+import { savePackageCalc, loadPackageCalcRaw } from "@/lib/packageCalcStorage";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildGoogleCalendarUrl, downloadICS } from "@/lib/calendarExport";
 import { CalendarPlus, Download, ExternalLink } from "lucide-react";
@@ -61,19 +62,25 @@ interface ProfessionalCalcState {
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
-
-const CALC_STORAGE_KEY = "travelhub.package.calculations.v1";
-
-function readCalcStore(): Record<string, ProfessionalCalcState> {
-  try {
-    const raw = localStorage.getItem(CALC_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
+// Read/write helpers (`savePackageCalc`, `loadPackageCalcRaw`) di-extract ke
+// `src/lib/packageCalcStorage.ts` supaya bisa dipake juga dari Calculator.tsx
+// (saat user "Create Paket Trip" — payload row dipush bareng ke localStorage
+// + cloud, jadi PackageDetail langsung dapet datanya tanpa input ulang).
+//
+// Helper di bawah ini cuma layer typed merge: ngambil raw payload dari
+// shared store lalu nge-merge dgn `fallback` yg shape-nya `ProfessionalCalcState`.
 
 function loadPackageCalc(packageId: string, fallback: ProfessionalCalcState): ProfessionalCalcState {
-  const stored = readCalcStore()[packageId];
-  if (!stored) return fallback;
+  const raw = loadPackageCalcRaw(packageId);
+  if (raw === null) return fallback;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    console.warn(
+      `[PackageDetail] payload local utk packageId=${packageId} format invalid ` +
+      `(expected object, got ${Array.isArray(raw) ? "array" : typeof raw}) — pakai fallback`,
+    );
+    return fallback;
+  }
+  const stored = raw as Partial<ProfessionalCalcState>;
   return {
     ...fallback,
     ...stored,
@@ -93,14 +100,6 @@ function loadPackageCalc(packageId: string, fallback: ProfessionalCalcState): Pr
     generalCosts: stored.generalCosts ?? fallback.generalCosts,
     groupSettings: { ...fallback.groupSettings, ...(stored.groupSettings ?? {}) },
   };
-}
-
-function savePackageCalc(packageId: string, value: ProfessionalCalcState) {
-  const all = readCalcStore();
-  all[packageId] = value;
-  localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify(all));
-  // Push to cloud (best-effort, no-op when Supabase not configured)
-  void pushPackageCalc(packageId, value).catch(() => undefined);
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -613,7 +612,19 @@ export default function PackageDetail() {
     setCalc(loadPackageCalc(id, fallback));
     if (isSupabaseConfigured()) {
       void pullPackageCalc(id).then((cloud) => {
-        if (cloud) setCalc({ ...fallback, ...(cloud as Partial<ProfessionalCalcState>) });
+        if (!cloud) return;
+        // Validasi shape sebelum di-merge ke state. Cloud bisa balikin
+        // payload aneh (object kosong, array, primitive) kalau ada bug
+        // di sisi penulis — lebih baik log + skip drpd nge-corrupt UI.
+        if (typeof cloud !== "object" || Array.isArray(cloud)) {
+          console.warn(
+            `[PackageDetail] cloud calc payload utk packageId=${id} format invalid ` +
+            `(expected object, got ${Array.isArray(cloud) ? "array" : typeof cloud}):`,
+            cloud,
+          );
+          return;
+        }
+        setCalc({ ...fallback, ...(cloud as Partial<ProfessionalCalcState>) });
       });
     }
   }, [id, pkg?.id]);
