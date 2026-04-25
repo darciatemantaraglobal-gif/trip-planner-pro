@@ -7,6 +7,11 @@
  */
 
 export type IghFontFamily = "Montserrat" | "Poppins" | "Sk-Modernist";
+/** Horizontal text alignment relative to the slider X coordinate.
+ *  - "center" (default): X = horizontal center of the text
+ *  - "left":            X = left edge (start) of the text
+ *  - "right":           X = right edge (end) of the text */
+export type IghTextAlign = "left" | "center" | "right";
 export type IghSection =
   | "projectName"
   | "metaInfo"
@@ -136,6 +141,13 @@ export interface IghLayoutConfig {
     /** Override teks (newline-separated, max 5 baris) */
     includedText?: string;
     excludedText?: string;
+    /** Horizontal alignment of "Sudah Termasuk" text relative to `leftXPx`.
+     *  Default "center" (back-compat: existing presets continue to render
+     *  centered around the slider X). */
+    sudahTermasukAlign?: IghTextAlign;
+    /** Horizontal alignment of "Belum Termasuk" text relative to `rightXPx`.
+     *  Default "center". */
+    belumTermasukAlign?: IghTextAlign;
   };
   fonts: {
     /** Default family untuk semua section (kecuali yg di-override) */
@@ -202,6 +214,8 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
     rowSpacingPx: 28,
     yOffsetPx: 0,
     size: 10,
+    sudahTermasukAlign: "center",
+    belumTermasukAlign: "center",
   },
   fonts: { family: "Poppins", overrides: {} },
   // Footer (sejajar dengan "instagram.com/igh.tour" pre-printed pada template).
@@ -270,6 +284,8 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
     rowSpacingPx: 26,
     yOffsetPx: 0,
     size: 10,
+    sudahTermasukAlign: "center",
+    belumTermasukAlign: "center",
   },
   fonts: { family: "Poppins", overrides: {} },
   // Group template footer kemungkinan beda posisi — default sama dulu, bisa

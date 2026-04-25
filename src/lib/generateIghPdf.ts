@@ -426,8 +426,8 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   // rect supaya teks Include/Exclude tampil bersih tanpa sekat garis.
   maskChecklistDividers(page, cfg.checklist.leftXPx, ROW_BASELINES);
   maskChecklistDividers(page, cfg.checklist.rightXPx, ROW_BASELINES);
-  drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size);
-  drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size);
+  drawList(page, includedItems, ROW_BASELINES, cfg.checklist.leftXPx, listFont, cfg.checklist.size, cfg.checklist.sudahTermasukAlign ?? "center");
+  drawList(page, excludedItems, ROW_BASELINES, cfg.checklist.rightXPx, listFont, cfg.checklist.size, cfg.checklist.belumTermasukAlign ?? "center");
 
   return pdf.save();
 }
@@ -554,19 +554,26 @@ function splitOverrideOrUse(override: string | undefined, fallback: string[]): s
   return v.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 }
 
-/** Draw checklist column dengan teks center-horizontal. `centerXPx` = tengah kolom. */
+/** Draw checklist column dengan teks horizontal. `anchorXPx` = titik X di
+ *  template-px; arti titik tergantung `align`:
+ *    - "center" → titik tengah teks (lebar dihitung lalu dibagi 2)
+ *    - "left"   → koordinat awal teks (left edge)
+ *    - "right"  → batas akhir teks (right edge)
+ */
 function drawList(
   page: PDFPage,
   items: string[],
   rowBaselines: number[],
-  centerXPx: number,
+  anchorXPx: number,
   font: PDFFont,
   baseSize = 10,
+  align: "left" | "center" | "right" = "center",
 ) {
   const cleaned = items.map((s) => s.trim()).filter(Boolean).slice(0, rowBaselines.length);
   // Width budget per row ~ 235px (kolom asli template).
   const COL_WIDTH = 235;
   const maxW = (COL_WIDTH - 8) * SCALE;
+  const anchorXPt = anchorXPx * SCALE;
   for (let i = 0; i < cleaned.length; i++) {
     const baselinePx = rowBaselines[i];
     let size = baseSize;
@@ -575,7 +582,10 @@ function drawList(
       ? truncateToWidth(cleaned[i], font, size, maxW)
       : cleaned[i];
     const textW = font.widthOfTextAtSize(value, size);
-    const x = centerXPx * SCALE - textW / 2;
+    let x: number;
+    if (align === "left")       x = anchorXPt;
+    else if (align === "right") x = anchorXPt - textW;
+    else                        x = anchorXPt - textW / 2; // center
     const y = PAGE_H - baselinePx * SCALE;
     page.drawText(value, { x, y, size, font, color: DARK });
   }

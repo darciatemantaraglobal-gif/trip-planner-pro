@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bookmark, ClipboardCopy, FileImage, Loader2, Pencil, RotateCcw, Save, Trash2, Upload, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bookmark, ClipboardCopy, FileImage, Loader2, Pencil, RotateCcw, Save, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { uploadPdfTemplate, removePdfTemplate } from "@/lib/supabaseStorage";
 import {
@@ -23,6 +23,7 @@ import {
   type IghLayoutMode,
   type IghLayoutPreset,
   type IghSection,
+  type IghTextAlign,
 } from "@/lib/ighPdfConfig";
 import {
   deletePdfLayoutPreset,
@@ -90,6 +91,49 @@ interface TextRowProps {
   placeholder?: string;
   multiline?: boolean;
   onChange: (v: string) => void;
+}
+
+interface AlignRowProps {
+  label: string;
+  value: IghTextAlign;
+  onChange: (v: IghTextAlign) => void;
+}
+
+/** Segmented control: Left | Center | Right alignment toggle. Sits below
+ *  the related X-coordinate slider so users see immediately how the anchor
+ *  point is interpreted. */
+function AlignRow({ label, value, onChange }: AlignRowProps) {
+  const opts: { v: IghTextAlign; Icon: typeof AlignLeft; title: string }[] = [
+    { v: "left",   Icon: AlignLeft,   title: "Left — X = awal teks" },
+    { v: "center", Icon: AlignCenter, title: "Center — X = tengah teks" },
+    { v: "right",  Icon: AlignRight,  title: "Right — X = batas akhir teks" },
+  ];
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] font-medium text-slate-700">{label}</div>
+      <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 gap-0.5">
+        {opts.map(({ v, Icon, title }) => {
+          const active = value === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              title={title}
+              onClick={() => onChange(v)}
+              className={
+                "h-6 px-2 rounded inline-flex items-center justify-center transition-colors " +
+                (active
+                  ? "bg-white text-orange-600 shadow-sm ring-1 ring-orange-200"
+                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-100")
+              }
+            >
+              <Icon className="h-3 w-3" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function TextRow({ label, value, placeholder, multiline, onChange }: TextRowProps) {
@@ -900,16 +944,26 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             onChange={(v) => patch("checklist", { excludedText: v })}
           />
           <SliderRow
-            label="X Kolom Kiri (center)"
+            label="X Kolom Kiri (Sudah Termasuk)"
             value={local.checklist.leftXPx}
             min={120} max={320} step={1} unit="px"
             onChange={(v) => patch("checklist", { leftXPx: v })}
           />
+          <AlignRow
+            label="Alignment Sudah Termasuk"
+            value={local.checklist.sudahTermasukAlign ?? "center"}
+            onChange={(v) => patch("checklist", { sudahTermasukAlign: v })}
+          />
           <SliderRow
-            label="X Kolom Kanan (center)"
+            label="X Kolom Kanan (Belum Termasuk)"
             value={local.checklist.rightXPx}
             min={460} max={680} step={1} unit="px"
             onChange={(v) => patch("checklist", { rightXPx: v })}
+          />
+          <AlignRow
+            label="Alignment Belum Termasuk"
+            value={local.checklist.belumTermasukAlign ?? "center"}
+            onChange={(v) => patch("checklist", { belumTermasukAlign: v })}
           />
           <SliderRow
             label="Y Baris Pertama"
