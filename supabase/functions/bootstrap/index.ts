@@ -50,9 +50,10 @@ Deno.serve(async (req) => {
     }
 
     // Buat auth user
+    const fullName = (displayName ?? "").trim() || email.split("@")[0];
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email, password, email_confirm: true,
-      user_metadata: { display_name: displayName ?? email.split("@")[0] },
+      user_metadata: { display_name: fullName },
     });
     if (createErr || !created.user) return jsonResponse({ error: createErr?.message ?? "Gagal buat user" }, 500);
     const userId = created.user.id;
@@ -75,6 +76,14 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(userId);
       return jsonResponse({ error: memberErr.message }, 500);
     }
+
+    // Upsert profile supaya UI Manajemen Tim tampil nama beneran. Kalo gagal,
+    // jangan rollback — bootstrap udah sukses, profile bisa disinkronin nanti.
+    await admin.from("profiles").upsert({
+      id: userId, email, full_name: fullName,
+    }, { onConflict: "id" }).then(({ error }) => {
+      if (error) console.warn("[bootstrap] profile upsert failed:", error.message);
+    });
 
     return jsonResponse({ ok: true, agencyId: agency.id, userId });
   } catch (e) {

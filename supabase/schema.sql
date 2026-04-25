@@ -325,6 +325,53 @@ create policy "igh_storage_delete" on storage.objects
     and public.is_member(((storage.foldername(name))[1])::uuid)
   );
 
+-- ── PROFILES (mirror of auth.users untuk display name di UI) ────────────────
+-- auth.users ga bisa di-select dari client (perlu service role), jadi kita
+-- mirror data minimum (full_name, email) ke public.profiles supaya halaman
+-- "Manajemen Tim" bisa render nama beneran. Di-upsert dari edge function
+-- invite-member & bootstrap pake service role.
+create table if not exists public.profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  email       text,
+  full_name   text not null default '',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists profiles_email_idx on public.profiles(lower(email));
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_select_self"        on public.profiles;
+drop policy if exists "profiles_update_self"        on public.profiles;
+drop policy if exists "profiles_insert_self"        on public.profiles;
+drop policy if exists "profiles_select_same_agency" on public.profiles;
+
+create policy "profiles_select_self" on public.profiles
+  for select using (id = auth.uid());
+create policy "profiles_update_self" on public.profiles
+  for update using (id = auth.uid()) with check (id = auth.uid());
+create policy "profiles_insert_self" on public.profiles
+  for insert with check (id = auth.uid());
+create policy "profiles_select_same_agency" on public.profiles
+  for select using (
+    exists (
+      select 1
+        from public.agency_members am_target
+        join public.agency_members am_self on am_self.agency_id = am_target.agency_id
+       where am_target.user_id = profiles.id
+         and am_self.user_id = auth.uid()
+    )
+  );
+
+create or replace function public.set_profiles_updated_at()
+returns trigger language plpgsql as $$
+begin new.updated_at = now(); return new; end;
+$$;
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+  before update on public.profiles
+  for each row execute function public.set_profiles_updated_at();
+
 -- ── REALTIME PUBLICATION ────────────────────────────────────────────────────
 do $$
 declare t text;

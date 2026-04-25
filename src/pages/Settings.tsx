@@ -232,12 +232,37 @@ export default function Settings() {
       toast.error("Password minimal 8 karakter."); return;
     }
     setInvitingMember(true);
+    // Capture form values dulu — biar kalau user buru-buru ngosongin field
+    // setelah submit, optimistic row tetep punya nama yg dia masukin.
+    const emailIn = newMemberEmail.trim();
+    const nameIn = newMemberName.trim();
     try {
-      await inviteMember(newMemberEmail.trim(), newMemberPass, newMemberName.trim());
-      // Refresh list — kalau gagal, jangan ganggu UX karena invite-nya udah sukses.
-      try { setMembers(await listMembers()); } catch { /* ignore — owner bisa refresh manual */ }
+      await inviteMember(emailIn, newMemberPass, nameIn);
+
+      // ── Instant feedback ──
+      // Tambah row baru ke list secara optimistic — pake placeholder userId
+      // sementara nunggu listMembers() yg authoritative selesai. User langsung
+      // liat namanya muncul tanpa flicker / refresh manual.
+      const optimisticRow: MemberInfo = {
+        userId: `pending-${Date.now()}`,
+        email: emailIn,
+        displayName: nameIn,
+        role: "staff",
+        createdAt: new Date().toISOString(),
+      };
+      setMembers((prev) => [...prev, optimisticRow]);
+
+      // Re-sync dgn server (replace optimistic row dgn data asli yg join ke
+      // profiles). Kalau gagal, optimistic row tetep ada — owner bisa refresh
+      // manual. Berhubung edge function juga upsert ke profiles, list ini bakal
+      // include nama beneran.
+      try {
+        const fresh = await listMembers();
+        setMembers(fresh);
+      } catch { /* ignore — optimistic row stays */ }
+
       setNewMemberEmail(""); setNewMemberName(""); setNewMemberPass("");
-      toast.success("Member diundang. Beri tahu password awalnya secara aman.");
+      toast.success(`"${nameIn}" diundang. Beri tahu password awalnya secara aman.`);
     } catch (e: any) {
       toast.error(`Undang gagal: ${e?.message ?? "unknown error"}`);
     } finally {

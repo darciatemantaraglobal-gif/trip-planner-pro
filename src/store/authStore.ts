@@ -128,11 +128,24 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
 
   if (!agencyId) return null;
 
+  // Resolve displayName dgn priority:
+  //   1. public.profiles.full_name (otoritatif, di-update via Settings)
+  //   2. auth.users.user_metadata.display_name (di-set saat invite/bootstrap)
+  //   3. email prefix sbg fallback terakhir
   const meta = (session.user.user_metadata ?? {}) as { display_name?: string };
+  let displayName = meta.display_name?.trim() || session.user.email?.split("@")[0] || "User";
+  try {
+    const { data: profile } = await supabase
+      .from("profiles").select("full_name").eq("id", session.user.id).maybeSingle();
+    const fn = (profile as { full_name?: string } | null)?.full_name?.trim();
+    if (fn) displayName = fn;
+  } catch {
+    // Profile table mungkin belum di-migrate — fallback ke metadata aja.
+  }
   return {
     id: session.user.id,
     email: session.user.email ?? "",
-    displayName: meta.display_name ?? session.user.email?.split("@")[0] ?? "User",
+    displayName,
     role,
     agencyId,
     agencyName,
@@ -301,19 +314,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   listMembers: async () => {
     const { user } = get();
     if (!user || !supabase) return [];
+
+    // 1. Ambil member rows dari agency_members
     const { data: members, error } = await supabase
       .from("agency_members").select("user_id, role, created_at")
       .eq("agency_id", user.agencyId);
     if (error) throw error;
-    // Email & displayName ga bisa diambil dari client (auth.users perlu service role).
-    // Sementara return apa yg ada.
-    return (members ?? []).map((m) => ({
-      userId: m.user_id,
-      email: m.user_id === user.id ? user.email : "—",
-      displayName: m.user_id === user.id ? user.displayName : `User ${m.user_id.slice(0, 8)}`,
-      role: m.role as UserRole,
-      createdAt: m.created_at,
-    }));
+
+    const rows = members ?? [];
+    if (rows.length === 0) return [];
+
+    // 2. Bulk-fetch profile rows (full_name + email) untuk semua user_id di
+    //    agency ini. RLS udah ngebolehin baca profile sesama agency.
+    const userIds = rows.map((r) => r.user_id);
+    const profilesById = new Map<string, { full_name: string; email: string }>();
+    try {
+      const { data: profiles } = await supabase
+        .from("profiles").select("id, full_name, email").in("id", userIds);
+      for (const p of (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
+        profilesById.set(p.id, {
+          full_name: (p.full_name ?? "").trim(),
+          email: (p.email ?? "").trim(),
+        });
+      }
+    } catch {
+      // Profile table belum di-migrate — fallback graceful di bawah.
+    }
+
+    return rows.map((m) => {
+      const prof = profilesById.get(m.user_id);
+      const isMe = m.user_id === user.id;
+      // Resolve displayName: profile.full_name → (kalau aku) my own displayName
+      // → fallback ke "User <prefix>" supaya tetep punya identifier.
+      const displayName =
+        prof?.full_name ||
+        (isMe ? user.displayName : `User ${m.user_id.slice(0, 8)}`);
+      const email =
+        prof?.email ||
+        (isMe ? user.email : "—");
+      return {
+        userId: m.user_id,
+        email,
+        displayName,
+        role: m.role as UserRole,
+        createdAt: m.created_at,
+      };
+    });
   },
 
   changePassword: async (newPassword) => {

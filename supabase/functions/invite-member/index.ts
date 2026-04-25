@@ -82,9 +82,11 @@ Deno.serve(async (req) => {
     }
 
     // 6. Buat user via auth.admin
+    // Trim displayName supaya gak nyimpen whitespace doang sbg nama.
+    const fullName = (displayName ?? "").trim() || email.split("@")[0];
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email, password, email_confirm: true,
-      user_metadata: { display_name: displayName ?? email.split("@")[0] },
+      user_metadata: { display_name: fullName },
     });
     if (createErr || !created.user) {
       return jsonResponse({ error: `Gagal buat user: ${createErr?.message ?? "unknown"}` }, 500);
@@ -100,7 +102,24 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `Gagal tambah membership (auth user di-rollback): ${addErr.message}` }, 500);
     }
 
-    return jsonResponse({ ok: true, userId: newUserId, email, role });
+    // 8. Upsert ke public.profiles supaya UI "Anggota Agency" bisa nge-render
+    //    nama beneran (bukan "User <uuid-prefix>"). Pake service role biar
+    //    bypass RLS. Kalau gagal, jangan rollback — auth user & membership udah
+    //    valid; profile bisa diisi belakangan via update profile sendiri.
+    const { error: profileErr } = await admin.from("profiles").upsert({
+      id: newUserId,
+      email,
+      full_name: fullName,
+    }, { onConflict: "id" });
+    if (profileErr) {
+      // Log via response field — UI tetep success, sekedar warning.
+      return jsonResponse({
+        ok: true, userId: newUserId, email, role, fullName,
+        warning: `User dibuat tapi gagal isi profile: ${profileErr.message}. Jalankan migrasi profiles_table.sql.`,
+      });
+    }
+
+    return jsonResponse({ ok: true, userId: newUserId, email, role, fullName });
   } catch (e) {
     // Hard guard — apapun exception unhandled tetep balik 500 dengan pesan
     // jelas, supaya UI gak stuck "Mengundang…" forever.
