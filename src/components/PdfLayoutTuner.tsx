@@ -679,6 +679,52 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
             min={-4} max={20} step={0.5} unit="px"
             onChange={(v) => patch("projectName", { lineGapPx: v })}
           />
+
+          {/* HEADER SUBTITLE GAP — jarak Title ke baris timeline tanggal di
+              bawahnya. Dipisah dari lineGapPx (yg cuma antar baris title).
+              Range 10-100 supaya bisa rapet atau renggang sesuai kebutuhan. */}
+          <div className="pt-2 mt-1 border-t border-slate-200">
+            <SliderRow
+              label="Jarak Judul ke Tanggal"
+              value={local.headerSubtitleGap ?? 30}
+              min={10} max={100} step={1} unit="px"
+              onChange={(v) =>
+                setLocal((prev) => ({ ...prev, headerSubtitleGap: v }))
+              }
+            />
+            <SliderRow
+              label="X Offset (subtitle)"
+              value={local.headerSubtitleOffset?.xPx ?? 0}
+              min={-100} max={100} step={1} unit="px"
+              onChange={(v) =>
+                setLocal((prev) => ({
+                  ...prev,
+                  headerSubtitleOffset: {
+                    xPx: v,
+                    yPx: prev.headerSubtitleOffset?.yPx ?? 0,
+                  },
+                }))
+              }
+            />
+            <SliderRow
+              label="Y Offset (subtitle)"
+              value={local.headerSubtitleOffset?.yPx ?? 0}
+              min={-30} max={30} step={1} unit="px"
+              onChange={(v) =>
+                setLocal((prev) => ({
+                  ...prev,
+                  headerSubtitleOffset: {
+                    xPx: prev.headerSubtitleOffset?.xPx ?? 0,
+                    yPx: v,
+                  },
+                }))
+              }
+            />
+            <p className="text-[9px] text-slate-400 leading-snug mt-1">
+              Jarak utama dihitung otomatis dari bawah judul. Pakai X/Y Offset
+              untuk fine-tune mandiri (mis. judul 2 baris).
+            </p>
+          </div>
         </section>
 
         {/* META INFO — split jadi 2 sub-section: Date & Client.

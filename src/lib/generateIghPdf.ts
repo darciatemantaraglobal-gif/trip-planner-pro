@@ -372,9 +372,18 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
     py += projLH;
   }
 
-  // Timeline (Periode)
+  // Timeline (Periode) — "21 Mei 2026 - 29 Mei 2026 (9 hari)"
+  // Y dihitung dinamis: end-of-title (py) + headerSubtitleGap + offset Y opsional.
+  // X dihitung: projectName.xPx + offset X opsional. Fallback gap=6 (legacy
+  // hardcoded value) supaya preset lama yg belum punya field tetap render
+  // identik dengan sebelum-nya.
+  const subtitleGap = cfg.headerSubtitleGap ?? 6;
+  const subtitleXOff = cfg.headerSubtitleOffset?.xPx ?? 0;
+  const subtitleYOff = cfg.headerSubtitleOffset?.yPx ?? 0;
   drawText(page, data.timeline || "—", {
-    leftPx: cfg.projectName.xPx, topPx: py + 6, size: 11, font: projReg, color: GREY_MUTED, maxWidthPx: 285,
+    leftPx: cfg.projectName.xPx + subtitleXOff,
+    topPx: py + subtitleGap + subtitleYOff,
+    size: 11, font: projReg, color: GREY_MUTED, maxWidthPx: 285,
   });
 
   // ── 2. HEADER META (Invoice to & Date) ──

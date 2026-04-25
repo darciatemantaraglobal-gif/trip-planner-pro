@@ -214,6 +214,18 @@ export interface IghLayoutConfig {
     xPx: number;
     yPx: number;
   };
+  /** Jarak vertikal (template-px) antara baris terakhir Project Name dengan
+   *  baris timeline/tanggal di bawahnya ("21 Mei 2026 - 29 Mei 2026 (9 hari)").
+   *  Default baru = 30. Legacy preset yg belum punya field ini fallback ke 6
+   *  (nilai hardcoded sebelum-nya) supaya tampilan lama persis sama. */
+  headerSubtitleGap?: number;
+  /** Offset fine-tune posisi timeline subtitle (delta dari posisi yg dihitung
+   *  via `headerSubtitleGap`). Buat geser mandiri kalau title-nya 2 baris atau
+   *  butuh nudge halus. Default {0,0}. */
+  headerSubtitleOffset?: {
+    xPx: number;
+    yPx: number;
+  };
 }
 
 export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
@@ -253,6 +265,8 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   // (kanan). WA di-tengahin di antara keduanya: starts ~310px, baseline 891.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
   whatsappPosition: { xPx: 290, yPx: 891 },
+  headerSubtitleGap: 30,
+  headerSubtitleOffset: { xPx: 0, yPx: 0 },
 };
 
 const STORAGE_KEY = "igh:pdf-layout-config";
@@ -325,6 +339,8 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   // di-tune via PdfLayoutTuner per-mode storage.
   footer: { topPx: 891, waXPx: 290, waIconSizePt: 9, size: 7, showWhatsapp: true },
   whatsappPosition: { xPx: 290, yPx: 891 },
+  headerSubtitleGap: 30,
+  headerSubtitleOffset: { xPx: 0, yPx: 0 },
 };
 
 /** Built-in starter buat template Grup, dikalibrasi 1:1 ke kicau.jpg.
