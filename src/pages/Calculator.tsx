@@ -818,17 +818,42 @@ export default function Calculator() {
     const userIncluded = calc.includedItems.map((s) => s.trim()).filter(Boolean);
     const userExcluded = calc.excludedItems.map((s) => s.trim()).filter(Boolean);
 
-    // Format timeline "DD MMMM YYYY - DD MMMM YYYY (N hari)" pakai date-fns
+    // Format timeline pakai date-fns. Kita build DUA versi:
+    //  - `timeline` (Full)  → "01 September 2026 - 09 September 2026 (9 hari)"
+    //  - `timelineShort`    → "01 - 09 Sep 2026 (9 hari)" kalau same month/year
+    //                          / "01 Sep - 03 Okt 2026" kalau beda bulan
+    //                          / "01 Sep 2026 - 03 Jan 2027" kalau beda tahun
+    // Generator pilih versi mana berdasar `cfg.dateDisplayMode` (default Short).
     let timeline = calc.dateRange || "";
+    let timelineShort = calc.dateRange || "";
     const range = parseRangeStrict(calc.dateRange);
     if (range?.from) {
-      const fromStr = format(range.from, "dd MMMM yyyy", { locale: idLocale });
+      const fromStrFull = format(range.from, "dd MMMM yyyy", { locale: idLocale });
       if (range.to) {
-        const toStr = format(range.to, "dd MMMM yyyy", { locale: idLocale });
+        const toStrFull = format(range.to, "dd MMMM yyyy", { locale: idLocale });
         const days = differenceInCalendarDays(range.to, range.from) + 1;
-        timeline = `${fromStr} - ${toStr} (${days} hari)`;
+        timeline = `${fromStrFull} - ${toStrFull} (${days} hari)`;
+        // ── Short: collapse parts yang sama antar tanggal ──
+        // date-fns "MMM" id locale = "Jan, Feb, Mar, Apr, Mei, Jun, Jul, Agu,
+        // Sep, Okt, Nov, Des" → 3-letter, hemat space.
+        const sameYear = range.from.getFullYear() === range.to.getFullYear();
+        const sameMonth = sameYear && range.from.getMonth() === range.to.getMonth();
+        const fromDay = format(range.from, "dd", { locale: idLocale });
+        const toDay = format(range.to, "dd", { locale: idLocale });
+        const fromMon = format(range.from, "MMM", { locale: idLocale });
+        const toMon = format(range.to, "MMM", { locale: idLocale });
+        const fromYr = format(range.from, "yyyy", { locale: idLocale });
+        const toYr = format(range.to, "yyyy", { locale: idLocale });
+        if (sameMonth) {
+          timelineShort = `${fromDay} - ${toDay} ${toMon} ${toYr} (${days} hari)`;
+        } else if (sameYear) {
+          timelineShort = `${fromDay} ${fromMon} - ${toDay} ${toMon} ${toYr} (${days} hari)`;
+        } else {
+          timelineShort = `${fromDay} ${fromMon} ${fromYr} - ${toDay} ${toMon} ${toYr} (${days} hari)`;
+        }
       } else {
-        timeline = fromStr;
+        timeline = fromStrFull;
+        timelineShort = format(range.from, "dd MMM yyyy", { locale: idLocale });
       }
     }
 
@@ -865,6 +890,7 @@ export default function Calculator() {
         calc.packageName?.trim() ||
         (calc.customerName ? `Umroh ${calc.customerName}` : "Penawaran Paket"),
       timeline,
+      timelineShort,
       customerName: calc.customerName || "—",
       date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }),
       hotelMakkah: calc.hotelMakkahName || makkahHotel?.label || "",

@@ -247,6 +247,19 @@ export interface IghLayoutConfig {
    *  lebar bbox biru di Edit Mode supaya visual sinkron dgn output PDF.
    *  Default 285 (kompat lama, sebelumnya hardcoded). Range UI: 100..600. */
   subtitleWidthPx?: number;
+  /** Ukuran font (pt) utk teks subtitle "Tanggal" di bawah Project Name.
+   *  Dipakai oleh generator (drawing) DAN overlay (bbox sizing) supaya Edit
+   *  Mode visual sinkron 1:1 dgn output PDF. Default 11pt (kompat lama,
+   *  sebelumnya hardcoded `SUBTITLE_PT = 11`). Range UI: 6..14. */
+  subtitleFontSize?: number;
+  /** Format tampilan tanggal pada subtitle.
+   *  - `"Full"`  → "01 September 2026 - 09 September 2026 (9 hari)" (lengkap).
+   *  - `"Short"` (default) → "01 - 09 Sep 2026 (9 hari)" / "01 Sep - 03 Okt 2026"
+   *    (ringkas, hemat ruang biar gak kepotong di subtitle width).
+   *  Cuma berlaku kalau Calculator nge-pass `timelineShort` (built dari
+   *  range tanggal real). Kalau cuma punya 1 string `timeline` legacy,
+   *  generator pakai itu apa adanya. */
+  dateDisplayMode?: "Full" | "Short";
   /** Format tampilan harga di tabel matrix & box harga.
    *  - `"compact"` (default) → ringkas pakai satuan: "30,5 jt", "1,2 M".
    *  - `"full"` → nominal lengkap dengan ribuan: "Rp 30.123.456".
@@ -296,6 +309,8 @@ export const DEFAULT_IGH_LAYOUT: IghLayoutConfig = {
   mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
   subtitleWidthPx: 285,
+  subtitleFontSize: 11,
+  dateDisplayMode: "Short",
   priceDisplayMode: "compact",
 };
 
@@ -372,6 +387,8 @@ export const GROUP_LAYOUT: IghLayoutConfig = {
   mainHeaderGap: 25,
   headerSubtitleOffset: { xPx: 0, yPx: 0 },
   subtitleWidthPx: 285,
+  subtitleFontSize: 11,
+  dateDisplayMode: "Short",
   priceDisplayMode: "compact",
 };
 
@@ -515,6 +532,21 @@ export function mergeConfig(
       "subtitleWidthPx" in (override as object)
         ? (override as { subtitleWidthPx?: number }).subtitleWidthPx ?? base.subtitleWidthPx ?? 285
         : base.subtitleWidthPx ?? 285,
+    // subtitleFontSize: scalar override. Default 11 (kompat dgn legacy
+    // hardcoded SUBTITLE_PT). Range valid 6..14 (di-clamp di Tuner UI, bukan
+    // di sini, supaya preset cloud yg edit manual bisa pake nilai apapun).
+    subtitleFontSize:
+      "subtitleFontSize" in (override as object)
+        ? (override as { subtitleFontSize?: number }).subtitleFontSize ?? base.subtitleFontSize ?? 11
+        : base.subtitleFontSize ?? 11,
+    // dateDisplayMode: scalar override. Default "Short" (compact) supaya teks
+    // tanggal default-nya gak kepotong. Preset lama yg belum punya field ini
+    // tetap dapet "Short" by default → tampilan SUBTLY berubah jd lebih ringkas
+    // (acceptable trade-off vs truncated text).
+    dateDisplayMode:
+      "dateDisplayMode" in (override as object)
+        ? (override as { dateDisplayMode?: "Full" | "Short" }).dateDisplayMode ?? base.dateDisplayMode ?? "Short"
+        : base.dateDisplayMode ?? "Short",
     whatsappPosition: override.whatsappPosition
       ? { ...(base.whatsappPosition ?? { xPx: 0, yPx: 0 }), ...override.whatsappPosition }
       : base.whatsappPosition,

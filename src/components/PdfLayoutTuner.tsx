@@ -780,6 +780,60 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
                 setLocal((prev) => ({ ...prev, subtitleWidthPx: v }))
               }
             />
+            {/* FONT SIZE TANGGAL — sebelumnya hardcoded 11pt di generator.
+                Range 6..14 supaya mencakup tanggal yg dipadetin (6-7pt) sampe
+                tanggal yg di-emphasize (13-14pt). Live preview lewat path yg
+                sama dgn slider lain (setLocal → debounce → onChange). */}
+            <SliderRow
+              label="Font Size Tanggal"
+              value={local.subtitleFontSize ?? 11}
+              min={6} max={14} step={0.5} unit="pt"
+              onChange={(v) =>
+                setLocal((prev) => ({ ...prev, subtitleFontSize: v }))
+              }
+            />
+            {/* FORMAT TANGGAL — Short ringkas (default, hemat ruang) vs Full
+                lengkap. Ngaruh ke sumber teks subtitle: generator pilih
+                `data.timelineShort` atau `data.timeline` berdasar mode ini. */}
+            <div className="pt-2 mt-2 border-t border-slate-200/70 space-y-1.5">
+              <label className="text-[10px] font-semibold text-slate-600">
+                Format Tanggal
+              </label>
+              <div
+                role="radiogroup"
+                aria-label="Format tanggal subtitle"
+                className="flex gap-1.5"
+                data-testid="radio-date-display-mode"
+              >
+                {(["Short", "Full"] as const).map((opt) => {
+                  const active = (local.dateDisplayMode ?? "Short") === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() =>
+                        setLocal((prev) => ({ ...prev, dateDisplayMode: opt }))
+                      }
+                      data-testid={`radio-date-display-mode-${opt.toLowerCase()}`}
+                      className={[
+                        "flex-1 h-7 rounded-md text-[10.5px] font-semibold border transition-colors",
+                        active
+                          ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+                      ].join(" ")}
+                    >
+                      {opt === "Short" ? "Singkat" : "Lengkap"}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[9px] text-slate-400 leading-snug">
+                <strong>Singkat:</strong> "01 - 09 Sep 2026 (9 hari)" ·{" "}
+                <strong>Lengkap:</strong> "01 September 2026 - 09 September 2026 (9 hari)".
+              </p>
+            </div>
             <p className="text-[9px] text-slate-400 leading-snug mt-1">
               Jarak utama dihitung otomatis dari bawah judul. Pakai X/Y Offset
               untuk fine-tune mandiri (mis. judul 2 baris). <strong>Lebar Kotak</strong>{" "}

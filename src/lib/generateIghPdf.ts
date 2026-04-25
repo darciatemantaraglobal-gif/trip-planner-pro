@@ -58,7 +58,13 @@ export interface IghGroupPricingRow {
 
 export interface IghPdfData {
   projectName: string;
+  /** Format lengkap (default render mode `Full`):
+   *  "01 September 2026 - 09 September 2026 (9 hari)". */
   timeline: string;
+  /** Format ringkas (render mode `Short`, default):
+   *  "01 - 09 Sep 2026 (9 hari)" / "01 Sep - 03 Okt 2026 (33 hari)".
+   *  Optional — kalau gak di-pass, generator fallback ke `timeline` apa adanya. */
+  timelineShort?: string;
   customerName: string;
   date: string;
   hotelMakkah: string;
@@ -471,10 +477,17 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   // Lebar subtitle = config (default 285). Kalau timeline kepanjangan, di-wrap
   // ke baris berikutnya pakai wrapAtSize (greedy by space) sebelum di-truncate.
   // Sinkron dgn bbox di PdfInteractiveOverlay supaya Edit Mode tampilannya pas.
-  const SUBTITLE_PT = 11;
+  // Font size & format tanggal sekarang config-driven (bukan hardcoded 11pt /
+  // Full lagi) supaya bisa di-tune live dari PdfLayoutTuner.
+  const SUBTITLE_PT = cfg.subtitleFontSize ?? 11;
   const subtitleWidthPx = cfg.subtitleWidthPx ?? 285;
   const subtitleMaxW = subtitleWidthPx * SCALE;
-  const timelineText = data.timeline || "—";
+  const dateMode = cfg.dateDisplayMode ?? "Short";
+  // Pilih sumber teks: Short pakai `timelineShort` kalau ada (Calculator
+  // selalu provide), Full pakai `timeline` legacy. Fallback chain di-jaga
+  // supaya legacy data (cuma `timeline`) tetap render walau mode "Short".
+  const timelineText =
+    (dateMode === "Short" ? (data.timelineShort || data.timeline) : data.timeline) || "—";
   const subtitleLines = wrapAtSize(timelineText, projReg, SUBTITLE_PT, subtitleMaxW);
   // Line advance untuk subtitle: ratio 1.25× size. Cocok dgn bbox heightPx
   // ratio TEXT_HEIGHT_RATIO (1.61) di overlay → bbox tetap nge-cover semua line.

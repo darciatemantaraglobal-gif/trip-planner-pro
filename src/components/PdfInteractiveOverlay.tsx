@@ -176,14 +176,15 @@ function buildElements(
     // ── Header Timeline (subtitle tanggal di bawah Project Name) ──
     // Bbox dihitung sinkron dgn generateIghPdf: end-of-title = topPx + lines *
     // (size + lineGapPx). Subtitle Y = endOfTitle + mainHeaderGap + offsetY.
-    // X = projectName.xPx + offsetX. Subtitle size hardcoded 11 di generator.
+    // X = projectName.xPx + offsetX. Subtitle size = layout.subtitleFontSize
+    // (default 11pt) — sinkron 1:1 dgn generator.
     // Lebar = layout.subtitleWidthPx (default 285) → kalau user kasih nilai
     // lebih besar via Tuner, bbox biru ikut melebar. Kalau timeline kepanjangan
     // setelah lebar maksimal pun, di-wrap multi-line di generator → bbox tinggi
     // disesuaikan jumlah baris yg sebenernya akan dirender.
     // Bbox ini draggable independen dari projectName (handler di applyTranslate
     // cuma update headerSubtitleOffset, gak nyentuh projectName.topPx).
-    const subtitleSize = 11;
+    const subtitleSize = layout.subtitleFontSize ?? 11;
     const endOfTitlePx = layout.projectName.topPx + lines * lineAdvance;
     const subtitleGapPx = layout.mainHeaderGap ?? layout.headerSubtitleGap ?? 6;
     const subtitleXOffPx = layout.headerSubtitleOffset?.xPx ?? 0;
