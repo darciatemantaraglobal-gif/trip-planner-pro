@@ -52,6 +52,49 @@
 
   <body>
     <div id="root"></div>
+
+    <noscript>
+      <div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:480px;margin:80px auto;padding:24px;text-align:center;color:#3b1f0d">
+        <h1 style="font-size:1.25rem;margin-bottom:8px">JavaScript dimatikan</h1>
+        <p style="font-size:0.875rem;color:#7c4a1f">Aplikasi ini butuh JavaScript untuk jalan. Silakan aktifkan di pengaturan browser.</p>
+      </div>
+    </noscript>
+
+    <script>
+      (function () {
+        var BOOT_TIMEOUT_MS = 10000;
+        var t = setTimeout(function () {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML =
+            '<div style="font-family:-apple-system,\'Segoe UI\',sans-serif;max-width:520px;margin:80px auto;padding:24px;text-align:center;color:#3b1f0d">' +
+              '<h1 style="font-size:1.25rem;margin-bottom:8px;font-weight:700">Aplikasi gagal dimuat</h1>' +
+              '<p style="font-size:0.875rem;color:#7c4a1f;line-height:1.5;margin-bottom:16px">Konfigurasi server mungkin belum lengkap atau ada cache lama. Coba langkah berikut:</p>' +
+              '<ol style="font-size:0.875rem;color:#7c4a1f;text-align:left;line-height:1.6;margin:0 0 20px 24px">' +
+                '<li>Tutup tab ini, lalu buka ulang.</li>' +
+                '<li>Kalau masih putih, tekan tombol di bawah untuk bersih cache.</li>' +
+              '</ol>' +
+              '<button id="igh-reset-btn" style="background:#f97316;color:white;border:none;padding:12px 20px;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.875rem">Bersihkan & muat ulang</button>' +
+            '</div>';
+          var btn = document.getElementById('igh-reset-btn');
+          if (btn) btn.addEventListener('click', function () {
+            try {
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (regs) {
+                  regs.forEach(function (r) { r.unregister(); });
+                });
+              }
+              if (window.caches && caches.keys) {
+                caches.keys().then(function (keys) { keys.forEach(function (k) { caches.delete(k); }); });
+              }
+            } catch (e) {}
+            setTimeout(function () { location.reload(); }, 400);
+          });
+        }, BOOT_TIMEOUT_MS);
+        window.addEventListener('igh:booted', function () { clearTimeout(t); });
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
