@@ -13,7 +13,9 @@
  * ke /packages/[id] tanpa input ulang, dan tetap muncul instan saat refresh
  * (dari localStorage) sambil background-sync dari cloud.
  */
+import { useSyncExternalStore } from "react";
 import { pushPackageCalc } from "./cloudSync";
+import { isSupabaseConfigured } from "./supabase";
 
 /** localStorage key — versioned biar kalau struktur breaking change bisa
  *  bump versi tanpa nge-corrupt cache lama. Dipertahankan dari implementasi
@@ -64,13 +66,79 @@ export function savePackageCalcLocal(packageId: string, value: unknown): void {
 
 /** Write-through: localStorage (instan) + cloud push (best-effort,
  *  fire-and-forget). Cloud failure di-log tapi gak nge-throw — UX tetap
- *  smooth, data udah aman di cache lokal. */
+ *  smooth, data udah aman di cache lokal.
+ *
+ *  Side-effect: update `PackageCalcSyncStatus` per packageId selama proses
+ *  push. UI komponen yang subscribe via `usePackageCalcSyncStatus(id)`
+ *  bakal re-render otomatis (idle → syncing → synced/local-only). */
 export function savePackageCalc(packageId: string, value: unknown): void {
   savePackageCalcLocal(packageId, value);
-  void pushPackageCalc(packageId, value).catch((err) => {
-    console.warn(
-      `[packageCalc] cloud push gagal utk packageId=${packageId}:`,
-      err,
-    );
-  });
+  // Supabase belum siap (env var kosong / user belum login) → cuma local cache.
+  // Tetap dianggep sukses dari sisi UX, tapi badge di-set "local-only".
+  if (!isSupabaseConfigured()) {
+    setPackageCalcSyncStatus(packageId, "local-only");
+    return;
+  }
+  setPackageCalcSyncStatus(packageId, "syncing");
+  void pushPackageCalc(packageId, value)
+    .then(() => setPackageCalcSyncStatus(packageId, "synced"))
+    .catch((err) => {
+      console.warn(
+        `[packageCalc] cloud push gagal utk packageId=${packageId}:`,
+        err,
+      );
+      setPackageCalcSyncStatus(packageId, "local-only");
+    });
+}
+
+// ── Sync Status Store ──────────────────────────────────────────────────────
+// In-memory pub/sub buat track status sinkronisasi cloud per packageId.
+// Dipake utk render badge "Tersinkron / Local saja / Menyinkronkan…" di UI
+// tanpa harus polling atau buka DevTools. Re-render via `useSyncExternalStore`.
+
+/** Status sinkronisasi terakhir utk satu packageId.
+ *  - `idle`        → belum ada save/pull aktivitas (initial state, abu-abu)
+ *  - `syncing`     → push ke cloud lagi in-flight (amber, animated)
+ *  - `synced`      → save terakhir berhasil sampe cloud (hijau)
+ *  - `local-only`  → save terakhir cuma ke localStorage (Supabase off /
+ *                    push gagal — abu-abu tua, butuh perhatian) */
+export type PackageCalcSyncStatus = "idle" | "syncing" | "synced" | "local-only";
+
+const statusByPackage = new Map<string, PackageCalcSyncStatus>();
+const statusListeners = new Set<() => void>();
+
+export function setPackageCalcSyncStatus(
+  packageId: string,
+  status: PackageCalcSyncStatus,
+): void {
+  statusByPackage.set(packageId, status);
+  for (const l of statusListeners) l();
+}
+
+export function getPackageCalcSyncStatus(
+  packageId: string | undefined,
+): PackageCalcSyncStatus {
+  if (!packageId) return "idle";
+  return statusByPackage.get(packageId) ?? "idle";
+}
+
+function subscribePackageCalcSyncStatus(listener: () => void): () => void {
+  statusListeners.add(listener);
+  return () => {
+    statusListeners.delete(listener);
+  };
+}
+
+/** React hook utk subscribe status sinkronisasi cloud satu packageId.
+ *  Re-render otomatis tiap kali `setPackageCalcSyncStatus(packageId, …)`
+ *  dipanggil (dari savePackageCalc atau caller external seperti
+ *  PackageDetail pull effect). SSR-safe (return "idle" di server snapshot). */
+export function usePackageCalcSyncStatus(
+  packageId: string | undefined,
+): PackageCalcSyncStatus {
+  return useSyncExternalStore(
+    subscribePackageCalcSyncStatus,
+    () => getPackageCalcSyncStatus(packageId),
+    () => "idle",
+  );
 }

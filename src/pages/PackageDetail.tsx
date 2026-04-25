@@ -32,7 +32,14 @@ import { useJamaahStore, type Jamaah } from "@/store/tripsStore";
 import { useRegional } from "@/lib/regional";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { pullPackageCalc } from "@/lib/cloudSync";
-import { savePackageCalc, loadPackageCalcRaw } from "@/lib/packageCalcStorage";
+import {
+  savePackageCalc,
+  loadPackageCalcRaw,
+  setPackageCalcSyncStatus,
+  usePackageCalcSyncStatus,
+  type PackageCalcSyncStatus,
+} from "@/lib/packageCalcStorage";
+import { Cloud, CloudOff, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { buildGoogleCalendarUrl, downloadICS } from "@/lib/calendarExport";
 import { CalendarPlus, Download, ExternalLink } from "lucide-react";
@@ -571,6 +578,63 @@ function JamaahMiniCard({ jamaah, onDelete }: { jamaah: Jamaah; onDelete: (jamaa
   );
 }
 
+// ── Sync Status Badge ─────────────────────────────────────────────────────────
+// Pill kecil di header buat kasih tau user status sinkronisasi data kalkulator
+// ke cloud. 4 state visual:
+//   - synced     → hijau, icon Cloud           ("Tersinkron")
+//   - syncing    → amber, Loader2 animated     ("Menyinkronkan…")
+//   - local-only → slate, icon CloudOff        ("Hanya lokal")
+//   - idle       → slate-300, icon Cloud muted ("Belum disimpan")
+// Subscribe ke status via `usePackageCalcSyncStatus(packageId)`. Status
+// di-update otomatis tiap kali `savePackageCalc` jalan atau pull cloud sukses.
+
+const SYNC_STATUS_COPY: Record<
+  PackageCalcSyncStatus,
+  { label: string; title: string; classes: string; icon: typeof Cloud; spin?: boolean }
+> = {
+  synced: {
+    label: "Tersinkron",
+    title: "Data kalkulator udah aman di cloud",
+    classes: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    icon: Cloud,
+  },
+  syncing: {
+    label: "Menyinkronkan…",
+    title: "Lagi push ke cloud",
+    classes: "bg-amber-50 text-amber-700 border-amber-200",
+    icon: Loader2,
+    spin: true,
+  },
+  "local-only": {
+    label: "Hanya lokal",
+    title: "Data cuma kesimpan di browser ini — cloud sync gagal/belum aktif",
+    classes: "bg-slate-100 text-slate-600 border-slate-200",
+    icon: CloudOff,
+  },
+  idle: {
+    label: "Belum disimpan",
+    title: "Belum ada perubahan yang di-sync",
+    classes: "bg-slate-50 text-slate-500 border-slate-200",
+    icon: Cloud,
+  },
+};
+
+function SyncStatusBadge({ packageId }: { packageId: string | undefined }) {
+  const status = usePackageCalcSyncStatus(packageId);
+  const cfg = SYNC_STATUS_COPY[status];
+  const Icon = cfg.icon;
+  return (
+    <span
+      title={cfg.title}
+      data-testid={`sync-badge-${status}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9.5px] md:text-[10px] font-semibold leading-none ${cfg.classes}`}
+    >
+      <Icon className={`h-2.5 w-2.5 md:h-3 md:w-3 ${cfg.spin ? "animate-spin" : ""}`} />
+      <span className="hidden sm:inline">{cfg.label}</span>
+    </span>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function PackageDetail() {
@@ -612,7 +676,12 @@ export default function PackageDetail() {
     setCalc(loadPackageCalc(id, fallback));
     if (isSupabaseConfigured()) {
       void pullPackageCalc(id).then((cloud) => {
-        if (!cloud) return;
+        if (!cloud) {
+          // Belum ada row di cloud (paket baru, atau pull error udah di-log
+          // di pullPackageCalc). Biarin status tetep "idle" — bakal jadi
+          // "synced" otomatis abis user save pertama kali.
+          return;
+        }
         // Validasi shape sebelum di-merge ke state. Cloud bisa balikin
         // payload aneh (object kosong, array, primitive) kalau ada bug
         // di sisi penulis — lebih baik log + skip drpd nge-corrupt UI.
@@ -625,7 +694,13 @@ export default function PackageDetail() {
           return;
         }
         setCalc({ ...fallback, ...(cloud as Partial<ProfessionalCalcState>) });
+        // Cloud berhasil di-pull & shape-nya valid → tandain "synced" supaya
+        // badge di header langsung nyala hijau pas pertama buka halaman.
+        setPackageCalcSyncStatus(id, "synced");
       });
+    } else {
+      // Supabase belum di-config → kasih tau badge bahwa data cuma di local.
+      setPackageCalcSyncStatus(id, "local-only");
     }
   }, [id, pkg?.id]);
 
@@ -796,6 +871,7 @@ export default function PackageDetail() {
               )}
             </h1>
             <Badge className={`${statusVariant[pkg.status]} border-0 text-[10px] px-1.5 py-0.5`}>{pkg.status}</Badge>
+            <SyncStatusBadge packageId={id} />
           </div>
           <div className="mt-0.5 flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3 md:h-3.5 md:w-3.5" />{pkg.destination}</span>
