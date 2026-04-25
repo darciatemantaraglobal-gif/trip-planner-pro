@@ -8,6 +8,7 @@ import { compressIfImage } from "./imageCompress";
 
 const PHOTO_BUCKET = "jamaah-photos";
 const DOC_BUCKET = "jamaah-docs";
+const PDF_TEMPLATE_BUCKET = "pdf-templates";
 
 function dataUrlToBlob(dataUrl: string): { blob: Blob; contentType: string } | null {
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
@@ -108,4 +109,44 @@ export async function uploadJamaahDoc(
 /** Cek string adalah base64 data URL. */
 export function isDataUrl(s: string | undefined | null): boolean {
   return typeof s === "string" && s.startsWith("data:");
+}
+
+/** Upload file template PDF (background) ke bucket `pdf-templates`, agency-scoped.
+ *  Return public URL + storage path. Path format: `{agency_id}/{mode}_{timestamp}.{ext}`.
+ *  Mode dipake biar private vs group ga overwrite satu sama lain. */
+export async function uploadPdfTemplate(
+  file: File,
+  mode: "private" | "group",
+): Promise<{ url: string; path: string; type: "pdf" | "image" }> {
+  if (!isSupabaseConfigured()) throw new Error("Supabase belum dikonfigurasi");
+  const agencyId = requireAgencyId();
+  const ct = file.type || "application/octet-stream";
+  const isPdf = ct.includes("pdf") || /\.pdf$/i.test(file.name);
+  const isImage = ct.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name);
+  if (!isPdf && !isImage) {
+    throw new Error("Format file tidak didukung. Pakai PDF, PNG, atau JPG.");
+  }
+  const ext = isPdf ? "pdf" : extFromContentType(ct);
+  const path = `${agencyId}/${mode}_${Date.now()}.${ext}`;
+  // Compress kalau image; PDF di-upload as-is.
+  const payload: Blob = isImage ? await compressIfImage(file, ct) : file;
+  const finalContentType = isPdf ? "application/pdf" : (payload.type || ct);
+  const { error } = await supabase!.storage.from(PDF_TEMPLATE_BUCKET).upload(path, payload, {
+    upsert: true,
+    contentType: finalContentType,
+  });
+  if (error) {
+    console.error("[storage] upload pdf template failed", error);
+    throw new Error(`Upload gagal: ${error.message}`);
+  }
+  const { data } = supabase!.storage.from(PDF_TEMPLATE_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl, path, type: isPdf ? "pdf" : "image" };
+}
+
+/** Hapus file template PDF custom (cleanup saat reset/replace). Aman dipanggil
+ *  walau path udah gak ada (warning aja, ga throw). */
+export async function removePdfTemplate(storagePath: string): Promise<void> {
+  if (!isSupabaseConfigured() || !storagePath) return;
+  const { error } = await supabase!.storage.from(PDF_TEMPLATE_BUCKET).remove([storagePath]);
+  if (error) console.warn("[storage] cleanup pdf template failed", error, storagePath);
 }

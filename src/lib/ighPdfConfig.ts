@@ -143,6 +143,23 @@ export interface IghLayoutConfig {
     /** Override per section. Kalau null/undefined → pakai `family`. */
     overrides?: Partial<Record<IghSection, IghFontFamily>>;
   };
+  /** Custom background template — override file template default (private/group).
+   *  Bisa PDF (1 halaman, ukuran sama dgn template asli) atau gambar (PNG/JPG)
+   *  yang di-render full-bleed sebagai background page baru.
+   *  null/undefined = pakai template default IGH (`/igh-blank-template.pdf` atau
+   *  `/templates/IGH_Blank_Template_Group.pdf`). */
+  customTemplate?: {
+    /** Public URL ke file di Supabase Storage (`pdf-templates` bucket). */
+    url: string;
+    /** Tipe file — menentukan cara render di pdf-lib. */
+    type: "pdf" | "image";
+    /** Original filename buat ditampilin di UI. */
+    name: string;
+    /** Storage path buat cleanup saat di-replace/reset (`{agency_id}/{file}`). */
+    storagePath: string;
+    /** Timestamp upload (ms) buat ditampilin di UI. */
+    uploadedAt: number;
+  } | null;
   /** Footer kontak admin — IG handle sudah pre-printed di template,
    *  WA di-render programmatic (icon + nomor + clickable link annotation). */
   footer: {
@@ -371,5 +388,11 @@ export function mergeConfig(
         ...(override.fonts?.overrides ?? {}),
       },
     },
+    // customTemplate adalah object atomik — override penuh, bukan shallow merge
+    // (karena url/type/path saling tergantung). undefined = inherit dari base.
+    customTemplate:
+      "customTemplate" in (override as object)
+        ? (override as { customTemplate?: IghLayoutConfig["customTemplate"] }).customTemplate ?? null
+        : base.customTemplate ?? null,
   };
 }

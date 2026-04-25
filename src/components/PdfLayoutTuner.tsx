@@ -8,8 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bookmark, ClipboardCopy, Pencil, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { Bookmark, ClipboardCopy, FileImage, Loader2, Pencil, RotateCcw, Save, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { uploadPdfTemplate, removePdfTemplate } from "@/lib/supabaseStorage";
 import {
   BUILTIN_PRESET,
   DEFAULT_IGH_LAYOUT,
@@ -309,6 +310,57 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
     toast.message(`Reset ke default (${mode === "group" ? "Grup" : "Private"})`);
   }
 
+  // ── Custom Background Template ──────────────────────────────────────────
+  // State khusus buat upload progress, supaya tombol bisa di-disable + spinner
+  // muncul tanpa rebuild seluruh tuner.
+  const [tplBusy, setTplBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleTemplateUpload(file: File) {
+    if (tplBusy) return;
+    // Guard ukuran: 10MB cap supaya gak nge-block UI lama-lama. PDF/image
+    // background normalnya <2MB, jadi 10MB udah generous.
+    const MAX = 10 * 1024 * 1024;
+    if (file.size > MAX) {
+      toast.error(`File terlalu besar (max ${(MAX / 1024 / 1024).toFixed(0)}MB)`);
+      return;
+    }
+    setTplBusy(true);
+    const previousPath = local.customTemplate?.storagePath;
+    try {
+      const result = await uploadPdfTemplate(file, mode);
+      // Replace dulu di config — layout auto-save trigger live preview rebuild.
+      setLocal((prev) => ({
+        ...prev,
+        customTemplate: {
+          url: result.url,
+          type: result.type,
+          name: file.name,
+          storagePath: result.path,
+          uploadedAt: Date.now(),
+        },
+      }));
+      // Cleanup file lama setelah replace sukses (best-effort, gak block UI).
+      if (previousPath && previousPath !== result.path) {
+        void removePdfTemplate(previousPath);
+      }
+      toast.success(`Background di-upload: ${file.name}`);
+    } catch (e) {
+      toast.error(`Gagal upload: ${(e as Error).message}`);
+    } finally {
+      setTplBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleTemplateReset() {
+    if (tplBusy) return;
+    const previousPath = local.customTemplate?.storagePath;
+    setLocal((prev) => ({ ...prev, customTemplate: null }));
+    if (previousPath) void removePdfTemplate(previousPath);
+    toast.message("Background dikembalikan ke template IGH default");
+  }
+
   return (
     <div className="w-72 shrink-0 border-l border-[hsl(var(--border))] bg-slate-50/80 backdrop-blur-sm flex flex-col">
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] flex items-center justify-between bg-white">
@@ -387,6 +439,69 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
           <p className="text-[9px] text-slate-500 leading-snug">
             ★ <span className="font-semibold">{BUILTIN_PRESET.name}</span> selalu ada sebagai
             safety-net. Preset lain tersimpan di cloud per-agency dan auto-sync antar device.
+          </p>
+        </section>
+
+        {/* BACKGROUND TEMPLATE (custom upload) */}
+        <section className="space-y-2 rounded-lg border border-sky-200 bg-sky-50/50 p-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-wide text-sky-700 flex items-center gap-1">
+            <FileImage className="h-3 w-3" />
+            Background Template
+          </h4>
+          {local.customTemplate ? (
+            <div className="rounded-md bg-white border border-sky-200 px-2 py-1.5 space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="inline-flex items-center justify-center h-4 px-1.5 rounded bg-sky-100 text-sky-700 font-bold text-[9px] uppercase">
+                  {local.customTemplate.type}
+                </span>
+                <span className="font-mono text-slate-700 truncate" title={local.customTemplate.name}>
+                  {local.customTemplate.name}
+                </span>
+              </div>
+              <div className="text-[9px] text-slate-400">
+                Diupload {new Date(local.customTemplate.uploadedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md bg-white/60 border border-dashed border-sky-200 px-2 py-1.5 text-[10px] text-slate-500 italic">
+              Pakai template default IGH
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleTemplateUpload(f);
+            }}
+          />
+          <div className="flex gap-1">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={tplBusy}
+              title="Upload PDF atau gambar (PNG/JPG) sebagai background"
+              className="flex-1 h-7 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-white bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {tplBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+              {local.customTemplate ? "Ganti" : "Upload"}
+            </button>
+            <button
+              onClick={handleTemplateReset}
+              disabled={!local.customTemplate || tplBusy}
+              title="Kembalikan ke template default IGH"
+              className="h-7 px-2 inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </button>
+          </div>
+          <p className="text-[9px] text-slate-500 leading-snug">
+            Upload <span className="font-semibold">PDF</span> (1 halaman, ukuran A5) atau{" "}
+            <span className="font-semibold">PNG/JPG</span> sebagai background. Tersimpan per-agency
+            di cloud untuk mode <span className="font-semibold">{mode === "group" ? "Grup" : "Private"}</span>.
+            Save preset di atas kalau mau dipake antar device.
           </p>
         </section>
 

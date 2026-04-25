@@ -207,9 +207,56 @@ function pick(override: string | undefined, fallback: string): string {
 export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutConfig>): Promise<Uint8Array> {
   const cfg = mergeConfig(DEFAULT_IGH_LAYOUT, layout);
   const isGroup = data.mode === "group";
-  const tplBytes = await fetchBytesCached(isGroup ? TEMPLATE_GROUP_URL : TEMPLATE_URL);
+  const defaultTplUrl = isGroup ? TEMPLATE_GROUP_URL : TEMPLATE_URL;
 
-  const pdf = await PDFDocument.load(tplBytes);
+  // Custom background template logic:
+  //   - PDF custom → load file itu sebagai base PDF (sama treatment kayak default)
+  //   - Image custom → bikin PDF baru ukuran A5 (PAGE_W × PAGE_H), embed image
+  //     full-bleed sebagai background, lalu generator naro teks di atasnya
+  //   - null/undefined → pakai template default IGH (`/igh-blank-template*.pdf`)
+  // Failure di custom URL (404, network, parse error) → auto-fallback ke default
+  // supaya generator gak crash kalo file di Storage hilang/corrupt.
+  const customTpl = cfg.customTemplate;
+  let pdf: PDFDocument;
+  if (customTpl?.type === "pdf") {
+    try {
+      const bytes = await fetchBytes(customTpl.url);
+      pdf = await PDFDocument.load(bytes);
+    } catch (e) {
+      console.warn("[pdf] custom template PDF gagal di-load, fallback ke default", e);
+      pdf = await PDFDocument.load(await fetchBytesCached(defaultTplUrl));
+    }
+  } else if (customTpl?.type === "image") {
+    pdf = await PDFDocument.create();
+    const page = pdf.addPage([PAGE_W, PAGE_H]);
+    try {
+      const bytes = await fetchBytes(customTpl.url);
+      const isPng = /\.png(\?|$)/i.test(customTpl.url) || /image\/png/i.test(customTpl.name);
+      const img = isPng ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+      // Cover-fit: scale image biar nutup full page (mungkin crop sedikit) — sama
+      // kayak background-size: cover di CSS. Jaga aspect ratio.
+      const ir = img.width / img.height;
+      const pr = PAGE_W / PAGE_H;
+      let drawW: number, drawH: number;
+      if (ir > pr) {
+        drawH = PAGE_H;
+        drawW = drawH * ir;
+      } else {
+        drawW = PAGE_W;
+        drawH = drawW / ir;
+      }
+      page.drawImage(img, {
+        x: (PAGE_W - drawW) / 2,
+        y: (PAGE_H - drawH) / 2,
+        width: drawW,
+        height: drawH,
+      });
+    } catch (e) {
+      console.warn("[pdf] custom template gambar gagal di-load, page kosong sebagai background", e);
+    }
+  } else {
+    pdf = await PDFDocument.load(await fetchBytesCached(defaultTplUrl));
+  }
   pdf.registerFontkit(fontkit);
 
   const usedFamilies = new Set<IghFontFamily>([cfg.fonts.family]);
