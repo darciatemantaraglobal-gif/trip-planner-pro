@@ -64,8 +64,13 @@ export interface IghLayoutConfig {
     customerXPx: number;
     /** X tanggal */
     dateXPx: number;
-    /** Y untuk kedua field (sejajar) */
+    /** Y default untuk kedua field (legacy single-Y). Dipakai sebagai fallback
+     *  kalau `customerYPx` / `dateYPx` belum di-set. */
     topPx: number;
+    /** Y independen untuk Invoice/Customer. Undefined = pakai `topPx`. */
+    customerYPx?: number;
+    /** Y independen untuk Date. Undefined = pakai `topPx`. */
+    dateYPx?: number;
     /** Font size */
     size: number;
     /** Override teks */

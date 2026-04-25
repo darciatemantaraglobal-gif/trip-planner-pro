@@ -114,7 +114,8 @@ function projectNameLineCount(text: string, baseSize: number): number {
 
 type ElementKey =
   | "projectName"
-  | "metaInfo"
+  | "metaInfoCustomer"
+  | "metaInfoDate"
   | "hotelMakkah"
   | "hotelMadinah"
   | "pricing"
@@ -160,18 +161,30 @@ function buildElements(
     });
   }
 
-  // ── Meta Info (customer + date, sejajar) ──
+  // ── Meta Info — split jadi 2 bounding box terpisah (Date & Client) ──
+  // Tiap elemen punya X & Y mandiri (customerXPx/customerYPx vs dateXPx/dateYPx)
+  // sehingga bisa di-drag independen tanpa saling nimpa. Lebar visual = budget
+  // maxWidthPx=175 di generator (drawText).
   {
     const s = layout.metaInfo.size;
-    const left = Math.min(layout.metaInfo.customerXPx, layout.metaInfo.dateXPx);
-    const right = Math.max(layout.metaInfo.customerXPx, layout.metaInfo.dateXPx);
-    // Tiap kolom ada budget maxWidthPx=175 di drawText.
+    const META_W = 175;
+    const customerY = layout.metaInfo.customerYPx ?? layout.metaInfo.topPx;
+    const dateY = layout.metaInfo.dateYPx ?? layout.metaInfo.topPx;
     els.push({
-      key: "metaInfo",
-      label: "Meta Info",
-      xPx: left,
-      yPx: textBoxY(layout.metaInfo.topPx, s),
-      widthPx: right - left + 175,
+      key: "metaInfoDate",
+      label: "Date",
+      xPx: layout.metaInfo.dateXPx,
+      yPx: textBoxY(dateY, s),
+      widthPx: META_W,
+      heightPx: textBoxH(s),
+      size: s,
+    });
+    els.push({
+      key: "metaInfoCustomer",
+      label: "Invoice to",
+      xPx: layout.metaInfo.customerXPx,
+      yPx: textBoxY(customerY, s),
+      widthPx: META_W,
       heightPx: textBoxH(s),
       size: s,
     });
@@ -285,14 +298,27 @@ function applyTranslate(
         topPx: layout.projectName.topPx + dyPx,
       };
       break;
-    case "metaInfo":
+    case "metaInfoCustomer": {
+      // Resolve current Y untuk customer (fallback ke legacy topPx supaya
+      // preset lama yg belum punya customerYPx tetap geser dari posisi visual
+      // yg user lihat sekarang, bukan dari 0).
+      const curY = layout.metaInfo.customerYPx ?? layout.metaInfo.topPx;
       next.metaInfo = {
         ...layout.metaInfo,
         customerXPx: layout.metaInfo.customerXPx + dxPx,
-        dateXPx: layout.metaInfo.dateXPx + dxPx,
-        topPx: layout.metaInfo.topPx + dyPx,
+        customerYPx: curY + dyPx,
       };
       break;
+    }
+    case "metaInfoDate": {
+      const curY = layout.metaInfo.dateYPx ?? layout.metaInfo.topPx;
+      next.metaInfo = {
+        ...layout.metaInfo,
+        dateXPx: layout.metaInfo.dateXPx + dxPx,
+        dateYPx: curY + dyPx,
+      };
+      break;
+    }
     case "hotelMakkah":
       next.hotel = {
         ...layout.hotel,
@@ -349,7 +375,9 @@ function applyResize(
     case "projectName":
       next.projectName = { ...layout.projectName, size: clamped };
       break;
-    case "metaInfo":
+    case "metaInfoCustomer":
+    case "metaInfoDate":
+      // Font size shared utk konsistensi visual antara Date & Invoice.
       next.metaInfo = { ...layout.metaInfo, size: clamped };
       break;
     case "hotelMakkah":
@@ -412,7 +440,7 @@ const SNAP_THRESHOLD_TPL = 3; // template-px (~1.5 CSS-px di display ratio 0.5)
 
 /** Element keys yang berbasis teks (punya baseline yang bermakna untuk align). */
 const TEXT_KEYS: ReadonlySet<ElementKey> = new Set<ElementKey>([
-  "projectName", "metaInfo", "hotelMakkah", "hotelMadinah", "checklist",
+  "projectName", "metaInfoCustomer", "metaInfoDate", "hotelMakkah", "hotelMadinah", "checklist",
 ]);
 
 /** Hitung baseline-Y (template-px) elemen text dari cap-top (yPx).

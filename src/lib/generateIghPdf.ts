@@ -378,13 +378,18 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   });
 
   // ── 2. HEADER META (Invoice to & Date) ──
+  // Date dan Invoice punya Y independen (customerYPx / dateYPx). Kalau belum
+  // di-set di preset (legacy), fallback ke `topPx` supaya tampilan lama gak
+  // berubah.
   const metaReg = fontFor("metaInfo", "regular");
+  const customerY = cfg.metaInfo.customerYPx ?? cfg.metaInfo.topPx;
+  const dateY = cfg.metaInfo.dateYPx ?? cfg.metaInfo.topPx;
   drawText(page, pick(cfg.metaInfo.customerText, data.customerName || "—"), {
-    leftPx: cfg.metaInfo.customerXPx, topPx: cfg.metaInfo.topPx, size: cfg.metaInfo.size,
+    leftPx: cfg.metaInfo.customerXPx, topPx: customerY, size: cfg.metaInfo.size,
     font: metaReg, color: ORANGE, maxWidthPx: 175,
   });
   drawText(page, pick(cfg.metaInfo.dateText, data.date || "—"), {
-    leftPx: cfg.metaInfo.dateXPx, topPx: cfg.metaInfo.topPx, size: cfg.metaInfo.size,
+    leftPx: cfg.metaInfo.dateXPx, topPx: dateY, size: cfg.metaInfo.size,
     font: metaReg, color: ORANGE, maxWidthPx: 175,
   });
 

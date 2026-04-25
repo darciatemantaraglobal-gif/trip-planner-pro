@@ -681,43 +681,66 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
           />
         </section>
 
-        {/* META INFO */}
-        <section className="space-y-2">
+        {/* META INFO — split jadi 2 sub-section: Date & Client.
+            Tiap sub-section punya X & Y mandiri biar bisa di-tune independen
+            tanpa saling ngedorong. Font size shared utk konsistensi visual. */}
+        <section className="space-y-3">
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            Meta Info (Invoice / Date)
+            Meta Info (Date & Invoice to)
           </h4>
-          <TextRow
-            label="Invoice to (override)"
-            value={local.metaInfo.customerText ?? ""}
-            placeholder="Kosong = pakai nama customer"
-            onChange={(v) => patch("metaInfo", { customerText: v })}
-          />
-          <TextRow
-            label="Date (override)"
-            value={local.metaInfo.dateText ?? ""}
-            placeholder="Kosong = pakai tanggal"
-            onChange={(v) => patch("metaInfo", { dateText: v })}
-          />
+
+          {/* ── DATE SECTION ── */}
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              Date Section
+            </div>
+            <TextRow
+              label="Date (override)"
+              value={local.metaInfo.dateText ?? ""}
+              placeholder="Kosong = pakai tanggal"
+              onChange={(v) => patch("metaInfo", { dateText: v })}
+            />
+            <SliderRow
+              label="X Date"
+              value={local.metaInfo.dateXPx}
+              min={40} max={700} step={1} unit="px"
+              onChange={(v) => patch("metaInfo", { dateXPx: v })}
+            />
+            <SliderRow
+              label="Y Date"
+              value={local.metaInfo.dateYPx ?? local.metaInfo.topPx}
+              min={235} max={310} step={1} unit="px"
+              onChange={(v) => patch("metaInfo", { dateYPx: v })}
+            />
+          </div>
+
+          {/* ── CLIENT SECTION ── */}
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              Client Section
+            </div>
+            <TextRow
+              label="Invoice to (override)"
+              value={local.metaInfo.customerText ?? ""}
+              placeholder="Kosong = pakai nama customer"
+              onChange={(v) => patch("metaInfo", { customerText: v })}
+            />
+            <SliderRow
+              label="X Invoice"
+              value={local.metaInfo.customerXPx}
+              min={40} max={700} step={1} unit="px"
+              onChange={(v) => patch("metaInfo", { customerXPx: v })}
+            />
+            <SliderRow
+              label="Y Invoice"
+              value={local.metaInfo.customerYPx ?? local.metaInfo.topPx}
+              min={235} max={310} step={1} unit="px"
+              onChange={(v) => patch("metaInfo", { customerYPx: v })}
+            />
+          </div>
+
           <SliderRow
-            label="X Invoice"
-            value={local.metaInfo.customerXPx}
-            min={280} max={520} step={1} unit="px"
-            onChange={(v) => patch("metaInfo", { customerXPx: v })}
-          />
-          <SliderRow
-            label="X Date"
-            value={local.metaInfo.dateXPx}
-            min={460} max={700} step={1} unit="px"
-            onChange={(v) => patch("metaInfo", { dateXPx: v })}
-          />
-          <SliderRow
-            label="Y Position"
-            value={local.metaInfo.topPx}
-            min={235} max={290} step={1} unit="px"
-            onChange={(v) => patch("metaInfo", { topPx: v })}
-          />
-          <SliderRow
-            label="Font Size"
+            label="Font Size (shared)"
             value={local.metaInfo.size}
             min={9} max={18} step={0.5} unit="pt"
             onChange={(v) => patch("metaInfo", { size: v })}
