@@ -28,7 +28,11 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       injectRegister: "script-defer",
       devOptions: {
-        enabled: true,
+        // ⚠️ MATIKAN service worker di dev. SW caching bundle Vite yang
+        // hash-nya berubah tiap HMR/restart → white-screen karena chunk lama
+        // di-serve untuk module yg udah berubah export-nya. SW prod tetap
+        // jalan (lihat workbox config di bawah) buat offline support.
+        enabled: false,
         type: "module",
         navigateFallback: "index.html",
       },
