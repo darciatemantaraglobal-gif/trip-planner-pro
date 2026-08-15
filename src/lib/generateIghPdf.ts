@@ -69,8 +69,12 @@ export interface IghPdfData {
   date: string;
   hotelMakkah: string;
   makkahNights: number;
+  /** Label header kustom untuk Hotel 1 (mis. "HOTEL KAIRO" / "HOTEL 1") */
+  hotelMakkahHeader?: string;
   hotelMadinah: string;
   madinahNights: number;
+  /** Label header kustom untuk Hotel 2 (mis. "HOTEL ALEXANDRIA" / "HOTEL 2") */
+  hotelMadinahHeader?: string;
   pax: number;
   pricePerPaxIDR: number;
   kursIdrPerUsd?: number;
@@ -541,6 +545,34 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   const madinahColWidthPx = TPL_W_PX - cfg.hotel.madinahXPx - RIGHT_MARGIN_PX;
   const makkahHotelText = pick(cfg.hotel.makkahText, data.hotelMakkah);
   const madinahHotelText = pick(cfg.hotel.madinahText, data.hotelMadinah);
+
+  const makkahHeader = cfg.hotel.makkahHeader || data.hotelMakkahHeader;
+  const madinahHeader = cfg.hotel.madinahHeader || data.hotelMadinahHeader;
+
+  // Custom header Hotel 1
+  if (makkahHeader && makkahHeader.toUpperCase() !== "HOTEL MAKKAH") {
+    const rect = pxRect(cfg.hotel.makkahXPx - 2, cfg.hotel.topPx - 24, 180, 18);
+    page.drawRectangle({ ...rect, color: WHITE });
+    drawText(page, makkahHeader.toUpperCase(), {
+      leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx - 23, size: 8.5,
+      font: hotelBold, color: GREY_MUTED, maxWidthPx: makkahColWidthPx,
+    });
+  }
+
+  // Custom header Hotel 2 (atau cover jika kosong)
+  if (madinahHeader && madinahHeader.toUpperCase() !== "HOTEL MADINAH") {
+    const rect = pxRect(cfg.hotel.madinahXPx - 2, cfg.hotel.topPx - 24, 180, 18);
+    page.drawRectangle({ ...rect, color: WHITE });
+    if (madinahHotelText && madinahHotelText !== "—") {
+      drawText(page, madinahHeader.toUpperCase(), {
+        leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx - 23, size: 8.5,
+        font: hotelBold, color: GREY_MUTED, maxWidthPx: madinahColWidthPx,
+      });
+    }
+  } else if (!madinahHotelText || madinahHotelText === "—") {
+    const rect = pxRect(cfg.hotel.madinahXPx - 2, cfg.hotel.topPx - 24, 180, 18);
+    page.drawRectangle({ ...rect, color: WHITE });
+  }
 
   if (makkahHotelText && makkahHotelText !== "—") {
     drawText(page, makkahHotelText, {

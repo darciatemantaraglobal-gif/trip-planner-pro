@@ -101,6 +101,9 @@ export interface IghLayoutConfig {
     /** Override teks */
     makkahText?: string;
     madinahText?: string;
+    /** Override label header (misal: "HOTEL KAIRO" / "HOTEL 1") */
+    makkahHeader?: string;
+    madinahHeader?: string;
   };
   pricing: {
     /** X kotak Pax */

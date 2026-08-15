@@ -946,6 +946,13 @@ export default function Calculator() {
       ? (calc.madinahNightsOverride || 0)
       : (typeof calc.madinahNightsOverride === "number" && calc.madinahNightsOverride > 0 ? calc.madinahNightsOverride : (madinahHotel?.days || 0));
 
+    const hotelMakkahHeader = isUmum
+      ? (calc.hotelMakkahName ? `HOTEL ${calc.hotelMakkahName.toUpperCase()}` : (calc.destination ? `HOTEL ${calc.destination.toUpperCase().slice(0, 15)}` : "HOTEL 1"))
+      : undefined;
+    const hotelMadinahHeader = isUmum
+      ? (calc.hotelMadinahName ? `HOTEL ${calc.hotelMadinahName.toUpperCase()}` : (hotelMadinah ? "HOTEL 2" : undefined))
+      : undefined;
+
     return {
       projectName:
         calc.title?.trim() ||
@@ -959,8 +966,10 @@ export default function Calculator() {
       date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }),
       hotelMakkah,
       makkahNights,
+      hotelMakkahHeader,
       hotelMadinah,
       madinahNights,
+      hotelMadinahHeader,
       pax: calc.pax || 0,
       pricePerPaxIDR: quote?.perPaxFinal ?? 0,
       kursIdrPerUsd: effectiveRates.USD,

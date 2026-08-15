@@ -943,16 +943,28 @@ export function PdfLayoutTuner({ config, mode = "private", onChange, onClose }: 
         {/* HOTEL */}
         <section className="space-y-2">
           <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            Hotel (Makkah / Madinah)
+            Hotel & Akomodasi
           </h4>
           <TextRow
-            label="Hotel Makkah (override)"
+            label="Header Hotel 1"
+            value={local.hotel.makkahHeader ?? ""}
+            placeholder="Default: HOTEL MAKKAH (cth: HOTEL KAIRO / HOTEL 1)"
+            onChange={(v) => patch("hotel", { makkahHeader: v })}
+          />
+          <TextRow
+            label="Nama Hotel 1 (override)"
             value={local.hotel.makkahText ?? ""}
             placeholder="Kosong = pakai data"
             onChange={(v) => patch("hotel", { makkahText: v })}
           />
           <TextRow
-            label="Hotel Madinah (override)"
+            label="Header Hotel 2"
+            value={local.hotel.madinahHeader ?? ""}
+            placeholder="Default: HOTEL MADINAH (cth: HOTEL ALEXANDRIA / HOTEL 2)"
+            onChange={(v) => patch("hotel", { madinahHeader: v })}
+          />
+          <TextRow
+            label="Nama Hotel 2 (override)"
             value={local.hotel.madinahText ?? ""}
             placeholder="Kosong = pakai data"
             onChange={(v) => patch("hotel", { madinahText: v })}
