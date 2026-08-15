@@ -539,20 +539,32 @@ export async function buildIghPdf(data: IghPdfData, layout?: Partial<IghLayoutCo
   const COLUMN_GAP_PX = 30;
   const makkahColWidthPx = cfg.hotel.madinahXPx - cfg.hotel.makkahXPx - COLUMN_GAP_PX;
   const madinahColWidthPx = TPL_W_PX - cfg.hotel.madinahXPx - RIGHT_MARGIN_PX;
-  drawText(page, pick(cfg.hotel.makkahText, data.hotelMakkah || "—"), {
-    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
-    font: hotelBold, color: ORANGE, maxWidthPx: makkahColWidthPx,
-  });
-  drawText(page, `${Math.max(0, data.makkahNights || 0)} Malam`, {
-    leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: subtitleSize, font: hotelReg, color: DARK,
-  });
-  drawText(page, pick(cfg.hotel.madinahText, data.hotelMadinah || "—"), {
-    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
-    font: hotelBold, color: ORANGE, maxWidthPx: madinahColWidthPx,
-  });
-  drawText(page, `${Math.max(0, data.madinahNights || 0)} Malam`, {
-    leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: subtitleSize, font: hotelReg, color: DARK,
-  });
+  const makkahHotelText = pick(cfg.hotel.makkahText, data.hotelMakkah);
+  const madinahHotelText = pick(cfg.hotel.madinahText, data.hotelMadinah);
+
+  if (makkahHotelText && makkahHotelText !== "—") {
+    drawText(page, makkahHotelText, {
+      leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
+      font: hotelBold, color: ORANGE, maxWidthPx: makkahColWidthPx,
+    });
+    if ((data.makkahNights || 0) > 0) {
+      drawText(page, `${data.makkahNights} Malam`, {
+        leftPx: cfg.hotel.makkahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: subtitleSize, font: hotelReg, color: DARK,
+      });
+    }
+  }
+
+  if (madinahHotelText && madinahHotelText !== "—") {
+    drawText(page, madinahHotelText, {
+      leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx, size: cfg.hotel.size,
+      font: hotelBold, color: ORANGE, maxWidthPx: madinahColWidthPx,
+    });
+    if ((data.madinahNights || 0) > 0) {
+      drawText(page, `${data.madinahNights} Malam`, {
+        leftPx: cfg.hotel.madinahXPx, topPx: cfg.hotel.topPx + cfg.hotel.subtitleOffsetPx, size: subtitleSize, font: hotelReg, color: DARK,
+      });
+    }
+  }
 
   // ── 4. PRICING ──
   if (isGroup) {

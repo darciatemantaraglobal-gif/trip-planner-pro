@@ -768,7 +768,16 @@ export default function PackageDetail() {
   const quote = useMemo(() => {
     if (!calc) return null;
     if (calc.mode === "umum") {
-      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates: effectiveRates });
+      return computeGeneralQuote({
+        pax: calc.pax,
+        costs: calc.generalCosts,
+        commissionFee: calc.commissionFee,
+        marginPercent: calc.marginPercent,
+        marginMode: calc.marginMode,
+        marginFixed: calc.marginFixed,
+        discount: calc.discount,
+        rates: effectiveRates,
+      });
     }
     return computeProfessionalQuote({
       pax: calc.pax,
@@ -1125,11 +1134,24 @@ export default function PackageDetail() {
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Destinasi</label>
                 <input
                   type="text"
+                  list="destination-presets-list-pkg"
                   value={calc.destination}
                   onChange={(e) => setField("destination", e.target.value)}
+                  placeholder={calc.mode === "umum" ? "cth: Egypt, Turki, Jepang" : "cth: Mekkah - Madinah"}
                   style={M}
                   className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
                 />
+                <datalist id="destination-presets-list-pkg">
+                  <option value="Mekkah - Madinah - Thaif" />
+                  <option value="Mekkah - Madinah" />
+                  <option value="Madinah - Mekkah" />
+                  <option value="Egypt (Kairo - Alexandria - Luxor)" />
+                  <option value="Turki (Istanbul - Bursa - Cappadocia)" />
+                  <option value="Jepang (Tokyo - Kyoto - Osaka)" />
+                  <option value="Dubai - Abu Dhabi" />
+                  <option value="Eropa Barat (Paris - Swiss - Amsterdam)" />
+                  <option value="Uzbekistan (Tashkent - Samarkand - Bukhara)" />
+                </datalist>
               </div>
               <div className="col-span-1 md:col-span-1 space-y-1">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Jumlah Pax</label>
@@ -1697,17 +1719,42 @@ export default function PackageDetail() {
                 <p style={M} className="text-[10px] text-muted-foreground">Nominal IDR tambahan di atas HPP</p>
               </div>
               <div className="space-y-2">
-                <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
-                  Acceptable Profit / Margin ({calc.marginPercent}%)
-                </label>
-                <Slider
-                  value={[calc.marginPercent]}
-                  min={0} max={50} step={1}
-                  onValueChange={(v) => setField("marginPercent", v[0])}
-                />
-                <div className="flex justify-between text-[10px] text-orange-400 font-medium">
-                  <span>0%</span><span>25%</span><span>50%</span>
+                <div className="flex items-center justify-between gap-1 flex-wrap">
+                  <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">
+                    Profit / Margin
+                  </label>
+                  <div className="flex rounded-md overflow-hidden border border-orange-200 text-[10px] font-bold shrink-0">
+                    <button
+                      type="button"
+                      style={M}
+                      onClick={() => setField("marginMode", "percent")}
+                      className={`px-2 py-0.5 transition-colors ${calc.marginMode !== "fixed" ? "bg-orange-500 text-white" : "bg-white text-orange-600 hover:bg-orange-50"}`}
+                    >% Persen</button>
+                    <button
+                      type="button"
+                      style={M}
+                      onClick={() => setField("marginMode", "fixed")}
+                      className={`px-2 py-0.5 border-l border-orange-200 transition-colors ${calc.marginMode === "fixed" ? "bg-orange-500 text-white" : "bg-white text-orange-600 hover:bg-orange-50"}`}
+                    >IDR Tetap</button>
+                  </div>
                 </div>
+                {calc.marginMode === "fixed" ? (
+                  <>
+                    <NumCell value={calc.marginFixed} onChange={(v) => setField("marginFixed", v)} placeholder="0" />
+                    <p style={M} className="text-[10px] text-muted-foreground">Profit per pax (IDR) — total = × jumlah pax</p>
+                  </>
+                ) : (
+                  <>
+                    <Slider
+                      value={[calc.marginPercent]}
+                      min={0} max={50} step={1}
+                      onValueChange={(v) => setField("marginPercent", v[0])}
+                    />
+                    <div className="flex justify-between text-[10px] text-orange-400 font-medium">
+                      <span>{calc.marginPercent}%</span><span>25%</span><span>50%</span>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="space-y-2">
                 <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">

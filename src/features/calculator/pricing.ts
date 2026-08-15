@@ -321,12 +321,16 @@ export interface GeneralCalcInput {
   costs: GeneralCostRow[];
   commissionFee: number;
   marginPercent: number;
+  /** "percent" = pakai marginPercent (default), "fixed" = pakai marginFixed (IDR/pax) */
+  marginMode?: "percent" | "fixed";
+  /** Profit per pax dalam IDR, dipakai hanya jika marginMode === "fixed" */
+  marginFixed?: number;
   discount: number;
   rates: Rates;
 }
 
 export function computeGeneralQuote(input: GeneralCalcInput): ProfessionalQuote {
-  const { pax, costs, commissionFee, marginPercent, discount, rates } = input;
+  const { pax, costs, commissionFee, marginPercent, marginMode, marginFixed, discount, rates } = input;
   const safePax = Math.max(1, pax);
   const sarRate = rates.SAR ?? 1;
   const usdRate = rates.USD ?? 1;
@@ -357,7 +361,7 @@ export function computeGeneralQuote(input: GeneralCalcInput): ProfessionalQuote 
     totalIDR += groupIDR;
     breakdown.push({
       id: c.id,
-      category: "Biaya",
+      category: c.category || "Biaya",
       label: c.label || "Item",
       notesSAR: sarRef,
       notesUSD: usdRef,
@@ -366,11 +370,15 @@ export function computeGeneralQuote(input: GeneralCalcInput): ProfessionalQuote 
     });
   }
 
+  const effectiveMarginIDR = marginMode === "fixed"
+    ? (marginFixed ?? 0) * safePax
+    : totalIDR * (marginPercent / 100);
+
   return {
     breakdown,
     hotelIDR: 0, transportIDR: 0, ticketIDR: 0, visaIDR: 0, destinationIDR: 0, fnbIDR: 0, staffIDR: 0,
     totalSAR, totalUSD,
-    ...rollup(totalIDR, commissionFee, marginPercent, discount, safePax),
+    ...rollup(totalIDR, commissionFee, effectiveMarginIDR, discount, safePax),
   };
 }
 

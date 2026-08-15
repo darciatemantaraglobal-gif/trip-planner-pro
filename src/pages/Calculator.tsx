@@ -327,6 +327,15 @@ const DESTINATION_PRESETS = [
   "Mekkah - Madinah - Thaif",
   "Mekkah - Madinah",
   "Madinah - Mekkah",
+  "Egypt (Kairo - Alexandria - Luxor)",
+  "Turki (Istanbul - Bursa - Cappadocia)",
+  "Jepang (Tokyo - Kyoto - Osaka)",
+  "Dubai - Abu Dhabi",
+  "Eropa Barat (Paris - Swiss - Amsterdam)",
+  "Uzbekistan (Tashkent - Samarkand - Bukhara)",
+  "Balkans (Bosnia - Kroasia)",
+  "Malaysia - Singapura",
+  "Thailand (Bangkok - Pattaya)",
 ];
 
 function SelectCell({
@@ -597,7 +606,16 @@ export default function Calculator() {
 
   const quote = useMemo(() => {
     if (calc.mode === "umum") {
-      return computeGeneralQuote({ pax: calc.pax, costs: calc.generalCosts, commissionFee: calc.commissionFee, marginPercent: calc.marginPercent, discount: calc.discount, rates: effectiveRates });
+      return computeGeneralQuote({
+        pax: calc.pax,
+        costs: calc.generalCosts,
+        commissionFee: calc.commissionFee,
+        marginPercent: calc.marginPercent,
+        marginMode: calc.marginMode,
+        marginFixed: calc.marginFixed,
+        discount: calc.discount,
+        rates: effectiveRates,
+      });
     }
     return computeProfessionalQuote({
       pax: calc.pax,
@@ -789,37 +807,55 @@ export default function Calculator() {
       ?? findByExplicitName(calc.hotelMadinahName)
       ?? (calc.hotels.length > 1 ? calc.hotels[1] : undefined);
 
-    // Auto-derive "Sudah Termasuk" dari form: visa, tiket, hotel, F&B, destinasi.
-    // Cuma item yg punya label & ada price > 0 (atau set manual) yg ikut.
+    const isUmum = calc.mode === "umum";
+
+    // Auto-derive "Sudah Termasuk" dari form:
+    // - Mode Umum: ambil dari generalCosts
+    // - Mode Umroh: visa, tiket, hotel, F&B, destinasi
     const derivedIncluded: string[] = [];
-    for (const v of calc.visas) {
-      const label = v.label?.trim();
-      if (label) derivedIncluded.push(label);
-    }
-    for (const t of calc.tickets) {
-      const label = t.label?.trim();
-      if (label) {
-        derivedIncluded.push(t.flightType ? `Tiket ${label} (${t.flightType})` : `Tiket ${label}`);
+    if (isUmum) {
+      for (const c of calc.generalCosts) {
+        const label = c.label?.trim();
+        if (label && c.amount > 0) {
+          const qtyStr = (c.qty && c.qty > 1) ? ` (${c.qty}x)` : "";
+          derivedIncluded.push(`${label}${qtyStr}`);
+        }
+      }
+    } else {
+      for (const v of calc.visas) {
+        const label = v.label?.trim();
+        if (label) derivedIncluded.push(label);
+      }
+      for (const t of calc.tickets) {
+        const label = t.label?.trim();
+        if (label) {
+          derivedIncluded.push(t.flightType ? `Tiket ${label} (${t.flightType})` : `Tiket ${label}`);
+        }
+      }
+      if (makkahHotel?.label) {
+        derivedIncluded.push(`Hotel Makkah ${makkahHotel.label} (${makkahHotel.days || 0} Malam)`);
+      }
+      if (madinahHotel?.label) {
+        derivedIncluded.push(`Hotel Madinah ${madinahHotel.label} (${madinahHotel.days || 0} Malam)`);
+      }
+      for (const d of calc.destinations) {
+        const label = d.label?.trim();
+        if (label) derivedIncluded.push(label);
+      }
+      for (const f of calc.fnbs) {
+        const label = f.label?.trim();
+        if (label) derivedIncluded.push(`Konsumsi ${label}`);
       }
     }
-    if (makkahHotel?.label) {
-      derivedIncluded.push(`Hotel Makkah ${makkahHotel.label} (${makkahHotel.days || 0} Malam)`);
-    }
-    if (madinahHotel?.label) {
-      derivedIncluded.push(`Hotel Madinah ${madinahHotel.label} (${madinahHotel.days || 0} Malam)`);
-    }
-    for (const d of calc.destinations) {
-      const label = d.label?.trim();
-      if (label) derivedIncluded.push(label);
-    }
-    for (const f of calc.fnbs) {
-      const label = f.label?.trim();
-      if (label) derivedIncluded.push(`Konsumsi ${label}`);
-    }
 
-    // Default "Belum Termasuk" yg umum di package umroh — user bisa override
-    // lewat calc.excludedItems kalau perlu.
-    const defaultExcluded = [
+    // Default "Belum Termasuk"
+    const defaultExcluded = isUmum ? [
+      "Pengeluaran pribadi (laundry, roaming, minibar, dll)",
+      "Kelebihan bagasi pesawat (excess baggage)",
+      "Tipping Tour Leader / Guide / Driver (opsional)",
+      "Tour tambahan di luar program itinerary",
+      "Biaya pembuatan paspor & dokumen pribadi",
+    ] : [
       "Pengeluaran pribadi (laundry, telepon, dll)",
       "Vaksin Meningitis",
       "Kelebihan bagasi pesawat",
@@ -896,28 +932,40 @@ export default function Calculator() {
       groupPricingRows = Array.from(byTier.values());
     }
 
+    // Resolve hotel names for PDF:
+    // If Mode Umum, use custom hotel/accommodation row or blank
+    const umumHotel = isUmum ? calc.generalCosts.find((c) => c.category === "akomodasi" || /hotel|resort|villa|penginapan/i.test(c.label || "")) : undefined;
+    const hotelMakkah = isUmum
+      ? (calc.hotelMakkahName || umumHotel?.label || "")
+      : (calc.hotelMakkahName || makkahHotel?.label || "");
+    const makkahNights = isUmum
+      ? (typeof calc.makkahNightsOverride === "number" && calc.makkahNightsOverride > 0 ? calc.makkahNightsOverride : (umumHotel?.qty || 0))
+      : (typeof calc.makkahNightsOverride === "number" && calc.makkahNightsOverride > 0 ? calc.makkahNightsOverride : (makkahHotel?.days || 0));
+    const hotelMadinah = isUmum ? (calc.hotelMadinahName || "") : (calc.hotelMadinahName || madinahHotel?.label || "");
+    const madinahNights = isUmum
+      ? (calc.madinahNightsOverride || 0)
+      : (typeof calc.madinahNightsOverride === "number" && calc.madinahNightsOverride > 0 ? calc.madinahNightsOverride : (madinahHotel?.days || 0));
+
     return {
       projectName:
         calc.title?.trim() ||
         calc.packageName?.trim() ||
-        (calc.customerName ? `Umroh ${calc.customerName}` : "Penawaran Paket"),
+        (calc.customerName
+          ? (isUmum ? `Trip ${calc.customerName}` : `Umroh ${calc.customerName}`)
+          : (calc.destination ? `Paket ${calc.destination}` : "Penawaran Paket")),
       timeline,
       timelineShort,
       customerName: calc.customerName || "—",
       date: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }),
-      hotelMakkah: calc.hotelMakkahName || makkahHotel?.label || "",
-      makkahNights: (typeof calc.makkahNightsOverride === "number" && calc.makkahNightsOverride > 0)
-        ? calc.makkahNightsOverride
-        : (makkahHotel?.days || 0),
-      hotelMadinah: calc.hotelMadinahName || madinahHotel?.label || "",
-      madinahNights: (typeof calc.madinahNightsOverride === "number" && calc.madinahNightsOverride > 0)
-        ? calc.madinahNightsOverride
-        : (madinahHotel?.days || 0),
+      hotelMakkah,
+      makkahNights,
+      hotelMadinah,
+      madinahNights,
       pax: calc.pax || 0,
       pricePerPaxIDR: quote?.perPaxFinal ?? 0,
       kursIdrPerUsd: effectiveRates.USD,
       kursIdrPerSar: effectiveRates.SAR,
-      included: userIncluded.length > 0 ? userIncluded : derivedIncluded.slice(0, 6),
+      included: userIncluded.length > 0 ? userIncluded : derivedIncluded.slice(0, 8),
       excluded: userExcluded.length > 0 ? userExcluded : defaultExcluded,
       mode: isGroupMode ? "group" : "private",
       groupPricing: groupPricingRows,
@@ -1199,15 +1247,18 @@ export default function Calculator() {
           </div>
           <div className="space-y-1">
             <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Destinasi</label>
-            <select
+            <input
+              type="text"
+              list="destination-presets-list"
               value={calc.destination}
               onChange={(e) => setField("destination", e.target.value)}
+              placeholder={calc.mode === "umum" ? "cth: Egypt, Turki, Jepang" : "cth: Mekkah - Madinah"}
               style={M}
               className="w-full h-8 rounded-lg border border-orange-200 bg-white px-2 text-[12px] focus:outline-none focus:ring-1 focus:ring-orange-400"
-            >
-              <option value="">Pilih rute</option>
-              {DESTINATION_PRESETS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
+            />
+            <datalist id="destination-presets-list">
+              {DESTINATION_PRESETS.map((d) => <option key={d} value={d} />)}
+            </datalist>
           </div>
           <div className="space-y-1">
             <label style={M} className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Jumlah Pax</label>
